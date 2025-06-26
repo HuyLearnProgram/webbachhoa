@@ -1,0 +1,226 @@
+[2025-06-19 13:53:07] === BẮT ĐẦU TEST:  ===
+[2025-06-19 13:53:07] === BẮT ĐẦU TEST CASE TC01: THÊM SẢN PHẨM VỚI SỐ LƯỢNG HỢP LỆ ===
+[2025-06-19 13:53:24] ✓ Sản phẩm 1: Thêm thành công
+[2025-06-19 13:53:38] ✗ Sản phẩm 2: Thêm thất bại
+[2025-06-19 13:53:47] ✓ Sản phẩm 3: Thêm thành công
+[2025-06-19 13:53:51] [TEST FAILED] - Thêm thành công 2/3 sản phẩm và xác minh giỏ hàng chính xác (Level: Medium)
+[2025-06-19 13:53:51] === TEST THÀNH CÔNG ===
+[2025-06-19 13:53:51] === KẾT THÚC TEST: ===
+
+[2025-06-19 13:54:16] === BẮT ĐẦU TEST:  ===
+[2025-06-19 13:54:16] === BẮT ĐẦU TEST CASE TC01: THÊM SẢN PHẨM VỚI SỐ LƯỢNG HỢP LỆ ===
+[2025-06-19 13:54:33] ✓ Sản phẩm 1: Thêm thành công
+[2025-06-19 13:54:40] ✓ Sản phẩm 2: Thêm thành công
+[2025-06-19 13:54:48] ✓ Sản phẩm 3: Thêm thành công
+[2025-06-19 13:54:52] [TEST PASSED] - Tất cả 3 sản phẩm đã được thêm vào giỏ hàng thành công (Level: High)
+[2025-06-19 13:54:52] === TEST THÀNH CÔNG ===
+[2025-06-19 13:54:52] === KẾT THÚC TEST: ===
+
+[2025-06-19 13:55:55] === BẮT ĐẦU TEST:  ===
+[2025-06-19 13:55:55] === BẮT ĐẦU TEST CASE TC03: MỞ TRANG GIỎ HÀNG ===
+[2025-06-19 13:56:06] ✓ URL sau khi click: http://localhost:5173/cart
+[2025-06-19 13:56:06] [TEST PASSED] - Đã vào được trang giỏ hàng (Level: Sufficient)
+[2025-06-19 13:56:09] [TEST PASSED] - Đã kiểm tra được thông tin trong giỏ (Level: Sufficient)
+[2025-06-19 13:56:09] === TEST THÀNH CÔNG ===
+[2025-06-19 13:56:09] === KẾT THÚC TEST: ===
+
+[2025-06-19 13:56:56] === BẮT ĐẦU TEST:  ===
+[2025-06-19 13:56:56] === BẮT ĐẦU TEST CASE TC04: CHỌN SẢN PHẨM TRONG GIỎ HÀNG ===
+[2025-06-19 13:56:56] === ĐĂNG NHẬP VÀO HỆ THỐNG ===
+[2025-06-19 13:57:10] [TEST PASSED] - Điều hướng đến trang giỏ hàng thành công (Level: Sufficient)
+[2025-06-19 13:57:10] [TEST PASSED] - Xác định thành công 3 checkbox sản phẩm và 1 checkbox chọn tất cả (Level: Sufficient)
+[2025-06-19 13:57:12] [TEST PASSED] - Chọn sản phẩm thành công - 2 sản phẩm được chọn và chức năng 'Chọn tất cả' hoạt động (Level: Sufficient)
+[2025-06-19 13:57:12] [TEST PASSED] - TEST CASE TC05 HOÀN THÀNH - Kiểm tra chức năng chọn sản phẩm thành công với 3 sản phẩm (Level: Sufficient)
+[2025-06-19 13:57:12] === TEST THÀNH CÔNG ===
+[2025-06-19 13:57:12] === KẾT THÚC TEST: ===
+
+[2025-06-19 13:58:05] === BẮT ĐẦU TEST:  ===
+[2025-06-19 13:58:05] === BẮT ĐẦU TEST CASE TC05 XỬ LÝ GIỎ HÀNG TRỐNG ===
+[2025-06-19 13:58:16] [TEST PASSED] - Đăng nhập thành công (Level: Sufficient)
+[2025-06-19 13:58:16] [TEST INCONCLUSIVE] - Giỏ hàng hiện tại: 3 sản phẩm - cần xóa sản phẩm (Level: Medium)
+[2025-06-19 13:58:19] [TEST PASSED] - Truy cập trang giỏ hàng thành công (Level: Sufficient)
+[2025-06-19 13:58:19] [TEST FAILED] - Hệ thống không phát hiện đúng - tìm thấy 3 sản phẩm (Level: Below Expectation)
+[2025-06-19 13:58:19] === TEST THẤT BẠI ===
+[2025-06-19 13:58:19] === KẾT THÚC TEST: ===
+
+[2025-06-19 13:59:09] === BẮT ĐẦU TEST:  ===
+[2025-06-19 13:59:09] === BẮT ĐẦU TEST CASE TC06: HIỂN THỊ VÀ PHÂN LOẠI VOUCHER THEO ĐIỀU KIỆN ===
+[2025-06-19 13:59:42] [TEST PASSED] - Bước 1: Modal voucher mở thành công với cấu trúc đầy đủ (Level: Exemplary)
+[2025-06-19 13:59:42] [TEST PASSED] - Bước 2: Voucher 1 hiển thị đầy đủ thông tin - Mã: GIAM5PHANTRAM (Level: Sufficient)
+[2025-06-19 13:59:42] [TEST PASSED] - Bước 2: Voucher 2 hiển thị đầy đủ thông tin - Mã: GIAM20PHANTRAM (Level: Sufficient)
+[2025-06-19 13:59:42] [TEST PASSED] - Bước 2: Hiển thị 2 voucher với thông tin đầy đủ (Level: Exemplary)
+[2025-06-19 13:59:42] [TEST PASSED] - Bước 3: Voucher hợp lệ GIAM5PHANTRAM (Tối thiểu: 150,000đ vs Giỏ hàng: 500,000đ) (Level: Sufficient)
+[2025-06-19 13:59:42] [UNKNOWN STATUS] - Bước 3: Voucher GIAM20PHANTRAM không hợp lệ (Tối thiểu: 10,000,000đ vs Giỏ hàng: 500,000đ) - Sẽ kiểm tra ở bước 4 (Level: Sufficient)
+[2025-06-19 13:59:42] [TEST PASSED] - Bước 3: Tìm thấy 1 voucher hợp lệ (Level: Exemplary)
+[2025-06-19 13:59:42] [TEST PASSED] - Bước 4: Voucher không hợp lệ GIAM20PHANTRAM bị vô hiệu hóa đúng (Tối thiểu: 10,000,000đ vs Giỏ hàng: 500,000đ) (Level: Sufficient)
+[2025-06-19 13:59:42] [TEST PASSED] - Bước 4: Tìm thấy 1 voucher không hợp lệ được vô hiệu hóa đúng (Level: Exemplary)
+[2025-06-19 13:59:46] [TEST PASSED] - Bước 5: Tương tác với voucher hợp lệ GIAM5PHANTRAM hoạt động đúng (Level: Exemplary)
+[2025-06-19 13:59:48] [TEST PASSED] - Bước 6: Voucher không hợp lệ GIAM20PHANTRAM không phản hồi khi click (đúng) (Level: Exemplary)
+[2025-06-19 13:59:48] [TEST PASSED] - Bước 7: Nút OK hoạt động đúng với voucher hợp lệ (Level: Sufficient)
+[2025-06-19 13:59:50] [TEST PASSED] - Bước 8: Modal đóng thành công khi click 'Trở lại' (Level: Exemplary)
+[2025-06-19 13:59:50] [TEST PASSED] - TC06 HOÀN THÀNH THÀNH CÔNG - Tất cả các bước đều PASS (Level: Exemplary)
+[2025-06-19 13:59:50] === KẾT THÚC TEST CASE TC06 ===
+[2025-06-19 13:59:56] === TEST THÀNH CÔNG ===
+[2025-06-19 13:59:56] === KẾT THÚC TEST: ===
+
+[2025-06-19 14:00:40] === BẮT ĐẦU TEST:  ===
+[2025-06-19 14:00:40] === BẮT ĐẦU TEST CASE TC07: TÍNH TOÁN LẠI TỔNG TIỀN ĐƠN HÀNG SAU KHI ÁP DỤNG VOUCHER ===
+[2025-06-19 14:00:40] --------------------------------------------------
+[2025-06-19 14:00:51] [TEST PASSED] - Đăng nhập thành công (Level: Exemplary)
+[2025-06-19 14:00:54] [TEST PASSED] - Thêm sản phẩm vào giỏ hàng thành công (Level: Exemplary)
+[2025-06-19 14:00:54] [TEST PASSED] - Đã chọn sản phẩm trong giỏ hàng (Level: Sufficient)
+[2025-06-19 14:00:54] [TEST PASSED] - Đã tìm thấy nút thanh toán (Level: Sufficient)
+[2025-06-19 14:00:56] [TEST PASSED] - Nút thanh toán hoạt động bình thường (Level: Sufficient)
+[2025-06-19 14:00:59] [TEST PASSED] - Áp dụng mã giảm giá thành công (Level: Exemplary)
+[2025-06-19 14:01:01] [TEST PASSED] - TC07 - Tổng tiền giảm từ 2,568,000đ xuống 2,439,600đ (giảm 128,400đ) (Level: Exemplary)
+[2025-06-19 14:01:01] [TEST PASSED] - Áp dụng mã giảm giá thành công (Level: Exemplary)
+[2025-06-19 14:01:03] [TEST PASSED] - Toàn bộ use case mua hàng hoàn tất (Level: Exemplary)
+[2025-06-19 14:01:03] --------------------------------------------------
+[2025-06-19 14:01:06] === TEST THÀNH CÔNG ===
+[2025-06-19 14:01:06] === KẾT THÚC TEST: ===
+
+[2025-06-19 14:01:30] === BẮT ĐẦU TEST:  ===
+[2025-06-19 14:01:30] === BẮT ĐẦU TEST CASE TC07TC09: KIỂM TRA VALIDATION SỐ ĐIỆN THOẠI HỢP LỆ ===
+[2025-06-19 14:01:30] --------------------------------------------------
+[2025-06-19 14:01:41] [TEST PASSED] - Đăng nhập thành công (Level: Exemplary)
+[2025-06-19 14:01:45] [TEST PASSED] - Thêm sản phẩm vào giỏ hàng thành công (Level: Exemplary)
+[2025-06-19 14:01:46] [TEST PASSED] - Đã chọn sản phẩm trong giỏ hàng (Level: Sufficient)
+[2025-06-19 14:01:46] [TEST PASSED] - Đã tìm thấy nút thanh toán (Level: Sufficient)
+[2025-06-19 14:01:48] [TEST PASSED] - Nút thanh toán hoạt động bình thường (Level: Sufficient)
+[2025-06-19 14:01:48] [TEST PASSED] - Thông tin giao hàng đã điền hợp lệ (Level: Sufficient)
+[2025-06-19 14:01:51] [TEST PASSED] - Đã click nút thanh toán - Test validation thành công (Level: Sufficient)
+[2025-06-19 14:01:53] [TEST PASSED] - Validation hoạt động - Hiển thị 2 thông báo lỗi: Vui lòng nhập địa chỉ của bạn, Vui lòng điền thông tin (Level: Exemplary)
+[2025-06-19 14:01:53] --------------------------------------------------
+[2025-06-19 14:02:00] === TEST THÀNH CÔNG ===
+[2025-06-19 14:02:00] === KẾT THÚC TEST: ===
+
+[2025-06-19 14:02:16] === BẮT ĐẦU TEST:  ===
+[2025-06-19 14:02:16] === BẮT ĐẦU TEST CASE TC11: KIỂM TRA CHỨC NĂNG CHỌN PHƯƠNG THỨC THANH TOÁN KHI NHẬN HÀNG (COD) ===
+[2025-06-19 14:02:16] --------------------------------------------------
+[2025-06-19 14:02:27] [TEST PASSED] - Đăng nhập thành công (Level: Exemplary)
+[2025-06-19 14:02:31] [TEST PASSED] - Thêm sản phẩm vào giỏ hàng thành công (Level: Exemplary)
+[2025-06-19 14:02:31] [TEST PASSED] - Đã chọn sản phẩm trong giỏ hàng (Level: Sufficient)
+[2025-06-19 14:02:31] [TEST PASSED] - Đã tìm thấy nút thanh toán (Level: Sufficient)
+[2025-06-19 14:02:33] [TEST PASSED] - Nút thanh toán hoạt động bình thường (Level: Sufficient)
+[2025-06-19 14:02:34] [TEST PASSED] - Thông tin giao hàng đã điền hợp lệ (Level: Sufficient)
+[2025-06-19 14:02:37] [TEST PASSED] - Đã chọn thanh toán khi nhận hàng thành công (Level: Exemplary)
+[2025-06-19 14:02:37] --------------------------------------------------
+[2025-06-19 14:02:44] === TEST THÀNH CÔNG ===
+[2025-06-19 14:02:44] === KẾT THÚC TEST: ===
+
+[2025-06-19 14:03:03] === BẮT ĐẦU TEST:  ===
+[2025-06-19 14:03:03] === BẮT ĐẦU TEST CASE TC03: CHỌN PHƯƠNG THỨC THANH TOÁN BẰNG VNPAY ===
+[2025-06-19 14:03:03] --------------------------------------------------
+[2025-06-19 14:03:24] [TEST PASSED] - TC12 - Đã chọn thanh toán bằng VNPAY thành công (Level: Exemplary)
+[2025-06-19 14:03:29] [TEST PASSED] - Redirect đến VNPAY thành công: https://sandbox.vnpayment.vn/paymentv2/Ncb/Transaction/Index.html?token=29b912e0627e4b138f5fce55391e9475 (Level: Exemplary)
+[2025-06-19 14:03:29] [TEST PASSED] - Hoàn thành điền thông tin thẻ VNPAY (Level: Exemplary)
+[2025-06-19 14:03:30] [TEST PASSED] - Đã nhấn nút Tiếp tục thành công (Level: Sufficient)
+[2025-06-19 14:03:34] [TEST PASSED] - Đã nhấn nút 'Đồng ý & Tiếp tục' bằng JavaScript (Level: Exemplary)
+[2025-06-19 14:03:35] [TEST PASSED] - Đã nhập mã OTP: 123456 (Level: Sufficient)
+[2025-06-19 14:03:38] [TEST PASSED] - Đã nhấn nút Thanh toán cuối cùng (Level: Sufficient)
+[2025-06-19 14:03:43] [TEST PASSED] - Hoàn thành thanh toán VNPAY - URL cuối: http://localhost:5173/payment-success (Level: Exemplary)
+[2025-06-19 14:03:43] [TEST PASSED] - Thanh toán VNPAY thành công (Level: Exemplary)
+[2025-06-19 14:03:43] --------------------------------------------------
+[2025-06-19 14:03:53] === TEST THÀNH CÔNG ===
+[2025-06-19 14:03:53] === KẾT THÚC TEST: ===
+
+[2025-06-19 14:04:24] === BẮT ĐẦU TEST:  ===
+[2025-06-19 14:04:24] === BẮT ĐẦU TEST CASE TC14: ÁP DỤNG VOUCHER ĐỒNG THỜI TRÊN 2 TAB ===
+[2025-06-19 14:04:24] ============================================================
+[2025-06-19 14:04:24] [Tab 1] Đăng nhập và chuẩn bị đơn hàng
+[2025-06-19 14:04:35] [TEST PASSED] - Đăng nhập thành công (Level: Exemplary)
+[2025-06-19 14:04:37] [TEST PASSED] - Thêm sản phẩm vào giỏ hàng thành công (Level: Exemplary)
+[2025-06-19 14:04:39] [TEST PASSED] - Đã chọn sản phẩm trong giỏ hàng (Level: Sufficient)
+[2025-06-19 14:04:40] [TEST PASSED] - Đã tìm thấy nút thanh toán (Level: Sufficient)
+[2025-06-19 14:04:43] [TEST PASSED] - Nút thanh toán hoạt động bình thường (Level: Sufficient)
+[2025-06-19 14:04:44] [TEST PASSED] - Thông tin giao hàng đã điền hợp lệ (Level: Sufficient)
+[2025-06-19 14:04:50] [TEST PASSED] - Áp dụng mã giảm giá thành công (Level: Exemplary)
+[2025-06-19 14:04:51] [Tab 1] Tạm dừng – Mã giảm giá đã áp dụng thành công, chưa thanh toán
+[2025-06-19 14:04:51] [Tab 2] Mở tab mới và thực hiện đặt hàng
+[2025-06-19 14:04:53] [TEST PASSED] - Thêm sản phẩm vào giỏ hàng thành công (Level: Exemplary)
+[2025-06-19 14:04:55] [TEST PASSED] - Đã chọn sản phẩm trong giỏ hàng (Level: Sufficient)
+[2025-06-19 14:04:56] [TEST PASSED] - Đã tìm thấy nút thanh toán (Level: Sufficient)
+[2025-06-19 14:04:58] [TEST PASSED] - Nút thanh toán hoạt động bình thường (Level: Sufficient)
+[2025-06-19 14:04:58] [TEST PASSED] - Thông tin giao hàng đã điền hợp lệ (Level: Sufficient)
+[2025-06-19 14:05:02] [TEST PASSED] - Áp dụng mã giảm giá thành công (Level: Exemplary)
+[2025-06-19 14:05:03] [TEST PASSED] - Chọn phương thức thanh toán COD thành công (Level: Sufficient)
+[2025-06-19 14:05:03] [Tab 2] Thanh toán thành công với mã giảm giá
+[2025-06-19 14:05:08] [Tab 1] Quay lại để thử thanh toán với mã đã bị dùng
+[2025-06-19 14:05:08] [TEST PASSED] - Chọn phương thức thanh toán COD thành công (Level: Sufficient)
+[2025-06-19 14:05:18] [TEST FAILED] - TAB 1 vẫn thanh toán được khi mã đã bị dùng (Level: Below Expectation)
+[2025-06-19 14:05:18] ============================================================
+[2025-06-19 14:05:18] === TEST THÀNH CÔNG ===
+[2025-06-19 14:05:18] === KẾT THÚC TEST: ===
+
+[2025-06-19 14:05:27] === BẮT ĐẦU TEST:  ===
+[2025-06-19 14:05:27] === BẮT ĐẦU TEST CASE TC14: ÁP DỤNG VOUCHER ĐỒNG THỜI TRÊN 2 TAB ===
+[2025-06-19 14:05:27] ============================================================
+[2025-06-19 14:05:27] [Tab 1] Đăng nhập và chuẩn bị đơn hàng
+[2025-06-19 14:05:38] [TEST PASSED] - Đăng nhập thành công (Level: Exemplary)
+[2025-06-19 14:05:40] [TEST PASSED] - Thêm sản phẩm vào giỏ hàng thành công (Level: Exemplary)
+[2025-06-19 14:05:42] [TEST PASSED] - Đã chọn sản phẩm trong giỏ hàng (Level: Sufficient)
+[2025-06-19 14:05:43] [TEST PASSED] - Đã tìm thấy nút thanh toán (Level: Sufficient)
+[2025-06-19 14:05:45] [TEST PASSED] - Nút thanh toán hoạt động bình thường (Level: Sufficient)
+[2025-06-19 14:05:46] [TEST PASSED] - Thông tin giao hàng đã điền hợp lệ (Level: Sufficient)
+[2025-06-19 14:05:49] [TEST PASSED] - Áp dụng mã giảm giá thành công (Level: Exemplary)
+[2025-06-19 14:05:50] [Tab 1] Tạm dừng – Mã giảm giá đã áp dụng thành công, chưa thanh toán
+[2025-06-19 14:05:50] [Tab 2] Mở tab mới và thực hiện đặt hàng
+[2025-06-19 14:05:52] [TEST PASSED] - Thêm sản phẩm vào giỏ hàng thành công (Level: Exemplary)
+[2025-06-19 14:05:54] [TEST PASSED] - Đã chọn sản phẩm trong giỏ hàng (Level: Sufficient)
+[2025-06-19 14:05:55] [TEST PASSED] - Đã tìm thấy nút thanh toán (Level: Sufficient)
+[2025-06-19 14:05:57] [TEST PASSED] - Nút thanh toán hoạt động bình thường (Level: Sufficient)
+[2025-06-19 14:05:58] [TEST PASSED] - Thông tin giao hàng đã điền hợp lệ (Level: Sufficient)
+[2025-06-19 14:06:02] [TEST PASSED] - Áp dụng mã giảm giá thành công (Level: Exemplary)
+[2025-06-19 14:06:03] [TEST PASSED] - Chọn phương thức thanh toán COD thành công (Level: Sufficient)
+[2025-06-19 14:06:03] [Tab 2] Thanh toán thành công với mã giảm giá
+[2025-06-19 14:06:08] [Tab 1] Quay lại để thử thanh toán với mã đã bị dùng
+[2025-06-19 14:06:08] [TEST PASSED] - Chọn phương thức thanh toán COD thành công (Level: Sufficient)
+[2025-06-19 14:06:18] [TEST FAILED] - TAB 1 vẫn thanh toán được khi mã đã bị dùng (Level: Below Expectation)
+[2025-06-19 14:06:18] ============================================================
+[2025-06-19 14:06:18] === TEST THÀNH CÔNG ===
+[2025-06-19 14:06:18] === KẾT THÚC TEST: ===
+
+[2025-06-19 14:06:38] === BẮT ĐẦU TEST:  ===
+[2025-06-19 14:06:38] === BẮT ĐẦU TEST CASE TC14: ÁP DỤNG VOUCHER ĐỒNG THỜI TRÊN 2 TAB ===
+[2025-06-19 14:06:38] ============================================================
+[2025-06-19 14:06:38] [Tab 1] Đăng nhập và chuẩn bị đơn hàng
+[2025-06-19 14:06:49] [TEST PASSED] - Đăng nhập thành công (Level: Exemplary)
+[2025-06-19 14:06:57] [TEST PASSED] - Thêm sản phẩm vào giỏ hàng thành công (Level: Exemplary)
+[2025-06-19 14:06:59] [TEST PASSED] - Đã chọn sản phẩm trong giỏ hàng (Level: Sufficient)
+[2025-06-19 14:07:00] [TEST PASSED] - Đã tìm thấy nút thanh toán (Level: Sufficient)
+[2025-06-19 14:07:02] [TEST PASSED] - Nút thanh toán hoạt động bình thường (Level: Sufficient)
+[2025-06-19 14:07:03] [TEST PASSED] - Thông tin giao hàng đã điền hợp lệ (Level: Sufficient)
+[2025-06-19 14:07:06] [TEST PASSED] - Áp dụng mã giảm giá thành công (Level: Exemplary)
+[2025-06-19 14:07:07] [Tab 1] Tạm dừng – Mã giảm giá đã áp dụng thành công, chưa thanh toán
+[2025-06-19 14:07:07] [Tab 2] Mở tab mới và thực hiện đặt hàng
+[2025-06-19 14:07:10] [TEST PASSED] - Thêm sản phẩm vào giỏ hàng thành công (Level: Exemplary)
+[2025-06-19 14:07:12] [TEST PASSED] - Đã chọn sản phẩm trong giỏ hàng (Level: Sufficient)
+[2025-06-19 14:07:13] [TEST PASSED] - Đã tìm thấy nút thanh toán (Level: Sufficient)
+[2025-06-19 14:07:15] [TEST PASSED] - Nút thanh toán hoạt động bình thường (Level: Sufficient)
+[2025-06-19 14:07:16] [TEST PASSED] - Thông tin giao hàng đã điền hợp lệ (Level: Sufficient)
+[2025-06-19 14:07:20] [TEST PASSED] - Áp dụng mã giảm giá thành công (Level: Exemplary)
+[2025-06-19 14:07:21] [TEST PASSED] - Chọn phương thức thanh toán COD thành công (Level: Sufficient)
+[2025-06-19 14:07:21] [Tab 2] Thanh toán thành công với mã giảm giá
+[2025-06-19 14:07:26] [Tab 1] Quay lại để thử thanh toán với mã đã bị dùng
+[2025-06-19 14:07:26] [TEST PASSED] - Chọn phương thức thanh toán COD thành công (Level: Sufficient)
+[2025-06-19 14:07:36] [TEST PASSED] - TAB 1 bị từ chối thanh toán như kỳ vọng (Level: Exemplary)
+[2025-06-19 14:07:36] ============================================================
+[2025-06-19 14:07:36] === TEST THÀNH CÔNG ===
+[2025-06-19 14:07:36] === KẾT THÚC TEST: ===
+
+[2025-06-19 16:05:51] === BẮT ĐẦU TEST:  ===
+[2025-06-19 16:05:51] Bắt đầu test case: Cập nhật thông tin giao hàng với dữ liệu không hợp lệ
+[2025-06-19 16:05:51] Đã truy cập trang web thành công!
+[2025-06-19 16:05:57] Đã đăng nhập thành công!
+[2025-06-19 16:05:57] Đã vào Admin Workplace
+[2025-06-19 16:05:57] Đã vào trang đơn đặt hàng thành công!
+[2025-06-19 16:06:01] Đã lọc theo trạng thái Pending thành công!
+[2025-06-19 16:06:04] Đang tìm đơn hàng Pending để xem chi tiết...
+[2025-06-19 16:06:04] Đã tìm thấy đơn hàng Pending ID: 244
+[2025-06-19 16:06:06] Đã vào trang chi tiết đơn hàng
+[2025-06-19 16:06:08] Đã mở modal cập nhật thông tin
+[2025-06-19 16:06:08] Đang cập nhật thông tin giao hàng với dữ liệu không hợp lệ...
+[2025-06-19 16:06:15] Đã phát hiện lỗi validation: Số điện thoại phải từ 9 đến 11 chữ số và bắt đầu bằng số 0
+[2025-06-19 16:06:20] === TEST THÀNH CÔNG ===
+[2025-06-19 16:06:20] === KẾT THÚC TEST: ===
+

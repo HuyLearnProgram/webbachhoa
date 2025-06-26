@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Thông tin thanh toán</title>
+  <style>
+    body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        background-color: #f4f4f4;
+    }
+    .header {
+            background-color: #4a90e2;
+            color: #ffffff;
+            padding: 15px;
+            text-align: center;
+        }
+    .content {
+            padding: 20px;
+    }
+    h2 {
+            color: #333333;
+            margin-top: 0;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+         margin-top: 20px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: left;
+    }
+    th {
+        background-color: #f8f8f8;
+        font-weight: bold;
+        color: #333333;
+    }
+    .total-row {
+        font-weight: bold;
+        background-color: #f2f2f2;
+    }
+    .footer {
+            background-color: #f8f8f8;
+            color: #666666;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+        }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Thông tin thanh toán</h2>
+    </div>
+    <div class="content">
+      <p>Gửi <span th:text="${NAME}"></span>,</p>
+      <p>Cảm ơn bạn đã đặt hàng sản phẩm của chúng tôi. Dưới đây là thông tin đơn hàng của bạn:</p>
+      <hr>
+      <div style="display:flex;">
+        <p style="margin-right: 5px;">Khách hàng: </p>
+        <p th:text="${customerName}"></p>
+      </div>
+      <div style="display:flex;">
+        <p style="margin-right: 5px;">Địa chỉ giao hàng: </p>
+        <p th:text="${customerAddress}"></p>
+      </div>
+      <div style="display:flex;">
+        <p style="margin-right: 5px;">Số điện thoại: </p>
+        <p th:text="${customerPhone}"></p>
+      </div>
+      <div style="display:flex;">
+        <p style="margin-right: 5px;">Thời gian thanh toán: </p>
+        <p  th:text="${invoiceDate}"></p>
+      </div>
+      <div style="display:flex;">
+        <p style="margin-right: 5px;">Phương thức thanh toán: </p>
+        <p  th:text="${paymentMethod}"></p>
+      </div>
+
+      <table>
+        <thead>
+        <tr>
+          <th>Sản Phẩm</th>
+          <th>Số lượng</th>
+          <th>Giá</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${items}">
+          <td th:text="${item.productName}"></td>
+          <td th:text="${item.quantity}"></td>
+          <td th:text="${item.formattedPrice}"></td>
+        </tr>
+        </tbody>
+        <tfoot>
+        <tr class="total-row">
+          <td colspan="2">Tổng tiền</td>
+          <td th:text="${TOTAL_PRICE}"></td>
+        </tr>
+        </tfoot>
+      </table>
+
+      <p>Nếu bạn có bất kỳ câu hỏi nào vui lòng liên hệ với chúng tôi.</p>
+    </div>
+    <div class="footer">
+      <p>&copy; website nông sản</p>
+    </div>
+  </div>
+</body>
+</html>

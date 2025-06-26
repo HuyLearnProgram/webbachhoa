@@ -1,0 +1,11 @@
+node_modules
+.dockerignore
+Dockerfile
+.git
+.vscode
+.idea
+*.log
+*.lnk
+*.db
+*.DS_Store
+*.ini

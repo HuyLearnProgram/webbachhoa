@@ -1,0 +1,92 @@
+security:
+  allowed-urls:
+    - path: /api/v2/auth/*
+      methods:
+        - GET
+        - POST
+        - PUT
+    - path: /storage/*
+      methods:
+        - GET
+    - path: /api/v2/product/ratings/*
+      methods:
+        - GET
+    - path: /api/v2/product/ratings
+      methods:
+        - PUT
+        - GET
+    - path: /api/v2/categories/*
+      methods:
+        - GET
+    - path: /api/v2/categories
+      methods:
+        - GET
+    - path: /api/v2/products/*
+      methods:
+        - GET
+    - path: /api/v2/products/search
+      methods:
+        - GET
+    - path: /api/v2/products
+      methods:
+        - GET
+    - path: /api/v2/files
+      methods:
+        - POST
+        - GET
+    - path: /api/v2/cart
+      methods:
+        - POST
+        - DELETE
+        - GET
+    - path: /api/v2/cart/*
+      methods:
+        - DELETE
+    - path: /api/v2/cart/product-selected
+      methods:
+        - GET
+    - path: /api/v2/checkout
+      methods:
+        - POST
+    - path: /api/v2/users/*
+      methods:
+        - GET
+    - path: /api/v2/wishlist
+      methods:
+        - GET
+        - POST
+        - DELETE
+    - path: /api/v2/orders
+      methods:
+        - GET
+    - path: /storage/avatar/*
+      methods:
+        - GET
+    - path: /storage/category/*
+      methods:
+        - GET
+    - path: /storage/product/*
+      methods:
+        - GET
+    - path: /api/v2/payment/vn-pay-callback
+      methods:
+        - GET
+        - POST
+    - path: /api/v2/checkout/email
+      methods:
+        - POST
+    - path: /api/v2/products/quantity/*
+      methods:
+        - PUT
+    - path: /api/v2/products/similar/*
+      methods:
+        - GET
+    - path: /api/v2/auth/signin/google
+      methods:
+        - POST
+    - path: /api/v2/vouchers/*
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE

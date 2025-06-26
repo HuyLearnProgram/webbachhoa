@@ -1,0 +1,9 @@
+Python :
+pip install pip install selenium webdriver-manager
+
+Thêm vào bảng users : user@gmail.com mk:12345678
+97 Man Thiện, Phường Hiệp Phú, Quận Thủ Đức, Sài Gòn
+user@gmail.com
+Anh Tuấn
+$2a$10$YMtSYeF6saPZa8sjoliVKuCDlt4IzKwjTFo/i/5aELInqkDPjymrG
+0212381193
