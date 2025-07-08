@@ -13,7 +13,7 @@ Dự án xây dựng một hệ thống thương mại điện tử hoàn chỉn
 -   **Xem và tìm kiếm sản phẩm:** Có hỗ trợ lọc và sắp xếp sản phẩm.
 -   **Xem chi tiết sản phẩm**. 
 -   **Quản lý giỏ hàng:** Thêm, xóa, cập nhật số lượng, chọn sản phẩm muốn đặt hàng bằng checkbox.
--   **Đặt hàng và thanh toán:** Có tích hợp VN PAY Sandbox, và tích năng áp mã giảm giá cơ bản.
+-   **Đặt hàng và thanh toán:** Có tích hợp VN PAY Sandbox.
 -   **Trang cá nhân:**
     +    **Quản lý thông tin cá nhân**.
     +    **Lịch sử mua hàng:** Hủy đơn hàng khi đơn hàng chưa giao.
