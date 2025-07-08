@@ -181,7 +181,6 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 
 ### Trang thanh toán
 ![Checkout](./screenshots/checkout.png)
-![Voucher](./screenshots/voucher.png)
 
 ### Trang quản lý thông tin cá nhân
 ![profile](./screenshots/profile.png)
