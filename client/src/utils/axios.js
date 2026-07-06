@@ -10,6 +10,25 @@ const axiosInstance = axios.create({
   timeout: 5000,
 });
 
+// Gộp các lần refresh token chạy đồng thời thành 1 request duy nhất,
+// tránh trường hợp 2 request 401 cùng lúc tự refresh riêng làm token bị xoay vòng 2 lần
+// (refresh sau gửi cookie cũ, không khớp token mới trong DB -> "Refresh token không hợp lệ").
+let refreshPromise = null;
+
+function requestNewAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = axios.get(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      withCredentials: true,
+    }).finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 
 axiosInstance.interceptors.request.use(function (config) {
   let localData = window.localStorage.getItem('persist:ogani_shop/user');
@@ -34,16 +53,11 @@ axiosInstance.interceptors.response.use(function (response) {
     // Kiểm tra có phải lỗi 401 do access_token hết hạn hay không
     if (error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      if (!state.user.isLoggedIn) {
+      if (!store.getState().user.isLoggedIn) {
         return Promise.reject(error);
       }
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          withCredentials: true,
-        });
+        const response = await requestNewAccessToken();
         const { access_token } = response.data.data;
         if (access_token) {
           // Cập nhật access token trong local storage
@@ -54,7 +68,7 @@ axiosInstance.interceptors.response.use(function (response) {
 
           // Cập nhật lại header authorization và gửi lại request gốc
           originalRequest.headers['authorization'] = `Bearer ${access_token}`;
-          return axios(originalRequest);
+          return axiosInstance(originalRequest);
         }
       } catch (err) {
         window.localStorage.removeItem('persist:ogani_shop/user');

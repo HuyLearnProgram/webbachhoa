@@ -2,7 +2,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Checkout from "../Checkout";
-import { ProviderWrapper } from "@/store/ProviderWrapper";
+import { ProviderWrapper } from "./ProviderWrapper";
 import { vi, test, beforeEach } from "vitest";
 // ===============================
 // TEST CASE REVIEW DOCUMENTATION

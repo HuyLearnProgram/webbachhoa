@@ -45,9 +45,9 @@ public class SecurityConfiguration {
     }
 
     @Bean
-//    public SecurityFilterChain filterChain(HttpSecurity http,
-//                                           CustomAuthenticationEntryPoint customAuthenticationEntryPoint) throws Exception {
-    public SecurityFilterChain filterChain(HttpSecurity http,JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                            JwtAuthenticationFilter jwtAuthenticationFilter,
+                                            CustomAuthenticationEntryPoint customAuthenticationEntryPoint) throws Exception {
         String[] whiteList = {
                 "/", "/api/v2/auth/login",
                 "/api/v2/auth/refresh",
@@ -81,6 +81,8 @@ public class SecurityConfiguration {
 //                .oauth2ResourceServer(oauth2 -> oauth2
 //                        .jwt(Customizer.withDefaults())
 //                        .authenticationEntryPoint(customAuthenticationEntryPoint))
+
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(customAuthenticationEntryPoint))
 
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->

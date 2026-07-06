@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -WindowStyle Hidden -Command \"Start-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File D:\\Program\\Project_Interview\\webbachhoa\\client\\.claude\\hooks\\notify.ps1'\""
+          }
+        ]
+      }
+    ]
+  }
+}

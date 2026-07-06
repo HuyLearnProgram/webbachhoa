@@ -1,15 +1,15 @@
-import { createAsyncThunk, isRejectedWithValue } from "@reduxjs/toolkit";
+import { createAsyncThunk } from "@reduxjs/toolkit";
 import * as apis from "@/apis";
 
-export const getCurrentUser = createAsyncThunk("user/current", async () => {
+export const getCurrentUser = createAsyncThunk("user/current", async (_, { rejectWithValue }) => {
   const response = await apis.apiGetCurrentUser()
   if (response.statusCode === 403) {
     // Thực hiện logout nếu mã lỗi là 403
     window.localStorage.removeItem('persist:ogani_shop/user');
-    return isRejectedWithValue(new Error("User is not authorized"));
+    return rejectWithValue(new Error("User is not authorized"));
   }
   if (response.statusCode !== 200) {
-    return isRejectedWithValue(response);
+    return rejectWithValue(response);
   }
 
   // format tạm thời

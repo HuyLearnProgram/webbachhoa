@@ -26,7 +26,7 @@ class PhoneValidatorTest {
 
     // Test data
     private static final List<TestCase> INVALID_PHONES = Arrays.asList(
-            new TestCase("", "Số điện thoại không được để"),                    // P8: Empty
+            new TestCase("", "Số điện thoại không được để trống"),                    // P8: Empty
             new TestCase(null, "Số điện thoại không được để trống"),                  // P8: Null
             new TestCase("091234567", "Số điện thoại phải có ít nhất 10 số"),         // P9: Too short
             new TestCase("012345678901", "Số điện thoại không được vượt quá 11 số"),  // P10: Too long
