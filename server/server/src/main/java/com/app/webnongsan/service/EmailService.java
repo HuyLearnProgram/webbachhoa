@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 @Service
 @AllArgsConstructor
@@ -87,6 +88,29 @@ public class EmailService {
         String content = this.templateEngine.process(templateName, context);
         this.sendEmailSync(to, subject, content, false, true);
     }
+    @Async
+    public void sendEmailFromTemplateSyncUserUpdate(String to, String username, String templateName,
+            String oldName, String newName, String oldPhone, String newPhone,
+            String oldAddress, String newAddress, boolean statusChanged, boolean newStatusActive,
+            String lockReason) {
+        Context context = new Context();
+        context.setVariable("NAME", username);
+        context.setVariable("NAME_CHANGED", !Objects.equals(oldName, newName));
+        context.setVariable("OLD_NAME", oldName);
+        context.setVariable("NEW_NAME", newName);
+        context.setVariable("PHONE_CHANGED", !Objects.equals(oldPhone, newPhone));
+        context.setVariable("OLD_PHONE", oldPhone);
+        context.setVariable("NEW_PHONE", newPhone);
+        context.setVariable("ADDRESS_CHANGED", !Objects.equals(oldAddress, newAddress));
+        context.setVariable("OLD_ADDRESS", oldAddress);
+        context.setVariable("NEW_ADDRESS", newAddress);
+        context.setVariable("STATUS_CHANGED", statusChanged);
+        context.setVariable("NEW_STATUS_ACTIVE", newStatusActive);
+        context.setVariable("LOCK_REASON", lockReason != null && !lockReason.isBlank() ? lockReason : null);
+        String content = this.templateEngine.process(templateName, context);
+        this.sendEmailSync(to, "Thông tin tài khoản của bạn vừa được cập nhật", content, false, true);
+    }
+
     private String formatCurrency(Double amount) {
         Locale locale = new Locale("vi", "VN");
         NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(locale);

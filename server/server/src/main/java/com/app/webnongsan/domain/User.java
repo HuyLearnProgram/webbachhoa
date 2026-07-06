@@ -54,4 +54,8 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<UserVoucher> userVouchers;
+
+    // Không lưu DB - chỉ dùng tạm để truyền lý do khoá tài khoản vào email thông báo
+    @Transient
+    private String lockReason;
 }

@@ -72,6 +72,14 @@ export const apiGetAllUser = async (params) =>
         url: "/users",
         method: "get",
         params,
+        paramsSerializer: {
+            encode: (value) => value,
+            serialize: (params) => {
+                return Object.entries(params)
+                    .map(([key, value]) => `${key}=${value}`)
+                    .join('&');
+            }
+        }
     });
 
 export const apiUpdateCurrentUser = async (formData) =>
@@ -155,6 +163,15 @@ export const apiSetStatusUser = async (user) => {
         data: user
     });
 };
+
+export const apiUpdateUser = async (user) => {
+    return axiosInstance({
+        url: "/users",
+        method: 'put',
+        data: user
+    });
+};
+
 // Tạo order
 export const apiCreateOrder = async (formData) => {
     return axiosInstance({

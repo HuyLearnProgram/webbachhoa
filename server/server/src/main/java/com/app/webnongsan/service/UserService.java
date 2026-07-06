@@ -6,6 +6,7 @@ import com.app.webnongsan.domain.response.user.CreateUserDTO;
 import com.app.webnongsan.domain.response.user.UpdateUserDTO;
 import com.app.webnongsan.domain.response.user.UserDTO;
 import com.app.webnongsan.repository.UserRepository;
+import com.app.webnongsan.util.SecurityUtil;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     public User create(User user) {
         //hash password
@@ -69,7 +72,7 @@ public class UserService {
     }
 
     public PaginationDTO fetchAllUser(Specification<User> specification, Pageable pageable) {
-        Page<User> userPage = this.userRepository.findAll(pageable);
+        Page<User> userPage = this.userRepository.findAll(specification, pageable);
 
         PaginationDTO p = new PaginationDTO();
         PaginationDTO.Meta meta = new PaginationDTO.Meta();
@@ -93,6 +96,11 @@ public class UserService {
     public User update(User reqUser) {
         User currentUser = this.getUserById(reqUser.getId());
         if (currentUser != null) {
+            String oldName = currentUser.getName();
+            String oldPhone = currentUser.getPhone();
+            String oldAddress = currentUser.getAddress();
+            int oldStatus = currentUser.getStatus();
+
             //currentUser.setEmail(reqUser.getEmail());
             currentUser.setName(reqUser.getName());
             currentUser.setAddress(reqUser.getAddress());
@@ -101,6 +109,30 @@ public class UserService {
             currentUser.setStatus(reqUser.getStatus());
             //currentUser.setPassword(passwordEncoder.encode(reqUser.getPassword()));
             currentUser = this.userRepository.save(currentUser);
+
+            // Chỉ báo qua email khi ADMIN sửa hộ người khác - không báo khi user tự sửa
+            // chính mình (VD qua PUT /auth/account), vì cả 2 luồng đều gọi chung method này.
+            String actorEmail = SecurityUtil.getCurrentUserLogin().orElse(null);
+            boolean isSelfEdit = actorEmail == null || actorEmail.equalsIgnoreCase(currentUser.getEmail());
+            if (!isSelfEdit) {
+                boolean infoChanged = !Objects.equals(oldName, currentUser.getName())
+                        || !Objects.equals(oldPhone, currentUser.getPhone())
+                        || !Objects.equals(oldAddress, currentUser.getAddress());
+                boolean statusChanged = oldStatus != currentUser.getStatus();
+                if (infoChanged || statusChanged) {
+                    // Lý do khoá chỉ có ý nghĩa khi tài khoản vừa bị khoá (status -> 0)
+                    boolean justLocked = statusChanged && currentUser.getStatus() == 0;
+                    String lockReason = justLocked ? reqUser.getLockReason() : null;
+                    emailService.sendEmailFromTemplateSyncUserUpdate(
+                            currentUser.getEmail(), currentUser.getName(), "userUpdated",
+                            oldName, currentUser.getName(),
+                            oldPhone, currentUser.getPhone(),
+                            oldAddress, currentUser.getAddress(),
+                            statusChanged, currentUser.getStatus() == 1,
+                            lockReason
+                    );
+                }
+            }
         }
         return currentUser;
     }

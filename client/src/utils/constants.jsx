@@ -146,6 +146,29 @@ export const statusHideOrder = [
     value: 1
   }
 ]
+export const statusUserOption = [
+  {
+    label: "Default",
+    value: "default"
+  },
+  {
+    label: 'Active',
+    value: 1
+  },
+  {
+    label: "Lock",
+    value: 0
+  }
+]
+export const OTHER_LOCK_REASON = "__other__";
+export const lockReasonOptions = [
+  "Vi phạm điều khoản sử dụng dịch vụ",
+  "Gian lận / lạm dụng mã giảm giá, khuyến mãi",
+  "Có dấu hiệu gian lận thanh toán / đơn hàng bất thường",
+  "Đăng đánh giá sai sự thật, spam",
+  "Quấy rối, hành vi không phù hợp với nhân viên hoặc khách hàng khác",
+  "Theo yêu cầu của chính khách hàng (khoá tạm thời)",
+]
 export const sortFeedbackOrder = [
   {
     label: "Default",

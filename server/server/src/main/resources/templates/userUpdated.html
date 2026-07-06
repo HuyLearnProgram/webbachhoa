@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Thông tin tài khoản đã được cập nhật</title>
+</head>
+<body>
+<div style="padding: 20px; background-color: #f4f4f4; max-width: 600px; margin: 0 auto; border-radius: 10px; box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);">
+    <h2 style="color: #333;">Xin chào <span th:text="${NAME}"></span>,</h2>
+
+    <p style="color: #555; font-size: 14px;">
+        Thông tin tài khoản của bạn trên Ogani vừa được bộ phận quản trị cập nhật:
+    </p>
+
+    <div th:if="${NAME_CHANGED or PHONE_CHANGED or ADDRESS_CHANGED}"
+         style="background-color: white; border-radius: 8px; padding: 15px; margin: 15px 0;">
+        <p style="color: #333; font-weight: bold; margin: 0 0 10px 0;">Thông tin đã thay đổi:</p>
+        <p th:if="${NAME_CHANGED}" style="color: #555; font-size: 14px; margin: 5px 0;">
+            Họ tên: <span th:text="${OLD_NAME}"></span> → <b th:text="${NEW_NAME}"></b>
+        </p>
+        <p th:if="${PHONE_CHANGED}" style="color: #555; font-size: 14px; margin: 5px 0;">
+            Số điện thoại: <span th:text="${OLD_PHONE}"></span> → <b th:text="${NEW_PHONE}"></b>
+        </p>
+        <p th:if="${ADDRESS_CHANGED}" style="color: #555; font-size: 14px; margin: 5px 0;">
+            Địa chỉ: <span th:text="${OLD_ADDRESS}"></span> → <b th:text="${NEW_ADDRESS}"></b>
+        </p>
+    </div>
+
+    <div th:if="${STATUS_CHANGED}" style="background-color: white; border-radius: 8px; padding: 15px; margin: 15px 0;">
+        <p style="color: #333; font-weight: bold; margin: 0 0 10px 0;">Trạng thái tài khoản:</p>
+        <p th:if="${NEW_STATUS_ACTIVE}" style="color: #10B981; font-size: 14px; margin: 5px 0;">
+            Tài khoản của bạn đã được <b>kích hoạt</b>.
+        </p>
+        <p th:unless="${NEW_STATUS_ACTIVE}" style="color: #e11d48; font-size: 14px; margin: 5px 0;">
+            Tài khoản của bạn đã bị <b>khoá</b>.
+        </p>
+        <p th:if="${LOCK_REASON != null}" style="color: #555; font-size: 14px; margin: 5px 0;">
+            Lý do: <span th:text="${LOCK_REASON}"></span>
+        </p>
+    </div>
+
+    <p style="color: #555; font-size: 14px;">
+        Nếu bạn không yêu cầu thay đổi này, vui lòng liên hệ ngay với chúng tôi để được hỗ trợ.
+    </p>
+</div>
+</body>
+</html>
