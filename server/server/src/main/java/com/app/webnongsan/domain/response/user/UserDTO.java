@@ -19,4 +19,8 @@ public class UserDTO {
     private String address;
 
     private String avatarUrl;
+
+    private String provider;
+
+    private String providerId;
 }

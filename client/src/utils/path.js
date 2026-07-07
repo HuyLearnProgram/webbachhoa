@@ -31,7 +31,7 @@ const path = {
   ADMIN_USER: "user",
   ADMIN_ORDER: "order",
 
-  ADMIN_USER_DETAIL: "",
+  ADMIN_USER_DETAIL: "user/detail/:userId",
   ADMIN_EDIT_PRODUCT: "product/edit/:productId",
   ADMIN_EDIT_USER: "user/edit/:userId",
   ADMIN_EDIT_CATEGORY: "category/edit/:categoryId",

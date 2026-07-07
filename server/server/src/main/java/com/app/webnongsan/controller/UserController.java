@@ -6,7 +6,9 @@ import com.app.webnongsan.domain.response.user.CreateUserDTO;
 import com.app.webnongsan.domain.response.user.UpdateUserDTO;
 import com.app.webnongsan.domain.response.user.UserDTO;
 import com.app.webnongsan.service.UserService;
+import com.app.webnongsan.util.SecurityUtil;
 import com.app.webnongsan.util.annotation.ApiMessage;
+import com.app.webnongsan.util.exception.PermissionException;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import com.turkraft.springfilter.boot.Filter;
 import jakarta.validation.Valid;
@@ -15,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -46,11 +49,20 @@ public class UserController {
 
     @GetMapping("users/{id}")
     @ApiMessage("Get user by id")
-    public ResponseEntity<UserDTO> getUser(@PathVariable("id") long id) throws ResourceInvalidException {
+    public ResponseEntity<UserDTO> getUser(@PathVariable("id") long id) throws ResourceInvalidException, PermissionException {
         User currentUser = this.userService.getUserById(id);
         if (currentUser == null){
             throw new ResourceInvalidException("Người dùng với id " + id + " không tồn tại");
         }
+
+        String actorEmail = SecurityUtil.getCurrentUserLogin().orElse(null);
+        boolean isSelf = actorEmail != null && actorEmail.equalsIgnoreCase(currentUser.getEmail());
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!isSelf && !isAdmin) {
+            throw new PermissionException("Bạn không có quyền xem thông tin người dùng này");
+        }
+
         return ResponseEntity.status(HttpStatus.OK).body(this.userService.convertToUserDTO(currentUser));
     }
 

@@ -152,6 +152,29 @@ public class FeedbackService {
         p.setResult(listFeedback);
         return p;
     }
+    public long getTotalFeedbacksByUserId(Long userId) {
+        return this.feedbackRepository.countByUser_Id(userId);
+    }
+
+    public PaginationDTO getByUserId(Long userId, Pageable pageable) {
+        Page<Feedback> feedbackPage = this.feedbackRepository.findByUser_Id(userId, pageable);
+
+        PaginationDTO p = new PaginationDTO();
+        PaginationDTO.Meta meta = new PaginationDTO.Meta();
+
+        meta.setPage(pageable.getPageNumber() + 1);
+        meta.setPageSize(pageable.getPageSize());
+        meta.setPages(feedbackPage.getTotalPages());
+        meta.setTotal(feedbackPage.getTotalElements());
+
+        p.setMeta(meta);
+
+        List<FeedbackDTO> listFeedback = feedbackPage.getContent().stream()
+                .map(this::convertToFeedbackDTO).toList();
+        p.setResult(listFeedback);
+        return p;
+    }
+
     public FeedbackDTO convertToFeedbackDTO(Feedback feedback) {
         FeedbackDTO feedbackDTO = new FeedbackDTO();
         Optional<User> optionalUser = userRepository.findById(feedback.getUser().getId());

@@ -6,6 +6,9 @@ import { apiGetAllUser, apiSetStatusUser } from "@/apis";
 import avatarDefault from "@/assets/avatarDefault.png";
 import { MdModeEdit } from "react-icons/md";
 import { statusUserOption, lockReasonOptions, OTHER_LOCK_REASON } from "@/utils/constants";
+import icons from "@/utils/icons";
+
+const { FaEye } = icons;
 
 const User = () => {
   const { current } = useSelector((state) => state.user);
@@ -159,6 +162,16 @@ const User = () => {
           onClick={() => handleStatusChange(user)}
         >
           {status === 1 ? "Active" : "Lock"}
+        </Button>
+      ),
+    },
+    {
+      title: "Xem",
+      key: "detail",
+      align: 'center',
+      render: (_, record) => (
+        <Button type="link" onClick={() => navigate(`/admin/user/detail/${record.id}`)}>
+          <FaEye className="w-5 h-5 inline-block" />
         </Button>
       ),
     },

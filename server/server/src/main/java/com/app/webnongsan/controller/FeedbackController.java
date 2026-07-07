@@ -62,6 +62,20 @@ public class FeedbackController {
         return ResponseEntity.ok(this.feedbackService.getBySortAndFilter(pageable,status,sort));
     }
 
+    @GetMapping("users/{id}/feedbacks")
+    @ApiMessage("Get feedbacks by user (admin)")
+    public ResponseEntity<PaginationDTO> getByUserId(
+            @PathVariable Long id,
+            @RequestParam(value = "size", required = false) Integer size,
+            Pageable pageable) {
+        if (size == null || size < 1) {
+            long totalEls = this.feedbackService.getTotalFeedbacksByUserId(id);
+            size = totalEls > 0 ? (int) totalEls : 1;
+        }
+        Pageable updatePageable = PageRequest.of(pageable.getPageNumber(), size);
+        return ResponseEntity.ok(this.feedbackService.getByUserId(id, updatePageable));
+    }
+
     @PutMapping("ratings/{id}")
     @ApiMessage("Hide a feedback")
     public ResponseEntity<FeedbackDTO> hideFeedback(@PathVariable Long id) throws ResourceInvalidException{

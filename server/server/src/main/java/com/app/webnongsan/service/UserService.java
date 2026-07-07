@@ -9,6 +9,7 @@ import com.app.webnongsan.repository.UserRepository;
 import com.app.webnongsan.util.SecurityUtil;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import lombok.AllArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,11 +28,15 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-    public User create(User user) {
+    public User create(User user) throws ResourceInvalidException {
         //hash password
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setStatus(1);
-        return this.userRepository.save(user);
+        try {
+            return this.userRepository.save(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResourceInvalidException("Email " + user.getEmail() + " đã tồn tại");
+        }
     }
 
     public boolean isExistedEmail(String email) {
@@ -64,6 +69,8 @@ public class UserService {
         res.setStatus(user.getStatus());
         res.setPhone(user.getPhone());
         res.setAvatarUrl(user.getAvatarUrl());
+        res.setProvider(user.getProvider());
+        res.setProviderId(user.getProviderId());
         return res;
     }
 
