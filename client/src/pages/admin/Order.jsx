@@ -139,7 +139,22 @@ const Order = () => {
       );
     }
 
+    if (order.status === 2) {
+      items.push(
+        { key: 'returned', label: 'Returned', onClick: () => updateOrderStatus(order.id, 4) }
+      );
+    }
+
     return items;
+  };
+
+  const paymentStatusLabel = {
+    UNPAID: "Chưa thanh toán",
+    PENDING_PAYMENT: "Chờ thanh toán",
+    PAID: "Đã thanh toán",
+    PAYMENT_FAILED: "Thanh toán thất bại",
+    REFUND_PENDING: "Chờ hoàn tiền",
+    REFUNDED: "Đã hoàn tiền",
   };
 
   const columns = [
@@ -175,6 +190,12 @@ const Order = () => {
       key: 'paymentMethod',
     },
     {
+      title: 'Trạng thái TT',
+      dataIndex: 'paymentStatus',
+      key: 'paymentStatus',
+      render: (paymentStatus) => paymentStatusLabel[paymentStatus] || paymentStatus || "—",
+    },
+    {
       title: 'Trạng thái',
       key: 'status',
       render: (order) => (
@@ -186,7 +207,9 @@ const Order = () => {
                 ? 'In Delivery'
                 : order.status === 2
                   ? 'Succeed'
-                  : 'Cancelled'}
+                  : order.status === 4
+                    ? 'Returned'
+                    : 'Cancelled'}
           </Button>
         </Dropdown>
       ),

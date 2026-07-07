@@ -29,6 +29,15 @@ public class Order {
 
     private double total_price;
 
+    // UNPAID, PENDING_PAYMENT, PAID, PAYMENT_FAILED, REFUND_PENDING, REFUNDED
+    private String paymentStatus;
+
+    private String vnpTxnRef;
+
+    private String transactionNo;
+
+    private Instant paidAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

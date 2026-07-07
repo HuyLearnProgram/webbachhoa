@@ -67,6 +67,9 @@ export const voteOption = [
   }
 ]
 
+// Ngưỡng cảnh báo tồn kho thấp cho trang admin
+export const LOW_STOCK_THRESHOLD = 5;
+
 export const sortProductOption = [
   { value: 'productName-asc', label: 'Tên A-Z' },
   { value: 'productName-desc', label: 'Tên Z-A' },
@@ -110,9 +113,9 @@ export const memberSidebar = [
   }
 ]
 
-export const statusOrder = [  
+export const statusOrder = [
   {
-    label: "Default",
+    label: "Lọc theo trạng thái",
     value: "default"
   },
   {
@@ -130,11 +133,15 @@ export const statusOrder = [
   {
     label: "Cancelled",
     value: 3,
+  },
+  {
+    label: "Returned",
+    value: 4,
   }
 ]
 export const statusHideOrder = [
   {
-    label: "Default",
+    label: "Lọc theo trạng thái",
     value: "default"
   },
   {
@@ -171,7 +178,7 @@ export const lockReasonOptions = [
 ]
 export const sortFeedbackOrder = [
   {
-    label: "Default",
+    label: "Sắp xếp",
     value: "default"
   },
   {

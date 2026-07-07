@@ -17,6 +17,7 @@ public class OrderDTO {
     private String address;
     private String phone;
     private double total_price;
+    private String paymentStatus;
     private String userEmail;
     private String userName;
     private Long userId;

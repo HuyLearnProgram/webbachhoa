@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecificationExecutor<Order> {
@@ -32,5 +33,12 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
     @Query("SELECT SUM(o.total_price) FROM Order o WHERE o.status = :status")
     double sumTotalPriceByStatus(@Param("status") int status);
+
+    @Query("SELECT COALESCE(SUM(o.total_price), 0) FROM Order o WHERE o.paymentStatus = :paymentStatus")
+    double sumTotalPriceByPaymentStatus(@Param("paymentStatus") String paymentStatus);
+
+    long countByUser_Id(Long userId);
+
+    Optional<Order> findByVnpTxnRef(String vnpTxnRef);
 }
 

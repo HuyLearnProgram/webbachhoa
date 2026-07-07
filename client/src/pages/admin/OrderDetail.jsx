@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { apiGetOrderDetail, apiGetOrderInfor, getUserById, apiUpdateOrderInfo } from "@/apis";
+import { apiGetOrderDetail, apiGetOrderInfor, getUserById, apiUpdateOrderInfo, apiConfirmRefund } from "@/apis";
 import { TurnBackHeader } from "@/components/admin";
 import { Card, Row, Col, Typography, Table, Image } from "antd";
 import product_default from "@/assets/product_default.png";
@@ -14,6 +14,22 @@ import logo from "@/assets/logo.png";
 
 const { Title, Text } = Typography;
 
+const floatingButtonGroupStyle = {
+  position: 'fixed',
+  bottom: 30,
+  right: 30,
+  zIndex: 1000,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 12,
+};
+
+const floatingButtonStyle = {
+  width: 220,
+  textAlign: 'center',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+};
+
 function OrderDetail() {
   const [orderDetail, setOrderDetail] = useState(null);
   const [orderInformation, setOrderInformation] = useState(null);
@@ -21,6 +37,7 @@ function OrderDetail() {
   const [user_Id, setUser_Id] = useState(null);
   const [user, setUser] = useState(null);
   const [totalMoney, setTotalMoney] = useState(0);
+  const [isRefunding, setIsRefunding] = useState(false);
 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -84,6 +101,23 @@ function OrderDetail() {
     setOrderDetail(res);
     setOrderInformation(res2);
     setUser_Id(res2?.data?.userId);
+  };
+
+  const handleConfirmRefund = async (oid) => {
+    if (isRefunding) return;
+    setIsRefunding(true);
+    try {
+      const res = await apiConfirmRefund(oid);
+      if (res.statusCode !== 200) {
+        throw new Error(res.message || "Không thể xác nhận hoàn tiền");
+      }
+      message.success("Đã xác nhận hoàn tiền cho đơn hàng");
+      await fetchOrderDetail(oid);
+    } catch (error) {
+      message.error("Có lỗi xảy ra: " + error.message);
+    } finally {
+      setIsRefunding(false);
+    }
   };
 
   const fetchUserById = async (uid) => {
@@ -254,8 +288,19 @@ function OrderDetail() {
                   year: "numeric",
                   hour12: false,
                 })}` :
+              orderInformation?.data?.status === 4 ? "🔄 Khách hàng đã yêu cầu trả hàng hoàn tiền" :
               null}
             </Text>
+            <br />
+            <Text strong>Thanh toán:</Text>{" "}
+            {{
+              UNPAID: "Chưa thanh toán",
+              PENDING_PAYMENT: "Chờ thanh toán",
+              PAID: "Đã thanh toán",
+              PAYMENT_FAILED: "Thanh toán thất bại",
+              REFUND_PENDING: "Chờ hoàn tiền",
+              REFUNDED: "Đã hoàn tiền",
+            }[orderInformation?.data?.paymentStatus] || "—"}
           </Col>
         </Row>
       </Card>
@@ -311,36 +356,37 @@ function OrderDetail() {
       </Card>
 
 
-  <Button
-    type="primary"
-    onClick={showModal}
-    style={{
-      position: 'fixed',
-      bottom: 30,
-      right: 30,
-      zIndex: 1000,
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
-    }}
-    disabled={orderInformation?.data?.status !== 0}
-  >
-    Cập nhật thông tin giao hàng
-  </Button>
+  <div style={floatingButtonGroupStyle}>
+    <Button
+      type="default"
+      onClick={exportToPDF}
+      style={floatingButtonStyle}
+    >
+      In hóa đơn 🧾
+    </Button>
 
-
-
+    {orderInformation?.data?.paymentStatus === "REFUND_PENDING" && (
       <Button
-        type="default"
-        onClick={exportToPDF}
-        style={{
-          position: 'fixed',
-          bottom: 90,
-          right: 30,
-          zIndex: 1000,
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
-        }}
+        danger
+        loading={isRefunding}
+        disabled={isRefunding}
+        onClick={() => handleConfirmRefund(oid)}
+        style={floatingButtonStyle}
       >
-        In hóa đơn 🧾
+        Đánh dấu đã hoàn tiền
       </Button>
+    )}
+
+    {orderInformation?.data?.status === 0 && (
+      <Button
+        type="primary"
+        onClick={showModal}
+        style={floatingButtonStyle}
+      >
+        Cập nhật thông tin giao hàng
+      </Button>
+    )}
+  </div>
 
 
       <Modal
@@ -475,7 +521,8 @@ function OrderDetail() {
             {orderInformation?.data?.status === 0 ? "Pending" :
               orderInformation?.data?.status === 1 ? "In Delivery" :
                 orderInformation?.data?.status === 2 ? "Success" :
-                  "Cancel"}
+                  orderInformation?.data?.status === 4 ? "Returned" :
+                    "Cancel"}
           </p>
         </div>
 

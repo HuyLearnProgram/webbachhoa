@@ -4,7 +4,6 @@ import productDF from "@/assets/product_default.png"
 import { FaClock, FaRegStar, FaStar, FaX } from "react-icons/fa6";
 import { GrStatusCritical, GrStatusCriticalSmall } from "react-icons/gr";
 import { Modal, Button } from 'antd';
-import clsx from "clsx";
 import { apiCancelOrder } from "@/apis";
 
 const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
@@ -33,8 +32,27 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
                 console.log('Đơn hàng không bị hủy');
             },
         });
-        
+
     }
+
+    const handleReturnOrder = (oid)=>{
+        Modal.confirm({
+            title: 'Xác nhận trả hàng hoàn tiền',
+            content: 'Bạn có chắc chắn muốn trả hàng và yêu cầu hoàn tiền cho đơn hàng này không?',
+            okText: 'Trả hàng',
+            cancelText: 'Không',
+            onOk: async () => {
+                const response = await apiCancelOrder(oid,{status:4})
+                if(response?.statusCode === 200) {
+                    updateOrderStatus(oid, 4);
+                    onClose();
+                }
+            },
+        });
+    }
+
+    const isWithinReturnWindow = (deliveryTime) =>
+        !!deliveryTime && (Date.now() - new Date(deliveryTime).getTime()) <= 15 * 24 * 60 * 60 * 1000;
 
     const getTotalPrice = () => 
         data?.reduce((total, item) => total + item?.unit_price * item?.quantity, 0);
@@ -68,9 +86,9 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
                 </button>
                 <div className="flex justify-between items-center">
                     <span className="text-green-600 font-medium">
-                        {data[0]?.status === 0 ? "Chờ xác nhận": data[0]?.status === 1 ? "Chờ giao hàng": data[0]?.status === 2 ? "Gian hàng Thành công": "Hủy bỏ"}
+                        {data[0]?.status === 0 ? "Chờ xác nhận": data[0]?.status === 1 ? "Chờ giao hàng": data[0]?.status === 2 ? "Gian hàng Thành công": data[0]?.status === 4 ? "Đã trả hàng" : "Hủy bỏ"}
                     </span>
-                    <span className="text-green-600 font-medium">{(data[0]?.status === 2 || data[0]?.status === 3)  ? "HOÀN THÀNH": "CHƯA HOÀN THÀNH"}</span>
+                    <span className="text-green-600 font-medium">{(data[0]?.status === 2 || data[0]?.status === 3 || data[0]?.status === 4)  ? "HOÀN THÀNH": "CHƯA HOÀN THÀNH"}</span>
                 </div>
                 <div className="overflow-y-auto max-h-80 mt-2 mb-2">
                 {data?.map((order,index) =>(
@@ -116,12 +134,20 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
                         <span>Thời gian đặt hàng: {new Date(data[0]?.orderTime).toLocaleString("vi-VN")}</span>
                     </div>
                     <div className="space-x-2 ">
-                        <Button disabled={data[0]?.status === 0 ? false: true} 
-                            className={clsx("px-4 py-2 rounded-md text-white text-semibold my-2 w-full"
-                                ,data[0]?.status !== 0 && "bg-gray-400",data[0]?.status === 0 && "bg-red-500")}
-                            onClick={()=>handleCancelOrder(data[0]?.orderId)}
-                            type="danger"
-                        >Hủy đơn hàng</Button>
+                        {data[0]?.status === 0 && (
+                            <Button
+                                className="px-4 py-2 rounded-md text-white text-semibold my-2 w-full bg-red-500"
+                                onClick={()=>handleCancelOrder(data[0]?.orderId)}
+                                type="danger"
+                            >Hủy đơn hàng</Button>
+                        )}
+                        {data[0]?.status === 2 && data[0]?.paymentStatus === "PAID" && isWithinReturnWindow(data[0]?.deliveryTime) && (
+                            <Button
+                                className="px-4 py-2 rounded-md text-white text-semibold my-2 w-full bg-red-500"
+                                onClick={()=>handleReturnOrder(data[0]?.orderId)}
+                                type="danger"
+                            >Trả hàng hoàn tiền</Button>
+                        )}
                     </div>
                 </div>
                 

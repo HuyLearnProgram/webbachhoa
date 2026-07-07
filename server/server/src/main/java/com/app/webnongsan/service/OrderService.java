@@ -77,6 +77,7 @@ public class OrderService {
             res.setDeliveryTime(order.getDeliveryTime());
             res.setStatus(order.getStatus());
             res.setPaymentMethod(order.getPaymentMethod());
+            res.setPaymentStatus(order.getPaymentStatus());
             res.setAddress(order.getAddress());
             res.setTotal_price(order.getTotal_price()); // Chú ý: có thể cần sửa lại tên phương thức
             res.setUserEmail(order.getUser().getEmail());
@@ -101,6 +102,28 @@ public class OrderService {
     public PaginationDTO getAll(Specification<Order> spec, Pageable pageable) {
 
         Page<Order> ordersPage = this.orderRepository.findAll(spec, pageable);
+
+        PaginationDTO p = new PaginationDTO();
+        PaginationDTO.Meta meta = new PaginationDTO.Meta();
+
+        meta.setPage(pageable.getPageNumber() + 1);
+        meta.setPageSize(pageable.getPageSize());
+        meta.setPages(ordersPage.getTotalPages());
+        meta.setTotal(ordersPage.getTotalElements());
+
+        p.setMeta(meta);
+
+        List<OrderDTO> listOrders = ordersPage.getContent().stream().map(this::convertToOrderDTO).toList();
+        p.setResult(listOrders);
+        return p;
+    }
+
+    public long getTotalOrdersByUserId(Long userId) {
+        return this.orderRepository.countByUser_Id(userId);
+    }
+
+    public PaginationDTO getOrdersByUserId(Long userId, Pageable pageable) {
+        Page<Order> ordersPage = this.orderRepository.findOrdersWithOptionalStatus(userId, null, pageable);
 
         PaginationDTO p = new PaginationDTO();
         PaginationDTO.Meta meta = new PaginationDTO.Meta();
@@ -156,6 +179,7 @@ public class OrderService {
         res.setAddress(order.getAddress());
         res.setPhone(order.getPhone());
         res.setTotal_price(order.getTotal_price());
+        res.setPaymentStatus(order.getPaymentStatus());
         res.setUserEmail(order.getUser().getEmail());
         res.setUserId(order.getUser().getId());
         res.setUserName(order.getUser().getName());
@@ -205,6 +229,7 @@ public class OrderService {
         order.setPhone(orderDTO.getPhone());
         order.setPaymentMethod(orderDTO.getPaymentMethod());
         order.setStatus(0);
+        order.setPaymentStatus("COD".equalsIgnoreCase(orderDTO.getPaymentMethod()) ? "UNPAID" : "PENDING_PAYMENT");
 
         // Áp dụng voucher nếu có
         total = applyVoucherToOrder(order, orderDTO, currentUserDB, total);
@@ -306,6 +331,8 @@ public class OrderService {
                 dto.setOrderId(order.getId());
                 dto.setOrderTime(order.getOrderTime());
                 dto.setStatus(order.getStatus());
+                dto.setDeliveryTime(order.getDeliveryTime());
+                dto.setPaymentStatus(order.getPaymentStatus());
                 dto.setProductId(detail.getProduct().getId());
                 dto.setProductName(detail.getProduct().getProductName());
                 dto.setQuantity(detail.getQuantity());
@@ -341,7 +368,7 @@ public class OrderService {
 
     public List<Object> getOverviewStats() {
         long totalUsers = userRepository.count();
-        double totalProfit = orderRepository.sumTotalPriceByStatus(2);
+        double totalProfit = orderRepository.sumTotalPriceByPaymentStatus("PAID");
         long totalOrders = orderRepository.count();
         long totalProducts = productRepository.count();
         return Arrays.asList(totalProfit, totalUsers, totalProducts, totalOrders);

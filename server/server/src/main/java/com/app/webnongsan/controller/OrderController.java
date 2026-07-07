@@ -8,19 +8,24 @@ import com.app.webnongsan.domain.response.order.OrderDetailDTO;
 import com.app.webnongsan.domain.response.order.WeeklyRevenue;
 import com.app.webnongsan.repository.ProductRepository;
 import com.app.webnongsan.service.OrderService;
+import com.app.webnongsan.util.SecurityUtil;
 import com.app.webnongsan.util.annotation.ApiMessage;
+import com.app.webnongsan.util.exception.PermissionException;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import com.turkraft.springfilter.boot.Filter;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,6 +41,20 @@ public class OrderController {
     public ResponseEntity<PaginationDTO> getAll(@Filter Specification<Order> spec,
                                                 @PageableDefault(sort = "orderTime", direction = Sort.Direction.DESC) Pageable pageable){
         return ResponseEntity.ok(this.orderService.getAll(spec, pageable));
+    }
+
+    @GetMapping("users/{id}/orders")
+    @ApiMessage("Get orders by user (admin)")
+    public ResponseEntity<PaginationDTO> getOrdersByUserId(
+            @PathVariable("id") Long id,
+            @RequestParam(value = "size", required = false) Integer size,
+            Pageable pageable) {
+        if (size == null || size < 1) {
+            long totalEls = this.orderService.getTotalOrdersByUserId(id);
+            size = totalEls > 0 ? (int) totalEls : 1;
+        }
+        Pageable updatedPageable = PageRequest.of(pageable.getPageNumber(), size);
+        return ResponseEntity.ok(this.orderService.getOrdersByUserId(id, updatedPageable));
     }
 
     @GetMapping("orderInfo/{orderId}")
@@ -58,10 +77,34 @@ public class OrderController {
             if (!isValidStatusTransition(order.getStatus(), status)) {
                 throw new ResourceInvalidException("Không thể chuyển trạng thái từ " + order.getStatus() + " sang " + status);
             }
+            if (status == 4) {
+                // Trả hàng hoàn tiền - hành động tự-phục vụ của khách hàng, cần kiểm tra thêm
+                String actorEmail = SecurityUtil.getCurrentUserLogin().orElse(null);
+                boolean isOwner = actorEmail != null && actorEmail.equalsIgnoreCase(order.getUser().getEmail());
+                boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                if (!isOwner && !isAdmin) {
+                    throw new PermissionException("Bạn không có quyền thao tác trên đơn hàng này");
+                }
+                if (!"PAID".equals(order.getPaymentStatus())) {
+                    throw new ResourceInvalidException("Đơn hàng chưa thanh toán, không thể trả hàng hoàn tiền");
+                }
+                if (!isAdmin && (order.getDeliveryTime() == null
+                        || order.getDeliveryTime().isBefore(Instant.now().minus(15, ChronoUnit.DAYS)))) {
+                    throw new ResourceInvalidException("Đã quá hạn 15 ngày trả hàng");
+                }
+            }
             // Cập nhật trạng thái
             order.setStatus(status);
             if (status == 2 || status == 3) {
                 order.setDeliveryTime(Instant.now());
+            }
+            if (status == 2 && "COD".equalsIgnoreCase(order.getPaymentMethod())) {
+                order.setPaymentStatus("PAID");
+                order.setPaidAt(Instant.now());
+            }
+            if ((status == 3 || status == 4) && "PAID".equals(order.getPaymentStatus())) {
+                order.setPaymentStatus("REFUND_PENDING");
             }
 
             // Lưu lại đơn hàng
@@ -87,12 +130,30 @@ public class OrderController {
             response.setMessage("Có lỗi xảy ra: " + e.getMessage());
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
 
+        } catch (PermissionException e) {
+            response.setStatusCode(HttpStatus.FORBIDDEN.value());
+            response.setError(e.getMessage());
+            response.setMessage(e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+
         } catch (Exception e) {
             response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
             response.setError(e.getMessage());
             response.setMessage("Có lỗi xảy ra trong quá trình cập nhật trạng thái");
             return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @GetMapping("orders/{id}/confirm-refund")
+    @ApiMessage("Đã xác nhận hoàn tiền cho đơn hàng")
+    public ResponseEntity<Void> confirmRefund(@PathVariable("id") Long id) throws ResourceInvalidException {
+        Order order = this.orderService.get(id);
+        if (!"REFUND_PENDING".equals(order.getPaymentStatus())) {
+            throw new ResourceInvalidException("Đơn hàng này không ở trạng thái chờ hoàn tiền");
+        }
+        order.setPaymentStatus("REFUNDED");
+        this.orderService.save(order);
+        return ResponseEntity.ok(null);
     }
 
     @PutMapping("/updateOrderInfo/{orderId}")
@@ -125,8 +186,8 @@ public class OrderController {
     }
 
     @PostMapping("checkout")
-    @ApiMessage("Create a checkout payment")
-    public ResponseEntity<RestResponse<Long>> create(
+    @ApiMessage("Thanh toán thành công")
+    public ResponseEntity<?> create(
             @RequestParam("userId") Long userId,
             @RequestParam("address") String address,
             @RequestParam("phone") String phone,
@@ -135,7 +196,6 @@ public class OrderController {
             @RequestParam(value = "voucherId", required = false) Long voucherId,
             @RequestPart("items") List<OrderDetailDTO> items
     ) throws ResourceInvalidException{
-        RestResponse<Long> response = new RestResponse<>();
         try {
             OrderDTO orderDTO = new OrderDTO();
             orderDTO.setUserId(userId);
@@ -147,18 +207,17 @@ public class OrderController {
             orderDTO.setItems(items);
             Order order = orderService.create(orderDTO);
 
-
-            response.setData(order.getId());
-            response.setStatusCode(HttpStatus.CREATED.value());
-            response.setMessage("Thanh toán thành công");
-
-            return new ResponseEntity<>(response, HttpStatus.CREATED);
+            // Không tự bọc RestResponse ở đây - FormatResponse (ResponseBodyAdvice toàn cục) đã tự bọc
+            // mọi response thành công, tự tay bọc thêm ở đây sẽ khiến "data" bị lồng 2 lớp phía client.
+            return new ResponseEntity<>(order.getId(), HttpStatus.CREATED);
         }catch (ResourceInvalidException e) {
+            RestResponse<Object> response = new RestResponse<>();
             response.setStatusCode(HttpStatus.BAD_REQUEST.value());
             response.setError(e.getMessage()); // set lỗi cụ thể vào error
             response.setMessage(e.getMessage()); // fix dòng lỗi
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
+            RestResponse<Object> response = new RestResponse<>();
             response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
             response.setError(e.getMessage());
             response.setMessage("Có lỗi xảy ra trong quá trình thanh toán");
@@ -194,7 +253,9 @@ public class OrderController {
             case 1: // In Delivery
                 return target == 2;
             case 2: // Success
+                return target == 4; // Success -> Returned (trả hàng hoàn tiền)
             case 3: // Cancel
+            case 4: // Returned
                 return false;
             default:
                 return false;

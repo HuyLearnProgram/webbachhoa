@@ -14,6 +14,12 @@ export const apiGetAllOrders = async (params) =>
         }
     })
 
+export const apiGetOrdersByUser = async (userId) =>
+    axiosInstance({
+        url: `/users/${userId}/orders`,
+        method: "get",
+    })
+
 export const apiGetOrderDetail = async (oid) =>
     axiosInstance({
         url: `/OrderDetails/${oid}`,
@@ -39,6 +45,12 @@ export const apiUpdateOrderStatus = async (orderId, status) =>
     axiosInstance({
         url: `updateOrderStatus/${orderId}`,
         params: { status: status },
+    })
+
+export const apiConfirmRefund = async (orderId) =>
+    axiosInstance({
+        url: `orders/${orderId}/confirm-refund`,
+        method: "get",
     })
 
 export const apiGetSummary = async () =>

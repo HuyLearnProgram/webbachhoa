@@ -91,7 +91,7 @@ const Checkout = () => {
             }
     
             if (paymentMethod === 'VNPAY') {
-                const vnpayRes = await apiPaymentVNPay({ amount: formData.get("totalPrice"), bankCode: "NCB" });
+                const vnpayRes = await apiPaymentVNPay({ orderId: response.data, amount: formData.get("totalPrice"), bankCode: "NCB" });
     
                 if (!vnpayRes || vnpayRes.statusCode !== 200 || vnpayRes.data?.data?.code !== "ok") {
                     throw new Error("Lỗi khi tạo liên kết thanh toán với VNPAY");

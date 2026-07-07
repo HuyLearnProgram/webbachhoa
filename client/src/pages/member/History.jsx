@@ -165,12 +165,13 @@ const History = ({ navigate, location }) => {
                                         <span
                                             className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                                     order.status === 0 ? "bg-green-100 text-green-700"
-                                                    : order.status === 1 ? "bg-green-200 text-green-800" 
-                                                    : order.status === 2 ? "bg-green-300 text-green-900" 
+                                                    : order.status === 1 ? "bg-green-200 text-green-800"
+                                                    : order.status === 2 ? "bg-green-300 text-green-900"
+                                                    : order.status === 4 ? "bg-blue-100 text-blue-800"
                                                     : "bg-red-100 text-red-800"
                                                 }`}
                                         >
-                                            {order.status === 0 ? "Pending" : order.status === 1 ? "In delivery" : order.status === 2 ? "Succeed" : "Cancelled"}
+                                            {order.status === 0 ? "Pending" : order.status === 1 ? "In delivery" : order.status === 2 ? "Succeed" : order.status === 4 ? "Returned" : "Cancelled"}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">

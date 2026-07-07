@@ -40,6 +40,10 @@ public class OrderDetailDTO {
     private String voucherType; // "PERCENT" or "FIXED"
     @Transient
     private Double voucherDiscountValue;
+    @Transient
+    private Instant deliveryTime;
+    @Transient
+    private String paymentStatus;
     // Constructor không bao gồm formattedPrice để Hibernate sử dụng
     public OrderDetailDTO(long productId, String productName, int quantity, Double unit_price,
                           String imageUrl, String category, long orderId, Instant orderTime, int status) {
