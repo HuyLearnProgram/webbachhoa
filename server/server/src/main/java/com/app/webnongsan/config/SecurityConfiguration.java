@@ -65,6 +65,10 @@ public class SecurityConfiguration {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(whiteList).permitAll()
+                        // Phải khai báo TRƯỚC rule permitAll bên dưới — Spring Security khớp theo thứ tự,
+                        // rule đầu tiên khớp sẽ thắng, nên rule cụ thể phải đứng trước rule tổng quát hơn
+                        // (GET /api/v2/products/**), nếu không sẽ bị permitAll "nuốt" mất, không bao giờ chạy tới.
+                        .requestMatchers(HttpMethod.GET, "/api/v2/products/export", "/api/v2/products/import-template").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v2/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v2/product/ratings/**").permitAll()
@@ -75,6 +79,18 @@ public class SecurityConfiguration {
                         // filter role with spring security
                         .requestMatchers(HttpMethod.POST, "/api/v2/products").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v2/products").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v2/products/bulk-active").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v2/products/*/images").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v2/products/import").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v2/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v2/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v2/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v2/users/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/allOrders").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/users/*/orders").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/users/*/feedbacks").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/orders/*/confirm-refund").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
 

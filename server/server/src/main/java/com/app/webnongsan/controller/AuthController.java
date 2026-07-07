@@ -4,6 +4,7 @@ import com.app.webnongsan.domain.Role;
 import com.app.webnongsan.domain.User;
 import com.app.webnongsan.domain.request.EmailRequestDTO;
 import com.app.webnongsan.domain.request.LoginDTO;
+import com.app.webnongsan.domain.request.RegisterRequestDTO;
 import com.app.webnongsan.domain.request.ResetPasswordDTO;
 import com.app.webnongsan.domain.response.user.CreateUserDTO;
 import com.app.webnongsan.domain.response.user.ResLoginDTO;
@@ -212,12 +213,16 @@ public class AuthController {
 
     @PostMapping("auth/register")
     @ApiMessage("Register a user")
-    public ResponseEntity<CreateUserDTO> register(@Valid @RequestBody User user) throws ResourceInvalidException {
-        if (this.userService.isExistedEmail(user.getEmail())) {
-            throw new ResourceInvalidException("Email " + user.getEmail() + " đã tồn tại");
+    public ResponseEntity<CreateUserDTO> register(@Valid @RequestBody RegisterRequestDTO registerDTO) throws ResourceInvalidException {
+        if (this.userService.isExistedEmail(registerDTO.getEmail())) {
+            throw new ResourceInvalidException("Email " + registerDTO.getEmail() + " đã tồn tại");
         }
+        User user = new User();
+        user.setName(registerDTO.getName());
+        user.setEmail(registerDTO.getEmail());
+        user.setPassword(registerDTO.getPassword());
         Role r = new Role();
-        r.setId(2);
+        r.setId(1); // USER — role mặc định cho tài khoản tự đăng ký
         user.setRole(r);
         User newUser = this.userService.create(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(this.userService.convertToCreateDTO(newUser));
