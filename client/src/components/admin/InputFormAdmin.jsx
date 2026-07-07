@@ -20,7 +20,7 @@ const InputFormAdmin = ({
             id={id}
             {...register(id,validate)}
             disabled={disabled}
-            className={className && 'rounded-lg'}
+            className={`${className || ''} rounded-lg`.trim()}
             defaultValue={defaultValue}
         />
         {errors[id] && <small className='text-x5 text-red-500'>{errors[id]?.message}</small>}

@@ -107,6 +107,9 @@ const Product = () => {
 
     let ratings = [], priceRange = [];
 
+    // Khách hàng chỉ thấy sản phẩm đang bán
+    queries.filter.push(`active=true`);
+
     if (category) {
       queries.filter.push(`category.name='${category}'`);
     }

@@ -142,9 +142,23 @@ const ProductCard = ({ productData, navigate, dispatch }) => {
           <span className="flex">
             {renderStarFromNumber(productData?.rating)}
           </span>
-          <span className="text-main">
-            {formatMoney(productData?.price)} &#8363;
-          </span>
+          {productData?.originalPrice && productData.originalPrice > productData.price ? (
+            <span className="flex items-center gap-2">
+              <span className="text-main">
+                {formatMoney(productData?.price)} &#8363;
+              </span>
+              <span className="text-gray-400 line-through text-sm">
+                {formatMoney(productData.originalPrice)} &#8363;
+              </span>
+              <span className="text-xs text-red-500 bg-red-50 px-1 rounded">
+                -{Math.round((1 - productData.price / productData.originalPrice) * 100)}%
+              </span>
+            </span>
+          ) : (
+            <span className="text-main">
+              {formatMoney(productData?.price)} &#8363;
+            </span>
+          )}
         </div>
       </div>
     </div>

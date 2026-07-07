@@ -10,7 +10,13 @@ public class ResProductDTO {
 
     private String product_name;
 
+    private String sku;
+
     private double price;
+
+    private Double originalPrice;
+
+    private Boolean active;
 
     private String imageUrl;
 

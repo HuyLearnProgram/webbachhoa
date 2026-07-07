@@ -52,7 +52,10 @@ function EditProduct() {
     const productToAddQuantity = {
       id: product?.id,
       productName: product?.productName,
+      sku: product?.sku,
       price: product?.price,
+      originalPrice: product?.originalPrice,
+      unit: product?.unit,
       quantity: Number(product?.quantity) + Number(inputCount),
       sold: product?.sold,
       description: product?.description,

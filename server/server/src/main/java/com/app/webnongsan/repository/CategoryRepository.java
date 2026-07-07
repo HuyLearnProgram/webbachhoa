@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
 public interface CategoryRepository extends JpaRepository<Category, Long>, JpaSpecificationExecutor<Category> {
     boolean existsByName(String name);
 
+    java.util.Optional<Category> findByName(String name);
+
     @Query("SELECT COUNT(c) > 0 FROM Category c WHERE c.name = :name AND c.id <> :id")
     boolean existsByNameAndNotId(@Param("name") String name, @Param("id") Long id);
 

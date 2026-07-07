@@ -6,24 +6,22 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
-
 @Entity
-@Table(name = "categories")
+@Table(name = "product_images")
 @Getter
 @Setter
-public class Category {
+public class ProductImage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @Column(nullable = false)
-    @NotBlank(message = "Không để trống tên danh mục")
-    private String name;
-
+    @NotBlank(message = "Đường dẫn ảnh không được để trống")
     private String imageUrl;
 
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "category")
+    private int displayOrder;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "product_id")
     @JsonIgnore
-    private List<Product> products;
+    private Product product;
 }

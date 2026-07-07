@@ -40,7 +40,7 @@ const SearchBar = () => {
       const params = {
         page: 1,
         size: 3,
-        filter: `productName~'${searchTerm}'`,
+        filter: `productName~'${searchTerm}' and active=true`,
       };
       const response = await apiSearchProducts(params);
       setProducts(response.data.result);

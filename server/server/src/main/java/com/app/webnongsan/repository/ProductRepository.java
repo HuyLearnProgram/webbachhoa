@@ -15,6 +15,8 @@ import java.util.List;
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
     boolean existsByCategoryId(Long categoryId);
 
+    java.util.Optional<Product> findBySku(String sku);
+
     @Query("SELECT MAX(p.price) FROM Product p " +
             "WHERE (:category IS NULL OR p.category.name = :category) " +
             "AND (:productName IS NULL OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :productName, '%')))")

@@ -41,11 +41,53 @@ export const apiGetRecommendedProducts = async (pid) =>
         method: 'get',
     });
 
-export const apiDeleteProduct = async (pid)=>
+// Ẩn/hiện 1 hoặc nhiều sản phẩm (thay cho xoá cứng)
+export const apiBulkUpdateProductActive = async (ids, active) =>
     axiosInstance({
-        url: `/products/${pid}`,
+        url: `/products/bulk-active`,
+        method: 'put',
+        data: { ids, active },
+    });
+
+// Ảnh phụ (gallery)
+export const apiAddProductImage = async (pid, imageUrl) =>
+    axiosInstance({
+        url: `/products/${pid}/images`,
+        method: 'post',
+        data: { imageUrl },
+    });
+
+export const apiRemoveProductImage = async (pid, imageId) =>
+    axiosInstance({
+        url: `/products/${pid}/images/${imageId}`,
         method: 'delete',
     });
+
+// Import/export Excel
+export const apiExportProducts = async () =>
+    axiosInstance({
+        url: `/products/export`,
+        method: 'get',
+        responseType: 'blob',
+    });
+
+export const apiGetImportTemplate = async () =>
+    axiosInstance({
+        url: `/products/import-template`,
+        method: 'get',
+        responseType: 'blob',
+    });
+
+export const apiImportProducts = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return axiosInstance({
+        url: `/products/import`,
+        method: 'post',
+        data: formData,
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+};
 
     
 export const apiRatings = async (data) =>
@@ -108,6 +150,12 @@ export const apiGetAllRatingsPage = async (params) =>
         method: "get",
         params
     });
+export const apiGetFeedbacksByUser = async (userId) =>
+    axiosInstance({
+        url: `/users/${userId}/feedbacks`,
+        method: "get",
+    });
+
 export const apiHideRating = async (id)=>
     axiosInstance({
         url: `ratings/${id}`,

@@ -18,6 +18,12 @@ import icons from '@/utils/icons';
 import { getCurrentUser } from '@/store/user/asyncActions';
 
 const { FaHeart } = icons
+
+const resolveProductImage = (imageUrl) =>
+  imageUrl && imageUrl.startsWith('https')
+    ? imageUrl
+    : (imageUrl ? `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${imageUrl}` : product_default);
+
 const ProductDetail = ({ isQuickView, data }) => {
 
   const params = useParams();
@@ -34,6 +40,7 @@ const ProductDetail = ({ isQuickView, data }) => {
   const [quantity, setQuantity] = useState(1);
   const [recommendedProducts, setRecommendedProducts] = useState(null)
   const [pid, setPid] = useState(null)
+  const [selectedImage, setSelectedImage] = useState(null)
 
   useEffect(() => {
     if (data) {
@@ -47,6 +54,7 @@ const ProductDetail = ({ isQuickView, data }) => {
     const response = await apiGetProduct(pid);
     if (response.statusCode === 200) {
       setProduct(response.data);
+      setSelectedImage(response.data?.imageUrl);
     }
   };
 
@@ -177,23 +185,44 @@ const ProductDetail = ({ isQuickView, data }) => {
         <div className={clsx('flex-4 flex flex-col gap-4 ', isQuickView ? 'w-1/2' : 'w-2/5')}>
           <div className='w-[450px]'>
             <div className='px-2' >
-              <img 
-              src={
-                product?.imageUrl
-                  ? product?.imageUrl.startsWith("https")
-                    ? product?.imageUrl
-                    : `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${
-                      product?.imageUrl
-                      }`
-                  : product_default
-              }
-              alt='product' className='object-cover' />
+              <img
+                src={resolveProductImage(selectedImage)}
+                alt='product' className='object-cover' />
             </div>
           </div>
+          {[product?.imageUrl, ...(product?.images?.map(img => img.imageUrl) || [])]
+            .filter(Boolean).length > 1 && (
+            <div className='flex gap-2 px-2'>
+              {[product?.imageUrl, ...(product?.images?.map(img => img.imageUrl) || [])]
+                .filter(Boolean)
+                .map((url, index) => (
+                  <img
+                    key={index}
+                    src={resolveProductImage(url)}
+                    alt=''
+                    onClick={() => setSelectedImage(url)}
+                    className={clsx(
+                      'w-14 h-14 object-cover rounded cursor-pointer border-2',
+                      selectedImage === url ? 'border-main' : 'border-transparent'
+                    )}
+                  />
+                ))}
+            </div>
+          )}
         </div>
         <div className={clsx('flex flex-col gap-4', isQuickView ? 'w-1/2' : 'w-2/5 ')}>
           <div className='flex justify-between items-center'>
-            <h2 className='text-[30px] font-semibold'>{`${formatMoney(product?.price)}đ`}</h2>
+            <div className='flex items-center gap-3'>
+              <h2 className='text-[30px] font-semibold'>{`${formatMoney(product?.price)}đ`}</h2>
+              {product?.originalPrice && product.originalPrice > product.price && (
+                <>
+                  <span className='text-gray-400 line-through text-lg'>{`${formatMoney(product.originalPrice)}đ`}</span>
+                  <span className='text-sm text-red-500 bg-red-50 px-2 py-1 rounded font-semibold'>
+                    -{Math.round((1 - product.price / product.originalPrice) * 100)}%
+                  </span>
+                </>
+              )}
+            </div>
             <span className='text-sm text-red-500 ml-2 mt-1 pr-2'>{`Có sẵn: ${product?.quantity}`}</span>
           </div>
           <div className='flex items-center'>
@@ -207,7 +236,9 @@ const ProductDetail = ({ isQuickView, data }) => {
             {`Đơn vị: ${product?.unit || "Không"}`}
           </ul>
           <div className='flex flex-col gap-8'>
-            {product?.quantity > 0 ? (
+            {product?.active === false ? (
+              <p className='text-red-500'>Sản phẩm đã ngừng kinh doanh</p>
+            ) : product?.quantity > 0 ? (
               <>
                 <div className='flex items-center gap-4'>
                   <span>Số lượng</span>

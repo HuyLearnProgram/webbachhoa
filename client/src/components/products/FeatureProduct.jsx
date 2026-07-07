@@ -6,7 +6,7 @@ const FeatureProduct = () => {
   const [products, setProducts] = useState(null);
 
   const fetchProduct = async () => {
-    const response = await apiGetProducts({ page: 1, size: 12, sort: 'sold,desc'});
+    const response = await apiGetProducts({ page: 1, size: 12, sort: 'sold,desc', filter: `active=true` });
     if (response.statusCode === 200) {
       setProducts(response.data.result)
     }

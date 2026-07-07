@@ -5,6 +5,17 @@ const { FaRegStar, FaStar } = icons;
 
 export const formatMoney = (money) => Number(money?.toFixed(1)).toLocaleString();
 
+export const downloadBlob = (blob, filename) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 export const renderStarFromNumber = (number, size) => {
   if (number === undefined || number === null) return;
   number = Math.round(number)

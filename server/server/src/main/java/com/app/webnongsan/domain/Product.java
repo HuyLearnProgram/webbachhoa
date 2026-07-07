@@ -1,7 +1,6 @@
 package com.app.webnongsan.domain;
 
 import com.app.webnongsan.util.SecurityUtil;
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
@@ -26,7 +25,18 @@ public class Product {
     @NotBlank(message = "Tên không được để trống")
     private String productName;
 
+    // Mã định danh sản phẩm, dùng làm khoá để import/export Excel cập nhật đúng sản phẩm đã tồn tại
+    @Column(unique = true)
+    private String sku;
+
     private double price;
+
+    // Giá gốc trước giảm (nullable) — chỉ hiển thị khuyến mãi khi originalPrice > price
+    private Double originalPrice;
+
+    // Ẩn/hiện sản phẩm thay cho hard delete; DEFAULT 1 để dữ liệu cũ tự thành "đang bán" khi ddl-auto=update thêm cột
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
+    private Boolean active = true;
 
     private String imageUrl;
 
@@ -49,10 +59,9 @@ public class Product {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     @NotNull(message = "Category không được để trống")
-    @JsonBackReference
     private Category category;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "product")
@@ -66,6 +75,11 @@ public class Product {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "product")
     @JsonIgnore
     private List<Wishlist> wishlist;
+
+    // Ảnh phụ (gallery) — ảnh chính vẫn là imageUrl để tương thích ProductCard/bảng admin hiện có
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder asc")
+    private List<ProductImage> images;
 
     @PrePersist
     public void handleBeforeCreate() {
