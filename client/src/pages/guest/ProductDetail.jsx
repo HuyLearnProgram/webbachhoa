@@ -16,6 +16,7 @@ import clsx from 'clsx';
 import { toast } from 'react-toastify';
 import icons from '@/utils/icons';
 import { getCurrentUser } from '@/store/user/asyncActions';
+import { getFreeGiftUnits, getMaxOrderableQuantity } from '@/utils/promotion';
 
 const { FaHeart } = icons
 
@@ -107,9 +108,15 @@ const ProductDetail = ({ isQuickView, data }) => {
   }, []);
 
   const handleQuantityChange = (newQuantity) => {
-    if (newQuantity > product?.quantity) {
-      toast.info(`Chỉ còn ${product?.quantity} sản phẩm`);
-      setQuantity(product?.quantity); // Reset về số lượng tối đa
+    const maxOrderable = getMaxOrderableQuantity(product, product?.quantity);
+    if (newQuantity > maxOrderable) {
+      const freeUnits = getFreeGiftUnits(product, newQuantity);
+      toast.info(
+        freeUnits > 0
+          ? `Chỉ còn ${product?.quantity} sản phẩm, không đủ cho ${newQuantity} sản phẩm + ${freeUnits} tặng kèm. Tối đa có thể đặt: ${maxOrderable}.`
+          : `Chỉ còn ${product?.quantity} sản phẩm`
+      );
+      setQuantity(maxOrderable); // Reset về số lượng tối đa có thể đặt
     } else {
       setQuantity(newQuantity);
     }

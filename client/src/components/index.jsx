@@ -4,6 +4,7 @@ export { default as Navigation } from "./navigation/Navigation";
 export { default as Banner } from "./common/Banner";
 export { default as Sidebar } from "./sidebar/Sidebar";
 export { default as FeatureProduct } from "./products/FeatureProduct";
+export { default as HotDeals } from "./products/HotDeals";
 export { default as ProductCard } from './products/ProductCard'
 export { default as SelectOption } from './common/SelectOption'
 export { default as TopHeader } from './headers/TopHeader'

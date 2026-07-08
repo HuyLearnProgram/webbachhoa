@@ -105,17 +105,7 @@ public class ProductController {
     @PutMapping("products/quantity/{id}")
     @ApiMessage("Update quantity product")
     public ResponseEntity<Product> updateQuantity(@PathVariable("id") long id, @RequestParam("quantity") int quantity) throws ResourceInvalidException {
-        boolean check = this.productService.checkValidProductId(id);
-        if (!check){
-            throw new ResourceInvalidException("Product id = " + id + " không tồn tại");
-        }
-        Product p = this.productService.get(id);
-        if(quantity > p.getQuantity()){
-            throw new ResourceInvalidException("Product id = " + p.getId() + " không đủ số lượng tồn kho");
-        }
-        p.setQuantity(p.getQuantity() - quantity);
-        p.setSold(p.getSold()+quantity);
-        return ResponseEntity.ok(this.productService.update(p));
+        return ResponseEntity.ok(this.productService.deductStock(id, quantity));
     }
 
 //    @GetMapping("products/similar/{productId}")

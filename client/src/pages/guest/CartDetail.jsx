@@ -8,7 +8,7 @@ import { getCurrentUser } from '@/store/user/asyncActions';
 import { showModal } from '@/store/app/appSlice';
 import withBaseComponent from '@/hocs/withBaseComponent';
 import path from '@/utils/path';
-import { calculateLineTotal, getFreeGiftUnits } from '@/utils/promotion';
+import { calculateLineTotal, getFreeGiftUnits, getMaxOrderableQuantity } from '@/utils/promotion';
 
 const DEBOUNCE_DELAY = 1500;
 const DELETE_DELAY = 500;
@@ -102,11 +102,11 @@ const Cart = ({ dispatch }) => {
     } else {
       const newSelectedItems = new Set(
         cartItems
-          .filter(item => (item.stock > 0 && item.stock >= item.quantity))
+          .filter(item => (item.stock > 0 && item.stock >= item.quantity + getFreeGiftUnits(item, item.quantity)))
           .map(item => item.id)
       );
       setSelectedItems(newSelectedItems);
-      setAllSelectedItems(cartItems.filter(item => item.stock > 0 && item.stock >= item.quantity));
+      setAllSelectedItems(cartItems.filter(item => item.stock > 0 && item.stock >= item.quantity + getFreeGiftUnits(item, item.quantity)));
     }
     setIsAllSelected(!isAllSelected);
   };
@@ -115,11 +115,20 @@ const Cart = ({ dispatch }) => {
     const currentItem = cartItems.find(item => item.id === pid);
     if (!currentItem) return;
 
-    const validatedQuantity =
-      newQuantity === '' || isNaN(newQuantity) || newQuantity < 1 
-        ? 1 
-        : Math.min(newQuantity, currentItem.stock);
-    
+    const requestedQuantity =
+      newQuantity === '' || isNaN(newQuantity) || newQuantity < 1 ? 1 : newQuantity;
+    const maxOrderable = getMaxOrderableQuantity(currentItem, currentItem.stock);
+    const validatedQuantity = Math.min(requestedQuantity, maxOrderable);
+
+    if (requestedQuantity > maxOrderable) {
+      const freeUnits = getFreeGiftUnits(currentItem, requestedQuantity);
+      toast.warn(
+        freeUnits > 0
+          ? `Chỉ còn ${currentItem.stock} sản phẩm trong kho, không đủ cho ${requestedQuantity} sản phẩm + ${freeUnits} tặng kèm. Tối đa có thể đặt: ${maxOrderable}.`
+          : `Sản phẩm chỉ còn ${currentItem.stock} trong kho.`
+      );
+    }
+
     const quantityDifference = validatedQuantity - currentItem.quantity;
     if (quantityDifference === 0) return;
 
@@ -170,9 +179,13 @@ const Cart = ({ dispatch }) => {
 
   const increaseQuantity = (pid) => {
     const item = cartItems.find((item) => item.id === pid);
-    if (item && item.quantity < item.stock) {
-      handleQuantityChange(pid, item.quantity + 1);
+    if (!item) return;
+    const nextQuantity = item.quantity + 1;
+    if (nextQuantity > getMaxOrderableQuantity(item, item.stock)) {
+      toast.warn(`Sản phẩm chỉ còn ${item.stock} trong kho, không thể tăng thêm.`);
+      return;
     }
+    handleQuantityChange(pid, nextQuantity);
   };
 
   const decreaseQuantity = (pid) => {
@@ -267,9 +280,9 @@ const Cart = ({ dispatch }) => {
         if (!selectedItems.has(item.id)) return false;
         
         return (
-          item.quantity < 1 || 
+          item.quantity < 1 ||
           isNaN(item.quantity) ||
-          item.quantity > item.stock ||
+          item.quantity + getFreeGiftUnits(item, item.quantity) > item.stock ||
           item.stock <= 0
         );
       }
@@ -290,7 +303,7 @@ const Cart = ({ dispatch }) => {
 
   useEffect(() => {
     const validItems = cartItems.filter(item => (
-      item.stock > 0 && item.stock >= item.quantity
+      item.stock > 0 && item.stock >= item.quantity + getFreeGiftUnits(item, item.quantity)
     ));
     setIsAllSelected(
       selectedItems.size === validItems.length && 

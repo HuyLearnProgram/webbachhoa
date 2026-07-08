@@ -27,6 +27,7 @@ public class CartService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final PaginationHelper paginationHelper;
+    private final PromotionService promotionService;
 
     public Cart addOrUpdateCart(Cart cart) throws ResourceInvalidException {
         String email = SecurityUtil.getCurrentUserLogin().isPresent() ? SecurityUtil.getCurrentUserLogin().get() : "";
@@ -36,15 +37,6 @@ public class CartService {
         }
         Product p = this.productRepository.findById(cart.getId().getProductId()).orElseThrow(() -> new ResourceInvalidException("Product không tồn tại"));
 
-        // Cần khi test code
-//        if (cart.getQuantity() <= 0) {
-//            throw new ResourceInvalidException("Số lượng sản phẩm phải lớn hơn 0");
-//        }
-//
-//        if (cart.getQuantity() > p.getQuantity()) {
-//            throw new ResourceInvalidException("Số lượng hàng không đủ");
-//        }
-
         Optional<Cart> existingCart = cartRepository.findById(new CartId(u.getId(), p.getId()));
         if (existingCart.isPresent()) {
             Cart cartItem = existingCart.get();
@@ -52,13 +44,20 @@ public class CartService {
             if (newQuantity < 0){
                 throw new ResourceInvalidException("Số lượng sản phẩm không hợp lệ");
             }
-            if (newQuantity > p.getQuantity()) {
+            // Tồn kho phải đủ cho cả số lượng trả tiền LẪN quà tặng đi kèm (BUY_X_GET_Y) — cả 2 lấy chung 1 kho
+            int freeUnits = this.promotionService.calculateLineTotal(p, newQuantity).getFreeUnits();
+            if (newQuantity + freeUnits > p.getQuantity()) {
                 throw new ResourceInvalidException("Số lượng hàng trong kho không đủ");
             }
 
             cartItem.setQuantity(newQuantity);
             return this.cartRepository.save(cartItem);
         } else {
+            // Thêm mới vào giỏ — trước đây hoàn toàn không có bước kiểm tra tồn kho nào ở nhánh này
+            int freeUnits = this.promotionService.calculateLineTotal(p, cart.getQuantity()).getFreeUnits();
+            if (cart.getQuantity() + freeUnits > p.getQuantity()) {
+                throw new ResourceInvalidException("Số lượng hàng trong kho không đủ");
+            }
             cart.setUser(u);
             cart.setProduct(p);
             return this.cartRepository.save(cart);

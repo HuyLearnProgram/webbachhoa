@@ -50,6 +50,7 @@ public class ProductService {
 //    private final String FASTAPI_URL_SIMILAR_ID = "http://127.0.0.1:8000/similar/%d";
     private final PaginationHelper paginationHelper;
     private final PlatformTransactionManager transactionManager;
+    private final PromotionService promotionService;
 
     private static final String[] IMPORT_HEADERS = {
             "SKU (để trống nếu tạo mới)", "Tên sản phẩm*", "Phân loại*", "Giá bán*",
@@ -136,6 +137,22 @@ public class ProductService {
 
     public Product get(long id) {
         return this.productRepository.findById(id).orElse(null);
+    }
+
+    // Trừ kho khi khách đặt hàng (COD) / thanh toán thành công (VNPay) — gọi từ ProductController.updateQuantity().
+    // "paidQuantity" là số lượng khách TRẢ TIỀN; tự tính thêm số lượng được TẶNG (BUY_X_GET_Y) vì quà tặng cũng lấy
+    // từ cùng kho vật lý, tránh lặp lại bug "chỉ trừ đúng số trả tiền" đã xảy ra ở nhiều điểm check tồn kho khác.
+    @Transactional
+    public Product deductStock(long id, int paidQuantity) throws ResourceInvalidException {
+        Product p = this.findById(id);
+        if (p == null) throw new ResourceInvalidException("Product id = " + id + " không tồn tại");
+        int freeUnits = this.promotionService.calculateLineTotal(p, paidQuantity).getFreeUnits();
+        if (paidQuantity + freeUnits > p.getQuantity()) {
+            throw new ResourceInvalidException("Product id = " + p.getId() + " không đủ số lượng tồn kho");
+        }
+        p.setQuantity(p.getQuantity() - paidQuantity - freeUnits);
+        p.setSold(p.getSold() + paidQuantity);
+        return this.productRepository.save(p);
     }
 
     @Transactional

@@ -2,6 +2,7 @@ import React from 'react';
 
 const QuantitySelector = ({ quantity, stock, onIncrease, onDecrease, onChange }) => {
   const handleInputChange = (e) => {
+    if (!onChange) return;
     const value = parseInt(e.target.value, 10);
     onChange(isNaN(value) ? 1 : value);
   };

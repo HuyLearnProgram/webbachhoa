@@ -58,6 +58,16 @@ export const getFreeGiftUnits = (product, quantity) => {
   return calculateLineTotal(product, quantity).freeUnits;
 };
 
+// Số lượng tối đa khách có thể ĐẶT (trả tiền) sao cho quantity + quà tặng đi kèm không vượt tồn kho —
+// chỉ dùng để hiển thị cảnh báo UI, KHÔNG phải nguồn xác thực (backend tự validate lại độc lập).
+export const getMaxOrderableQuantity = (product, stock) => {
+  if (!stock || stock <= 0) return 0;
+  for (let q = stock; q >= 1; q--) {
+    if (q + getFreeGiftUnits(product, q) <= stock) return q;
+  }
+  return 0;
+};
+
 // Nhãn khuyến mãi cho 1 dòng ĐÃ ĐẶT HÀNG (OrderDetail) — dùng snapshot lưu tại thời điểm đặt hàng
 // (promotionType/freeUnits/promoBundleQuantity/promoBundlePrice), KHÔNG dùng field khuyến mãi hiện tại
 // của product vì có thể đã bị PromotionExpiryScheduler xoá sau khi hết hạn.

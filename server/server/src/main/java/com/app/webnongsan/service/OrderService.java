@@ -233,8 +233,10 @@ public class OrderService {
             Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new ResourceInvalidException("Sản phẩm không tồn tại"));
             if(product.getQuantity() <= 0) throw new ResourceInvalidException("Sản phẩm không còn hàng");
-            if(item.getQuantity() > product.getQuantity()) throw new ResourceInvalidException("Sản phẩm không còn đủ hàng");
-            total += promotionService.calculateLineTotal(product, item.getQuantity()).getTotal();
+            PromotionService.LineTotal lineTotal = promotionService.calculateLineTotal(product, item.getQuantity());
+            // Tồn kho phải đủ cho cả số lượng trả tiền LẪN quà tặng đi kèm (BUY_X_GET_Y) — cả 2 lấy chung 1 kho
+            if(item.getQuantity() + lineTotal.getFreeUnits() > product.getQuantity()) throw new ResourceInvalidException("Sản phẩm không còn đủ hàng");
+            total += lineTotal.getTotal();
         }
 
 

@@ -143,26 +143,24 @@ const ProductCard = ({ productData, navigate, dispatch }) => {
           <span className="flex">
             {renderStarFromNumber(productData?.rating)}
           </span>
-          {productData?.originalPrice && productData.originalPrice > productData.price ? (
-            <span className="flex items-center gap-2">
-              <span className="text-main">
-                {formatMoney(productData?.price)} &#8363;
-              </span>
-              <span className="text-gray-400 line-through text-sm">
-                {formatMoney(productData.originalPrice)} &#8363;
-              </span>
-              <span className="text-xs text-red-500 bg-red-50 px-1 rounded">
-                -{Math.round((1 - productData.price / productData.originalPrice) * 100)}%
-              </span>
-            </span>
-          ) : (
-            <span className="text-main">
-              {formatMoney(productData?.price)} &#8363;
-            </span>
-          )}
-          {getPromotionBadgeLabel(productData) && (
-            <span className="text-xs text-red-500">{getPromotionBadgeLabel(productData)}</span>
-          )}
+          <span className="text-main whitespace-nowrap">
+            {formatMoney(productData?.price)} &#8363;
+          </span>
+          <span className="flex items-center gap-1 h-4 leading-4 whitespace-nowrap">
+            {productData?.originalPrice && productData.originalPrice > productData.price && (
+              <>
+                <span className="text-gray-400 line-through text-xs">
+                  {formatMoney(productData.originalPrice)} &#8363;
+                </span>
+                <span className="text-xs text-red-500 bg-red-50 px-1 rounded">
+                  -{Math.round((1 - productData.price / productData.originalPrice) * 100)}%
+                </span>
+              </>
+            )}
+          </span>
+          <span className="text-xs text-red-500 h-4 leading-4 line-clamp-1">
+            {getPromotionBadgeLabel(productData)}
+          </span>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { QuantitySelector } from '@/components';
 import { convertToSlug } from '@/utils/helper';
 import product_default from '@/assets/product_default.png';
 import icons from '@/utils/icons';
-import { getPromotionBadgeLabel } from '@/utils/promotion';
+import { getPromotionBadgeLabel, getFreeGiftUnits } from '@/utils/promotion';
 
 const { IoTrashBinOutline } = icons;
 
@@ -22,8 +22,10 @@ const CartItem = ({
   pendingUpdates  // Thêm prop này để kiểm tra có đang update không
 }) => {
   const isItemDeleting = loadingDeletes.has(item.id);
-  const hasAnyPendingUpdates = pendingUpdates.size > 0;
-  const isDeleteDisabled = isItemDeleting || hasAnyPendingUpdates;
+  // Chỉ khoá nút Xoá khi CHÍNH sản phẩm này đang có update số lượng dở dang (tránh xoá đè lên
+  // 1 update đang debounce cho cùng dòng) — không khoá theo pendingUpdates của TOÀN bộ giỏ hàng,
+  // trước đây gán nhầm nên bấm +/- 1 sản phẩm sẽ khoá luôn +/- của mọi sản phẩm khác trong 1.5s.
+  const isRemoveDisabled = isItemDeleting || pendingUpdates.has(item.id);
   
   return (
     <div className='grid grid-cols-10 items-center border-b pb-4'>
@@ -32,11 +34,11 @@ const CartItem = ({
           type="checkbox"
           checked={isSelected}
           onChange={() => {
-            if (item.stock > 0 && item.stock >= item.quantity) {
+            if (item.stock > 0 && item.stock >= item.quantity + getFreeGiftUnits(item, item.quantity)) {
               onToggleSelect(item.id);
             }
           }}
-          disabled={isDeleteDisabled}
+          disabled={isItemDeleting}
         />
       </div>
       <Link
@@ -71,27 +73,36 @@ const CartItem = ({
           {item.stock <= 0 && (
             <p className="text-red-500 text-xs">Sản phẩm tạm hết hàng</p>
           )}
-          {(item.stock < item.quantity && item.stock > 0) && (
-            <p className="text-red-500 text-xs">Số lượng tồn kho không đủ</p>
-          )}
+          {(() => {
+            const freeUnits = getFreeGiftUnits(item, item.quantity);
+            const totalNeeded = item.quantity + freeUnits;
+            if (item.stock <= 0 || item.stock >= totalNeeded) return null;
+            return (
+              <p className="text-red-500 text-xs">
+                {freeUnits > 0
+                  ? `Chỉ còn ${item.stock}, không đủ cho ${item.quantity} sản phẩm + ${freeUnits} tặng kèm`
+                  : 'Số lượng tồn kho không đủ'}
+              </p>
+            );
+          })()}
         </div>
       </Link>
       <div className={`${item?.stock <= 0 ? 'opacity-50' : ''} col-span-2 flex justify-center`}>
         <QuantitySelector
           quantity={item.quantity}
           stock={item.stock}
-          onIncrease={item.stock > 0 && !isDeleteDisabled ? () => onIncrease(item.id) : null}
-          onDecrease={item.stock > 0 && !isDeleteDisabled ? () => onDecrease(item.id) : null}
-          onChange={item.stock > 0 && !isDeleteDisabled ? (newQuantity) => onQuantityChange(item.id, newQuantity) : null}
+          onIncrease={item.stock > 0 && !isItemDeleting ? () => onIncrease(item.id) : null}
+          onDecrease={item.stock > 0 && !isItemDeleting ? () => onDecrease(item.id) : null}
+          onChange={item.stock > 0 && !isItemDeleting ? (newQuantity) => onQuantityChange(item.id, newQuantity) : null}
         />
       </div>
       <div className="col-span-1 flex justify-center">
         <button
-          disabled={isDeleteDisabled}
-          onClick={() => !isDeleteDisabled && onRemove(item.id)}
+          disabled={isRemoveDisabled}
+          onClick={() => !isRemoveDisabled && onRemove(item.id)}
           className="w-8 h-8 flex items-center justify-center relative"
         >
-          {isDeleteDisabled ? (
+          {isRemoveDisabled ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <ClipLoader size={20} color="#FF0000" loading={true} />
             </div>
