@@ -16,14 +16,15 @@ import {
   createSearchParams,
 } from "react-router-dom";
 import { AddScreenButton } from "@/components/admin";
-import { Table, Modal, Button, Select, Tag, Checkbox, Upload, Input } from "antd";
+import { Table, Modal, Button, Select, Tag, Checkbox, Upload, Input, Popover } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import product_default from "@/assets/product_default.png";
-import { sortProductOption, LOW_STOCK_THRESHOLD } from "@/utils/constants";
+import { sortProductOption, LOW_STOCK_THRESHOLD, promotionTypeOptions } from "@/utils/constants";
 import { downloadBlob } from "@/utils/helper";
+import { getPromotionBadgeLabel } from "@/utils/promotion";
 import icons from "@/utils/icons";
 
-const { FaInfoCircle } = icons;
+const { FaInfoCircle, FaFilter } = icons;
 
 const PRODUCT_PER_PAGE = 6;
 
@@ -42,12 +43,14 @@ const Product = () => {
   const [importFile, setImportFile] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const search = params.get("search");
   const category = params.get("category");
   const sort = params.get("sort");
   const status = params.get("status"); // 'active' | 'hidden'
   const lowStock = params.get("lowStock"); // '1'
+  const promotionType = params.get("promotionType");
 
   useEffect(() => {
     setSearchTerm(search || "");
@@ -60,6 +63,7 @@ const Product = () => {
     if (status === "active") filters.push(`active=true`);
     if (status === "hidden") filters.push(`active=false`);
     if (lowStock === "1") filters.push(`quantity<=${LOW_STOCK_THRESHOLD}`);
+    if (promotionType) filters.push(`promotionType='${promotionType}'`);
 
     const queries = { page: currentPage, size: PRODUCT_PER_PAGE, filter: filters };
     if (sort) {
@@ -77,7 +81,7 @@ const Product = () => {
 
   useEffect(() => {
     fetchProducts(getQueries());
-  }, [currentPage, search, category, sort, status, lowStock]);
+  }, [currentPage, search, category, sort, status, lowStock, promotionType]);
 
   const buildParams = (overrides) => {
     const next = {};
@@ -86,6 +90,7 @@ const Product = () => {
     if (sort) next.sort = sort;
     if (status) next.status = status;
     if (lowStock) next.lowStock = lowStock;
+    if (promotionType) next.promotionType = promotionType;
     Object.assign(next, overrides);
     Object.keys(next).forEach((key) => {
       if (next[key] === undefined || next[key] === "") delete next[key];
@@ -117,6 +122,26 @@ const Product = () => {
     setCurrentPage(1);
     buildParams({ lowStock: e.target.checked ? "1" : undefined, page: 1 });
   };
+
+  const handlePromotionTypeChange = (value) => {
+    setCurrentPage(1);
+    buildParams({ promotionType: value, page: 1 });
+  };
+
+  const handleResetFilters = () => {
+    setCurrentPage(1);
+    buildParams({
+      category: undefined,
+      status: undefined,
+      sort: undefined,
+      lowStock: undefined,
+      promotionType: undefined,
+      page: 1,
+    });
+  };
+
+  const activeFilterCount = [category, status, sort, lowStock === "1" ? "1" : undefined, promotionType]
+    .filter(Boolean).length;
 
   const handleToggleActiveProcess = (product) => {
     setToggleProduct(product);
@@ -251,6 +276,7 @@ const Product = () => {
       render: (_, record) => {
         const hasSale =
           record.originalPrice && record.originalPrice > record.price;
+        const promoLabel = getPromotionBadgeLabel(record);
         return (
           <div>
             {hasSale && (
@@ -263,6 +289,13 @@ const Product = () => {
               <Tag color="red" style={{ marginLeft: 4 }}>
                 -{Math.round((1 - record.price / record.originalPrice) * 100)}%
               </Tag>
+            )}
+            {promoLabel && (
+              <div>
+                <Tag color="orange" style={{ marginTop: 4 }}>
+                  {promoLabel}
+                </Tag>
+              </div>
             )}
           </div>
         );
@@ -371,33 +404,75 @@ const Product = () => {
           }}
           style={{ width: 300 }}
         />
-        <Select
-          placeholder="Lọc theo phân loại"
-          options={categoryOptions}
-          value={category || undefined}
-          onChange={handleCategoryChange}
-          allowClear
-          style={{ width: 200 }}
-        />
-        <Select
-          placeholder="Lọc theo trạng thái"
-          options={statusOptions}
-          value={status || undefined}
-          onChange={handleStatusChange}
-          allowClear
-          style={{ width: 160 }}
-        />
-        <Select
-          placeholder="Sắp xếp"
-          options={sortProductOption}
-          value={sort || undefined}
-          onChange={handleSortChange}
-          allowClear
-          style={{ width: 200 }}
-        />
-        <Checkbox checked={lowStock === "1"} onChange={handleLowStockChange}>
-          Sắp hết hàng (≤{LOW_STOCK_THRESHOLD})
-        </Checkbox>
+        <Popover
+          trigger="click"
+          open={filterOpen}
+          onOpenChange={setFilterOpen}
+          placement="bottomLeft"
+          content={
+            <div className="flex flex-col gap-3" style={{ width: 260 }}>
+              <div>
+                <div className="text-sm text-gray-500 mb-1">Phân loại</div>
+                <Select
+                  placeholder="Lọc theo phân loại"
+                  options={categoryOptions}
+                  value={category || undefined}
+                  onChange={handleCategoryChange}
+                  allowClear
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 mb-1">Trạng thái</div>
+                <Select
+                  placeholder="Lọc theo trạng thái"
+                  options={statusOptions}
+                  value={status || undefined}
+                  onChange={handleStatusChange}
+                  allowClear
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 mb-1">Sắp xếp</div>
+                <Select
+                  placeholder="Sắp xếp"
+                  options={sortProductOption}
+                  value={sort || undefined}
+                  onChange={handleSortChange}
+                  allowClear
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 mb-1">Khuyến mãi</div>
+                <Select
+                  placeholder="Lọc theo khuyến mãi"
+                  options={promotionTypeOptions}
+                  value={promotionType || undefined}
+                  onChange={handlePromotionTypeChange}
+                  allowClear
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <Checkbox checked={lowStock === "1"} onChange={handleLowStockChange}>
+                Sắp hết hàng (≤{LOW_STOCK_THRESHOLD})
+              </Checkbox>
+              <div className="flex justify-between items-center pt-2 border-t">
+                <Button size="small" onClick={handleResetFilters}>
+                  Chọn lại
+                </Button>
+                <Button size="small" type="primary" onClick={() => setFilterOpen(false)}>
+                  Áp dụng{products?.data?.meta?.total !== undefined ? ` (Có ${products.data.meta.total} sản phẩm)` : ""}
+                </Button>
+              </div>
+            </div>
+          }
+        >
+          <Button icon={<FaFilter />}>
+            Bộ lọc{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          </Button>
+        </Popover>
         <Button loading={isExporting} onClick={handleExport}>
           Xuất Excel
         </Button>

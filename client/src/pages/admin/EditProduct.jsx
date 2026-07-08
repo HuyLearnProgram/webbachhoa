@@ -55,6 +55,12 @@ function EditProduct() {
       sku: product?.sku,
       price: product?.price,
       originalPrice: product?.originalPrice,
+      promotionType: product?.promotionType,
+      promoBuyQuantity: product?.promoBuyQuantity,
+      promoFreeQuantity: product?.promoFreeQuantity,
+      promoBundleQuantity: product?.promoBundleQuantity,
+      promoBundlePrice: product?.promoBundlePrice,
+      // Không gửi promotionDurationDays — giữ nguyên hạn khuyến mãi hiện có, không phải lúc nào nhập thêm hàng cũng là đổi khuyến mãi
       unit: product?.unit,
       quantity: Number(product?.quantity) + Number(inputCount),
       sold: product?.sold,

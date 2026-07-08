@@ -81,6 +81,21 @@ export const sortProductOption = [
   { value: 'createdAt-desc', label: 'Mới nhất' }
 ];
 
+// Loại khuyến mãi trên sản phẩm — dùng chung ở admin (filter/form) và src/utils/promotion.js
+export const PROMOTION_TYPES = {
+  NONE: "NONE",
+  PRICE_DISCOUNT: "PRICE_DISCOUNT",
+  BUY_X_GET_Y: "BUY_X_GET_Y",
+  BUNDLE_PRICE: "BUNDLE_PRICE",
+};
+
+export const promotionTypeOptions = [
+  { value: PROMOTION_TYPES.NONE, label: "Không khuyến mãi" },
+  { value: PROMOTION_TYPES.PRICE_DISCOUNT, label: "Giảm giá" },
+  { value: PROMOTION_TYPES.BUY_X_GET_Y, label: "Mua X tặng Y" },
+  { value: PROMOTION_TYPES.BUNDLE_PRICE, label: "Mua N sản phẩm giá cố định" },
+];
+
 export const memberSidebar = [
   {
     id: 4,

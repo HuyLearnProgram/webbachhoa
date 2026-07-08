@@ -2,11 +2,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import  {CartItem, CartFooter, EmptyCart} from '@/components';
+import  {CartItem, CartFooter, EmptyCart, GiftDetailModal} from '@/components';
 import { apiGetCart, apiAddOrUpdateCart, apiDeleteCart } from '@/apis';
 import { getCurrentUser } from '@/store/user/asyncActions';
+import { showModal } from '@/store/app/appSlice';
 import withBaseComponent from '@/hocs/withBaseComponent';
 import path from '@/utils/path';
+import { calculateLineTotal, getFreeGiftUnits } from '@/utils/promotion';
 
 const DEBOUNCE_DELAY = 1500;
 const DELETE_DELAY = 500;
@@ -205,8 +207,29 @@ const Cart = ({ dispatch }) => {
   const calculateSelectedTotal = () => {
     return cartItems
       .filter(item => selectedItems.has(item.id))
-      .reduce((total, item) => total + item.price * item.quantity, 0)
+      .reduce((total, item) => total + calculateLineTotal(item, item.quantity).total, 0)
       .toLocaleString('vi-VN');
+  };
+
+  const getGiftItems = () => {
+    return cartItems
+      .filter(item => selectedItems.has(item.id))
+      .map(item => ({ item, freeUnits: getFreeGiftUnits(item, item.quantity) }))
+      .filter(({ freeUnits }) => freeUnits > 0);
+  };
+
+  const handleShowGiftDetail = () => {
+    const gifts = getGiftItems();
+    if (gifts.length === 0) return;
+    dispatch(showModal({
+      isShowModal: true,
+      modalChildren: (
+        <GiftDetailModal
+          gifts={gifts}
+          onClose={() => dispatch(showModal({ isShowModal: false, modalChildren: null }))}
+        />
+      )
+    }));
   };
 
   const handleCheckout = () => {
@@ -297,6 +320,16 @@ const Cart = ({ dispatch }) => {
             pendingUpdates={pendingUpdates}
           />
           ))}
+
+          {getGiftItems().length > 0 && (
+            <div
+              className="border border-dashed border-orange-300 bg-orange-50 rounded-lg p-3 cursor-pointer"
+              onClick={handleShowGiftDetail}
+            >
+              <span className="font-semibold text-orange-600">🎁 Giỏ hàng của bạn được tặng quà</span>
+              <span className="text-sm text-gray-500 ml-2">(Bấm để xem chi tiết)</span>
+            </div>
+          )}
 
           <CartFooter
             hasMore={hasMore}

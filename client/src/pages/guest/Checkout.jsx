@@ -2,11 +2,13 @@ import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import payment from '@/assets/payment/payment.svg';
 import { apiCreateOrder, apiDeleteCart, apiGetSelectedCart, apiPaymentVNPay, apiSendEmail, getUserById, apiUpdateProduct, apiGetMyVouchers } from "@/apis";
-import { Button,InputForm } from "@/components";
+import { Button,InputForm, GiftDetailModal } from "@/components";
 import { useForm } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FaRegCreditCard } from "react-icons/fa6";
+import { showModal } from "@/store/app/appSlice";
+import { calculateLineTotal, getFreeGiftUnits, getPromotionBadgeLabel } from "@/utils/promotion";
 
 
 const Checkout = () => {
@@ -58,7 +60,7 @@ const Checkout = () => {
             formData.append("userId", current?.id);
             formData.append("address", data.address);
             formData.append("phone", data.phone);
-            let total = cart?.reduce((sum, el) => +el.price * el.quantity + sum, 0);
+            let total = getCartTotal();
             if (selectedVoucher) {
                 if (selectedVoucher.type === "PERCENT") {
                     total = total * (1 - selectedVoucher.discountValue / 100);
@@ -167,7 +169,27 @@ const Checkout = () => {
     };
 
     const getCartTotal = () => {
-        return cart?.reduce((sum, el) => +el.price * el.quantity + sum, 0) || 0;
+        return cart?.reduce((sum, el) => calculateLineTotal(el, el.quantity).total + sum, 0) || 0;
+    };
+
+    const getGiftItems = () => {
+        return (cart || [])
+            .map(item => ({ item, freeUnits: getFreeGiftUnits(item, item.quantity) }))
+            .filter(({ freeUnits }) => freeUnits > 0);
+    };
+
+    const handleShowGiftDetail = () => {
+        const gifts = getGiftItems();
+        if (gifts.length === 0) return;
+        dispatch(showModal({
+            isShowModal: true,
+            modalChildren: (
+                <GiftDetailModal
+                    gifts={gifts}
+                    onClose={() => dispatch(showModal({ isShowModal: false, modalChildren: null }))}
+                />
+            )
+        }));
     };
     
       
@@ -178,7 +200,7 @@ const Checkout = () => {
     };
     // Tính số tiền được giảm
     const getDiscountAmount = () => {
-        let total = cart?.reduce((sum, el) => +el.price * el.quantity + sum, 0) || 0;
+        let total = getCartTotal();
         if (!selectedVoucher) return 0;
     
         if (selectedVoucher.type === "PERCENT") {
@@ -247,10 +269,30 @@ const Checkout = () => {
                             </thead>
                             <tbody>
                                 {cart?.map((el, index) => (<tr className="border" key={el?.productId + "-" + index}>
-                                    <td className="p-2 text-left">{el?.productName}</td>
+                                    <td className="p-2 text-left">
+                                        {el?.productName}
+                                        {getPromotionBadgeLabel(el) && (
+                                            <div className="text-xs text-red-500">{getPromotionBadgeLabel(el)}</div>
+                                        )}
+                                    </td>
                                     <td className="p-2 text-center">{el?.quantity}</td>
-                                    <td className="p-2 text-right">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(+el?.price)}</td>
+                                    <td className="p-2 text-right">
+                                        {el?.originalPrice && el.originalPrice > el.price && (
+                                            <div className="text-gray-400 line-through text-xs">
+                                                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(+el.originalPrice)}
+                                            </div>
+                                        )}
+                                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculateLineTotal(el, el.quantity).total / el.quantity)}
+                                    </td>
                                 </tr>))}
+
+                                {getGiftItems().length > 0 && (
+                                    <tr className="border bg-orange-50 cursor-pointer" onClick={handleShowGiftDetail}>
+                                        <td className="p-2 text-left font-medium text-orange-600" colSpan={3}>
+                                            🎁 Giỏ hàng của bạn được tặng quà (Bấm để xem chi tiết)
+                                        </td>
+                                    </tr>
+                                )}
 
                                 {/* Dòng giảm giá nếu có mã */}
                                 {selectedVoucher && (

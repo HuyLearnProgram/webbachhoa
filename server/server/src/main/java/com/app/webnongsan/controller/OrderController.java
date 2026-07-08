@@ -84,15 +84,22 @@ public class OrderController {
             if (!isValidStatusTransition(order.getStatus(), status)) {
                 throw new ResourceInvalidException("Không thể chuyển trạng thái từ " + order.getStatus() + " sang " + status);
             }
-            if (status == 4) {
-                // Trả hàng hoàn tiền - hành động tự-phục vụ của khách hàng, cần kiểm tra thêm
-                String actorEmail = SecurityUtil.getCurrentUserLogin().orElse(null);
-                boolean isOwner = actorEmail != null && actorEmail.equalsIgnoreCase(order.getUser().getEmail());
-                boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
-                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-                if (!isOwner && !isAdmin) {
+            String actorEmail = SecurityUtil.getCurrentUserLogin().orElse(null);
+            boolean isOwner = actorEmail != null && actorEmail.equalsIgnoreCase(order.getUser().getEmail());
+            boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+            if (!isAdmin) {
+                // Khách hàng chỉ được tự thao tác trên đơn của chính mình, và chỉ 2 hành động
+                // tự-phục vụ hiện có trên UI: Huỷ đơn (->3) và Trả hàng hoàn tiền (->4).
+                // Mọi transition khác (VD ->1, ->2) chỉ admin mới được thực hiện.
+                if (!isOwner || !(status == 3 || status == 4)) {
                     throw new PermissionException("Bạn không có quyền thao tác trên đơn hàng này");
                 }
+            }
+
+            if (status == 4) {
+                // Trả hàng hoàn tiền - kiểm tra thêm điều kiện nghiệp vụ
                 if (!"PAID".equals(order.getPaymentStatus())) {
                     throw new ResourceInvalidException("Đơn hàng chưa thanh toán, không thể trả hàng hoàn tiền");
                 }

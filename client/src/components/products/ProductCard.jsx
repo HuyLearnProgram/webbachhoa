@@ -12,6 +12,7 @@ import { useSelector } from "react-redux";
 import Swal from "sweetalert2";
 import path from "@/utils/path";
 import { getCurrentUser } from "@/store/user/asyncActions";
+import { getPromotionBadgeLabel } from "@/utils/promotion";
 
 const { FaCartShopping, FaHeart, FaEye } = icons;
 
@@ -158,6 +159,9 @@ const ProductCard = ({ productData, navigate, dispatch }) => {
             <span className="text-main">
               {formatMoney(productData?.price)} &#8363;
             </span>
+          )}
+          {getPromotionBadgeLabel(productData) && (
+            <span className="text-xs text-red-500">{getPromotionBadgeLabel(productData)}</span>
           )}
         </div>
       </div>

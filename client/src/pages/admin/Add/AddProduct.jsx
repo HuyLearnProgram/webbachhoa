@@ -8,6 +8,7 @@ import { CategoryComboBox } from "@/components/admin";
 // import { apiCreateProduct } from '@/apis';
 import { apiUploadImage, apiCreateProduct, apiAddProductImage } from "@/apis";
 import { toast } from "react-toastify";
+import { promotionTypeOptions, PROMOTION_TYPES } from "@/utils/constants";
 const AddProduct = () => {
   const {
     register,
@@ -20,21 +21,53 @@ const AddProduct = () => {
   const [productImage, setProductImage] = useState(null);
   const [previewProductImage, setPreviewProductImage] = useState(null);
   const [galleryImages, setGalleryImages] = useState([]); // [{ file, preview }]
+  const [promotionType, setPromotionType] = useState(PROMOTION_TYPES.NONE);
 
   const handleCreateProduct = async (data) => {
     if (!selectedCategory?.id) {
       toast.error("Vui lòng chọn phân loại cho sản phẩm");
       return;
     }
-    if (data?.originalPrice && Number(data.originalPrice) <= Number(data.price)) {
+    if (promotionType === PROMOTION_TYPES.PRICE_DISCOUNT
+      && (!data?.originalPrice || Number(data.originalPrice) <= Number(data.price))) {
       toast.error("Giá gốc phải lớn hơn giá bán (chỉ điền khi có khuyến mãi)");
+      return;
+    }
+    if (promotionType === PROMOTION_TYPES.BUY_X_GET_Y
+      && (!data?.promoBuyQuantity || Number(data.promoBuyQuantity) < 1
+        || !data?.promoFreeQuantity || Number(data.promoFreeQuantity) < 1)) {
+      toast.error("Khuyến mãi 'Mua X tặng Y' cần số lượng mua và số lượng tặng đều >= 1");
+      return;
+    }
+    if (promotionType === PROMOTION_TYPES.BUNDLE_PRICE
+      && (!data?.promoBundleQuantity || Number(data.promoBundleQuantity) < 2
+        || !data?.promoBundlePrice || Number(data.promoBundlePrice) <= 0
+        || Number(data.promoBundlePrice) >= Number(data.price) * Number(data.promoBundleQuantity))) {
+      toast.error("Khuyến mãi 'Mua N sản phẩm giá cố định' cần số lượng >= 2 và giá gói phải rẻ hơn mua lẻ");
+      return;
+    }
+    if (promotionType !== PROMOTION_TYPES.NONE
+      && data?.promotionDurationDays && Number(data.promotionDurationDays) < 1) {
+      toast.error("Số ngày hiệu lực khuyến mãi phải lớn hơn 0");
       return;
     }
     const productToCreate = {
       productName: data?.productName,
       sku: data?.sku || null,
       price: data?.price,
-      originalPrice: data?.originalPrice ? Number(data.originalPrice) : null,
+      promotionType,
+      originalPrice: promotionType === PROMOTION_TYPES.PRICE_DISCOUNT && data?.originalPrice
+        ? Number(data.originalPrice) : null,
+      promoBuyQuantity: promotionType === PROMOTION_TYPES.BUY_X_GET_Y && data?.promoBuyQuantity
+        ? Number(data.promoBuyQuantity) : null,
+      promoFreeQuantity: promotionType === PROMOTION_TYPES.BUY_X_GET_Y && data?.promoFreeQuantity
+        ? Number(data.promoFreeQuantity) : null,
+      promoBundleQuantity: promotionType === PROMOTION_TYPES.BUNDLE_PRICE && data?.promoBundleQuantity
+        ? Number(data.promoBundleQuantity) : null,
+      promoBundlePrice: promotionType === PROMOTION_TYPES.BUNDLE_PRICE && data?.promoBundlePrice
+        ? Number(data.promoBundlePrice) : null,
+      promotionDurationDays: promotionType !== PROMOTION_TYPES.NONE && data?.promotionDurationDays
+        ? Number(data.promotionDurationDays) : null,
       quantity: data?.quantity,
       unit: data?.unit || null,
       sold: 0,
@@ -65,6 +98,7 @@ const AddProduct = () => {
       setPreviewProductImage(null);
       setProductImage(null);
       setGalleryImages([]);
+      setPromotionType(PROMOTION_TYPES.NONE);
     } catch (err) {
       toast.error("Có lỗi xảy ra: " + err.message);
     }
@@ -150,15 +184,84 @@ const AddProduct = () => {
                 type="number"
               />
 
-              <InputFormAdmin
-                className="border p-2 w-full"
-                label="Giá gốc (khuyến mãi)"
-                placeholder="Bỏ trống nếu không khuyến mãi"
-                register={register}
-                errors={errors}
-                id="originalPrice"
-                type="number"
-              />
+              <div className="flex flex-col h-[78px] gap-2">
+                <label>Loại khuyến mãi</label>
+                <select
+                  className="border p-2 w-full rounded-lg"
+                  value={promotionType}
+                  onChange={(e) => setPromotionType(e.target.value)}
+                >
+                  {promotionTypeOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {promotionType === PROMOTION_TYPES.PRICE_DISCOUNT && (
+                <InputFormAdmin
+                  className="border p-2 w-full"
+                  label="Giá gốc"
+                  placeholder="Giá trước khi giảm"
+                  register={register}
+                  errors={errors}
+                  id="originalPrice"
+                  type="number"
+                />
+              )}
+
+              {promotionType === PROMOTION_TYPES.BUY_X_GET_Y && (
+                <>
+                  <InputFormAdmin
+                    className="border p-2 w-full"
+                    label="Mua số lượng (X)"
+                    register={register}
+                    errors={errors}
+                    id="promoBuyQuantity"
+                    type="number"
+                  />
+                  <InputFormAdmin
+                    className="border p-2 w-full"
+                    label="Tặng số lượng (Y)"
+                    register={register}
+                    errors={errors}
+                    id="promoFreeQuantity"
+                    type="number"
+                  />
+                </>
+              )}
+
+              {promotionType === PROMOTION_TYPES.BUNDLE_PRICE && (
+                <>
+                  <InputFormAdmin
+                    className="border p-2 w-full"
+                    label="Số lượng theo gói (N)"
+                    register={register}
+                    errors={errors}
+                    id="promoBundleQuantity"
+                    type="number"
+                  />
+                  <InputFormAdmin
+                    className="border p-2 w-full"
+                    label="Giá trọn gói"
+                    register={register}
+                    errors={errors}
+                    id="promoBundlePrice"
+                    type="number"
+                  />
+                </>
+              )}
+
+              {promotionType !== PROMOTION_TYPES.NONE && (
+                <InputFormAdmin
+                  className="border p-2 w-full"
+                  label="Số ngày hiệu lực"
+                  placeholder="Để trống = không giới hạn"
+                  register={register}
+                  errors={errors}
+                  id="promotionDurationDays"
+                  type="number"
+                />
+              )}
 
               <InputFormAdmin
                 className="border p-2 w-full"

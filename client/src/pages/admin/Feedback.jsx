@@ -9,6 +9,7 @@ import withBaseComponent from "@/hocs/withBaseComponent";
 import icons from "@/utils/icons";
 import { getCurrentUser } from "@/store/user/asyncActions";
 import { FeedbackCard } from "@/components";
+import path from "@/utils/path";
 
 const { FaInfoCircle, MdOutlineBlock } = icons;
 

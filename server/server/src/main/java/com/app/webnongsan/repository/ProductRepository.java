@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 
 
@@ -16,6 +17,9 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     boolean existsByCategoryId(Long categoryId);
 
     java.util.Optional<Product> findBySku(String sku);
+
+    // Dùng cho PromotionExpiryScheduler — lấy sản phẩm đã hết hạn khuyến mãi để tự động khôi phục
+    List<Product> findByPromotionExpiresAtLessThanEqual(Instant now);
 
     @Query("SELECT MAX(p.price) FROM Product p " +
             "WHERE (:category IS NULL OR p.category.name = :category) " +

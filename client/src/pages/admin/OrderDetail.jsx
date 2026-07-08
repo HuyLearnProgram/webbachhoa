@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { apiGetOrderDetail, apiGetOrderInfor, getUserById, apiUpdateOrderInfo, apiConfirmRefund } from "@/apis";
 import { TurnBackHeader } from "@/components/admin";
-import { Card, Row, Col, Typography, Table, Image } from "antd";
+import { Card, Row, Col, Typography, Table, Image, Tag } from "antd";
 import product_default from "@/assets/product_default.png";
 import { Form, Input, Button, message, Divider } from "antd";
 import { Modal } from "antd";
@@ -9,6 +9,8 @@ import { toast } from 'react-toastify';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import logo from "@/assets/logo.png";
+import { PROMOTION_TYPES } from "@/utils/constants";
+import { getOrderLinePromotionLabel, hasOrderLineDiscount } from "@/utils/promotion";
 
 
 
@@ -194,11 +196,15 @@ function OrderDetail() {
   useEffect(() => {
     if (orderDetail?.data?.result) {
       const total = orderDetail.data.result.reduce((sum, item) => {
-        return sum + item.unit_price * item.quantity;
+        return sum + getLineTotal(item);
       }, 0);
       setTotalMoney(total);
     }
   }, [orderDetail]);
+
+  // Đơn cũ tạo trước khi có snapshot khuyến mãi có lineTotal = 0 (giá trị DEFAULT của cột mới thêm),
+  // không phải null/undefined nên "??" không fallback được -> coi luôn giá trị falsy (0) là "chưa có snapshot".
+  const getLineTotal = (item) => item.lineTotal || item.unit_price * item.quantity;
 
   const columns = [
     {
@@ -225,16 +231,38 @@ function OrderDetail() {
     {
       title: 'Giá',
       dataIndex: 'unit_price',
-      render: (text) => `${text ? text.toLocaleString("vi-VN") : "0"} đ`,
+      render: (text, record) =>
+        hasOrderLineDiscount(record) ? (
+          <>
+            <div style={{ textDecoration: 'line-through', color: '#999', fontSize: 12 }}>
+              {record.originalPrice.toLocaleString("vi-VN")} đ
+            </div>
+            <div>{record.unit_price.toLocaleString("vi-VN")} đ</div>
+          </>
+        ) : (
+          `${text ? text.toLocaleString("vi-VN") : "0"} đ`
+        ),
     },
     {
       title: 'Số lượng',
       dataIndex: 'quantity',
     },
     {
+      title: 'Khuyến mãi',
+      dataIndex: 'promotionType',
+      render: (text, record) => {
+        const label = getOrderLinePromotionLabel(record);
+        if (!label) return <Text type="secondary">—</Text>;
+        const color = record.promotionType === PROMOTION_TYPES.BUY_X_GET_Y ? "green"
+          : record.promotionType === PROMOTION_TYPES.BUNDLE_PRICE ? "blue"
+          : "orange";
+        return <Tag color={color}>{label}</Tag>;
+      },
+    },
+    {
       title: 'Tổng cộng',
       dataIndex: 'total',
-      render: (text, record) => `${(record.unit_price * record.quantity).toLocaleString("vi-VN")} đ`,
+      render: (text, record) => `${getLineTotal(record).toLocaleString("vi-VN")} đ`,
     },
   ];
 
@@ -315,7 +343,7 @@ function OrderDetail() {
             <Table.Summary fixed>
             {/* Tổng tiền gốc trước giảm */}
             <Table.Summary.Row>
-              <Table.Summary.Cell colSpan={4}>
+              <Table.Summary.Cell colSpan={5}>
                 <Text strong>Tổng tiền gốc</Text>
               </Table.Summary.Cell>
               <Table.Summary.Cell>
@@ -326,7 +354,7 @@ function OrderDetail() {
             {/* Dòng giảm giá nếu có mã voucher */}
             {orderInformation?.data?.voucherCode && (
               <Table.Summary.Row>
-                <Table.Summary.Cell colSpan={4}>
+                <Table.Summary.Cell colSpan={5}>
                   <Text type="danger">Giảm giá ({orderInformation.data.voucherCode})</Text>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell>
@@ -341,7 +369,7 @@ function OrderDetail() {
 
             {/* Tổng thanh toán sau khi áp dụng giảm */}
             <Table.Summary.Row>
-              <Table.Summary.Cell colSpan={4}>
+              <Table.Summary.Cell colSpan={5}>
                 <Text strong>Tổng thanh toán</Text>
               </Table.Summary.Cell>
               <Table.Summary.Cell>
@@ -482,6 +510,7 @@ function OrderDetail() {
               <th style={{ border: "1px solid #000", padding: "8px", textAlign: "left", background: "#f5f5f5" }}>Tên sản phẩm</th>
               <th style={{ border: "1px solid #000", padding: "8px", textAlign: "left", background: "#f5f5f5" }}>Đơn giá</th>
               <th style={{ border: "1px solid #000", padding: "8px", textAlign: "left", background: "#f5f5f5" }}>Số lượng</th>
+              <th style={{ border: "1px solid #000", padding: "8px", textAlign: "left", background: "#f5f5f5" }}>Khuyến mãi</th>
               <th style={{ border: "1px solid #000", padding: "8px", textAlign: "left", background: "#f5f5f5" }}>Thành tiền</th>
             </tr>
           </thead>
@@ -491,11 +520,23 @@ function OrderDetail() {
                 <td style={{ border: "1px solid #000", padding: "8px" }}>{idx + 1}</td>
                 <td style={{ border: "1px solid #000", padding: "8px" }}>{item.productName}</td>
                 <td style={{ border: "1px solid #000", padding: "8px" }}>
-                  {item.unit_price.toLocaleString("vi-VN")} đ
+                  {hasOrderLineDiscount(item) ? (
+                    <>
+                      <div style={{ textDecoration: 'line-through', color: '#999', fontSize: 11 }}>
+                        {item.originalPrice.toLocaleString("vi-VN")} đ
+                      </div>
+                      <div>{item.unit_price.toLocaleString("vi-VN")} đ</div>
+                    </>
+                  ) : (
+                    `${item.unit_price.toLocaleString("vi-VN")} đ`
+                  )}
                 </td>
                 <td style={{ border: "1px solid #000", padding: "8px" }}>{item.quantity}</td>
                 <td style={{ border: "1px solid #000", padding: "8px" }}>
-                  {(item.unit_price * item.quantity).toLocaleString("vi-VN")} đ
+                  {getOrderLinePromotionLabel(item) || "—"}
+                </td>
+                <td style={{ border: "1px solid #000", padding: "8px" }}>
+                  {getLineTotal(item).toLocaleString("vi-VN")} đ
                 </td>
               </tr>
             ))}
@@ -808,7 +849,7 @@ export default OrderDetail;
 //             <Table.Summary fixed>
 //             {/* Tổng tiền gốc trước giảm */}
 //             <Table.Summary.Row>
-//               <Table.Summary.Cell colSpan={4}>
+//               <Table.Summary.Cell colSpan={5}>
 //                 <Text strong>Tổng tiền gốc</Text>
 //               </Table.Summary.Cell>
 //               <Table.Summary.Cell>
@@ -819,7 +860,7 @@ export default OrderDetail;
 //             {/* Dòng giảm giá nếu có mã voucher */}
 //             {orderInformation?.data?.voucherCode && (
 //               <Table.Summary.Row>
-//                 <Table.Summary.Cell colSpan={4}>
+//                 <Table.Summary.Cell colSpan={5}>
 //                   <Text type="danger">Giảm giá ({orderInformation.data.voucherCode})</Text>
 //                 </Table.Summary.Cell>
 //                 <Table.Summary.Cell>
@@ -834,7 +875,7 @@ export default OrderDetail;
 
 //             {/* Tổng thanh toán sau khi áp dụng giảm */}
 //             <Table.Summary.Row>
-//               <Table.Summary.Cell colSpan={4}>
+//               <Table.Summary.Cell colSpan={5}>
 //                 <Text strong>Tổng thanh toán</Text>
 //               </Table.Summary.Cell>
 //               <Table.Summary.Cell>

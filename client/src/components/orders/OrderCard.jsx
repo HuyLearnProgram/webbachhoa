@@ -5,6 +5,11 @@ import { FaClock, FaRegStar, FaStar, FaX } from "react-icons/fa6";
 import { GrStatusCritical, GrStatusCriticalSmall } from "react-icons/gr";
 import { Modal, Button } from 'antd';
 import { apiCancelOrder } from "@/apis";
+import { getOrderLinePromotionLabel, hasOrderLineDiscount } from "@/utils/promotion";
+
+// Đơn cũ tạo trước khi có snapshot khuyến mãi có lineTotal = 0 (giá trị DEFAULT của cột mới thêm),
+// không phải null/undefined nên "??" không fallback được -> coi luôn giá trị falsy (0) là "chưa có snapshot".
+const getLineTotal = (item) => item?.lineTotal || item?.unit_price * item?.quantity;
 
 const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
     const modalRef = useRef()
@@ -54,8 +59,8 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
     const isWithinReturnWindow = (deliveryTime) =>
         !!deliveryTime && (Date.now() - new Date(deliveryTime).getTime()) <= 15 * 24 * 60 * 60 * 1000;
 
-    const getTotalPrice = () => 
-        data?.reduce((total, item) => total + item?.unit_price * item?.quantity, 0);
+    const getTotalPrice = () =>
+        data?.reduce((total, item) => total + getLineTotal(item), 0);
 
     // Tính tổng tiền sau khi áp dụng voucher (nếu có)
     const getDiscountedTotal = () => {
@@ -100,9 +105,23 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
                             <h2 className="text-xl font-medium text-primary">{order?.productName}</h2>
                             <h2 className="text-sm text-gray-500">{order?.category}</h2>
                             <p className="text-sm">x{order?.quantity}</p>
+                            {getOrderLinePromotionLabel(order) && (
+                                <p className="text-xs text-red-500 font-medium">
+                                    {getOrderLinePromotionLabel(order)}
+                                </p>
+                            )}
                         </div>
                         <div className="text-right">
-                            <p className="font-medium">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(+order.unit_price)}</p>
+                            {hasOrderLineDiscount(order) && (
+                                <p className="text-xs text-gray-400 line-through">
+                                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(+order.originalPrice)}
+                                </p>
+                            )}
+                            <p className="font-medium">
+                                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                                    +getLineTotal(order)
+                                )}
+                            </p>
                         </div>
                     </div>
                 ))}

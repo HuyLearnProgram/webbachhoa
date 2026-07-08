@@ -34,6 +34,31 @@ public class Product {
     // Giá gốc trước giảm (nullable) — chỉ hiển thị khuyến mãi khi originalPrice > price
     private Double originalPrice;
 
+    // Loại khuyến mãi: NONE | PRICE_DISCOUNT | BUY_X_GET_Y | BUNDLE_PRICE — theo state-machine-bằng-String cùng convention với Order.paymentStatus
+    // DEFAULT ở DB (không chỉ Java-side) để dữ liệu cũ/cài đặt mới tự có 'NONE' thay vì NULL khi ddl-auto=update thêm cột
+    // (đã có 1 lần dữ liệu cũ bị NULL làm hỏng filter "Không khuyến mãi", xem SQL/backfill_promotion_type.sql)
+    @Column(columnDefinition = "VARCHAR(20) DEFAULT 'NONE'")
+    private String promotionType = "NONE";
+
+    // "Mua X tặng Y" — X: số lượng phải mua để được tính vào 1 lượt khuyến mãi
+    private Integer promoBuyQuantity;
+
+    // "Mua X tặng Y" — Y: số lượng được tặng miễn phí (tặng chính sản phẩm này) mỗi lượt
+    private Integer promoFreeQuantity;
+
+    // "Mua N sản phẩm giá cố định" — N: số lượng áp dụng giá gói
+    private Integer promoBundleQuantity;
+
+    // "Mua N sản phẩm giá cố định" — giá cố định cho trọn gói N sản phẩm
+    private Double promoBundlePrice;
+
+    // Thời điểm khuyến mãi hết hạn, tự tính = now + promotionDurationDays lúc lưu; null = không giới hạn
+    private Instant promotionExpiresAt;
+
+    // Không lưu DB — chỉ dùng để nhận "số ngày hiệu lực" từ client lúc create/update, backend tự quy đổi ra promotionExpiresAt
+    @Transient
+    private Integer promotionDurationDays;
+
     // Ẩn/hiện sản phẩm thay cho hard delete; DEFAULT 1 để dữ liệu cũ tự thành "đang bán" khi ddl-auto=update thêm cột
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
     private Boolean active = true;

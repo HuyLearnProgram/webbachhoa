@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { apiGetProduct, apiGetRatingsPage, apiRatings, apiFetchRecommendProductById, apiAddOrUpdateCart, apiAddWishList } from '@/apis';
-import { Breadcrumb, Button, QuantitySelector, ProductExtraInfoItem, ProductInfomation, VoteOption, Comment, ProductCard } from '@/components';
+import { Breadcrumb, Button, QuantitySelector, ProductExtraInfoItem, ProductInfomation, VoteOption, Comment, ProductCard, PromotionOfferBox } from '@/components';
 import { formatMoney, renderStarFromNumber } from '@/utils/helper'
 import product_default from '@/assets/product_default.png'
 import { productExtraInfo } from '@/utils/constants';
@@ -184,10 +184,12 @@ const ProductDetail = ({ isQuickView, data }) => {
       <div className={clsx('m-auto mt-4 flex', isQuickView ? 'max-w-[900px] max-h-[80vh] bg-gray-100 rounded-lg gap-5 p-4 overflow-y-auto' : 'w-main')}>
         <div className={clsx('flex-4 flex flex-col gap-4 ', isQuickView ? 'w-1/2' : 'w-2/5')}>
           <div className='w-[450px]'>
-            <div className='px-2' >
-              <img
-                src={resolveProductImage(selectedImage)}
-                alt='product' className='object-cover' />
+            <div className='px-2'>
+              <div className='w-full h-[450px] flex items-center justify-center overflow-hidden'>
+                <img
+                  src={resolveProductImage(selectedImage)}
+                  alt='product' className='w-full h-full object-cover' />
+              </div>
             </div>
           </div>
           {[product?.imageUrl, ...(product?.images?.map(img => img.imageUrl) || [])]
@@ -235,6 +237,7 @@ const ProductDetail = ({ isQuickView, data }) => {
           <ul className="text-smtext-gray-500">
             {`Đơn vị: ${product?.unit || "Không"}`}
           </ul>
+          <PromotionOfferBox product={product} compact={isQuickView} />
           <div className='flex flex-col gap-8'>
             {product?.active === false ? (
               <p className='text-red-500'>Sản phẩm đã ngừng kinh doanh</p>

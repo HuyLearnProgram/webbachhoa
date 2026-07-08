@@ -6,6 +6,7 @@ import CategoryComboBox from "./CategoryComboBox";
 import { apiUploadImage, apiUpdateProduct2, apiAddProductImage, apiRemoveProductImage } from "@/apis";
 import product_default from "@/assets/product_default.png";
 import { toast } from 'react-toastify';
+import { promotionTypeOptions, PROMOTION_TYPES } from "@/utils/constants";
 
 const resolveImageUrl = (imageUrl) =>
   imageUrl && imageUrl.startsWith('https')
@@ -25,6 +26,7 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
   const [productImage, setProductImage] = useState(null)
   const [galleryImages, setGalleryImages] = useState(initialProductData?.images || []);
   const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+  const [promotionType, setPromotionType] = useState(initialProductData?.promotionType || PROMOTION_TYPES.NONE);
 
   const [previewProductImage, setPreviewProductImage] = useState(
     resolveImageUrl(initialProductData?.imageUrl)
@@ -37,6 +39,7 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
     reset(initialProductData);
     setGalleryImages(initialProductData?.images || []);
     setSelectedCategory(initialProductData?.category || null);
+    setPromotionType(initialProductData?.promotionType || PROMOTION_TYPES.NONE);
   }, [initialProductData, reset]);
 
   const handleAddGalleryImage = async (event) => {
@@ -84,8 +87,27 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
       toast.error("Vui lòng chọn phân loại cho sản phẩm");
       return;
     }
-    if (data?.originalPrice && Number(data.originalPrice) <= Number(data.price)) {
+    if (promotionType === PROMOTION_TYPES.PRICE_DISCOUNT
+      && (!data?.originalPrice || Number(data.originalPrice) <= Number(data.price))) {
       toast.error("Giá gốc phải lớn hơn giá bán (chỉ điền khi có khuyến mãi)");
+      return;
+    }
+    if (promotionType === PROMOTION_TYPES.BUY_X_GET_Y
+      && (!data?.promoBuyQuantity || Number(data.promoBuyQuantity) < 1
+        || !data?.promoFreeQuantity || Number(data.promoFreeQuantity) < 1)) {
+      toast.error("Khuyến mãi 'Mua X tặng Y' cần số lượng mua và số lượng tặng đều >= 1");
+      return;
+    }
+    if (promotionType === PROMOTION_TYPES.BUNDLE_PRICE
+      && (!data?.promoBundleQuantity || Number(data.promoBundleQuantity) < 2
+        || !data?.promoBundlePrice || Number(data.promoBundlePrice) <= 0
+        || Number(data.promoBundlePrice) >= Number(data.price) * Number(data.promoBundleQuantity))) {
+      toast.error("Khuyến mãi 'Mua N sản phẩm giá cố định' cần số lượng >= 2 và giá gói phải rẻ hơn mua lẻ");
+      return;
+    }
+    if (promotionType !== PROMOTION_TYPES.NONE
+      && data?.promotionDurationDays && Number(data.promotionDurationDays) < 1) {
+      toast.error("Số ngày hiệu lực khuyến mãi phải lớn hơn 0");
       return;
     }
     const productToUpdate = {
@@ -93,7 +115,19 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
       productName: data?.productName,
       sku: data?.sku || null,
       price: data?.price,
-      originalPrice: data?.originalPrice ? Number(data.originalPrice) : null,
+      promotionType,
+      originalPrice: promotionType === PROMOTION_TYPES.PRICE_DISCOUNT && data?.originalPrice
+        ? Number(data.originalPrice) : null,
+      promoBuyQuantity: promotionType === PROMOTION_TYPES.BUY_X_GET_Y && data?.promoBuyQuantity
+        ? Number(data.promoBuyQuantity) : null,
+      promoFreeQuantity: promotionType === PROMOTION_TYPES.BUY_X_GET_Y && data?.promoFreeQuantity
+        ? Number(data.promoFreeQuantity) : null,
+      promoBundleQuantity: promotionType === PROMOTION_TYPES.BUNDLE_PRICE && data?.promoBundleQuantity
+        ? Number(data.promoBundleQuantity) : null,
+      promoBundlePrice: promotionType === PROMOTION_TYPES.BUNDLE_PRICE && data?.promoBundlePrice
+        ? Number(data.promoBundlePrice) : null,
+      promotionDurationDays: promotionType !== PROMOTION_TYPES.NONE && data?.promotionDurationDays
+        ? Number(data.promotionDurationDays) : null,
       unit: data?.unit || null,
       imageUrl: initialProductData?.imageUrl,
       quantity: data?.quantity,
@@ -170,16 +204,94 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
                 type="number"
               />
 
-              <InputFormAdmin
-                className="border p-2 w-full"
-                defaultValue={productData?.originalPrice}
-                label="Giá gốc (khuyến mãi)"
-                placeholder="Bỏ trống nếu không khuyến mãi"
-                register={register}
-                errors={errors}
-                id="originalPrice"
-                type="number"
-              />
+              <div className="flex flex-col h-[78px] gap-2">
+                <label>Loại khuyến mãi</label>
+                <select
+                  className="border p-2 w-full rounded-lg"
+                  value={promotionType}
+                  onChange={(e) => setPromotionType(e.target.value)}
+                >
+                  {promotionTypeOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                {productData?.promotionExpiresAt && (
+                  <span className="text-xs text-gray-400">
+                    Đang áp dụng, tự hết hạn lúc {new Date(productData.promotionExpiresAt).toLocaleString("vi-VN")}
+                  </span>
+                )}
+              </div>
+
+              {promotionType === PROMOTION_TYPES.PRICE_DISCOUNT && (
+                <InputFormAdmin
+                  className="border p-2 w-full"
+                  defaultValue={productData?.originalPrice}
+                  label="Giá gốc"
+                  placeholder="Giá trước khi giảm"
+                  register={register}
+                  errors={errors}
+                  id="originalPrice"
+                  type="number"
+                />
+              )}
+
+              {promotionType === PROMOTION_TYPES.BUY_X_GET_Y && (
+                <>
+                  <InputFormAdmin
+                    className="border p-2 w-full"
+                    defaultValue={productData?.promoBuyQuantity}
+                    label="Mua số lượng (X)"
+                    register={register}
+                    errors={errors}
+                    id="promoBuyQuantity"
+                    type="number"
+                  />
+                  <InputFormAdmin
+                    className="border p-2 w-full"
+                    defaultValue={productData?.promoFreeQuantity}
+                    label="Tặng số lượng (Y)"
+                    register={register}
+                    errors={errors}
+                    id="promoFreeQuantity"
+                    type="number"
+                  />
+                </>
+              )}
+
+              {promotionType === PROMOTION_TYPES.BUNDLE_PRICE && (
+                <>
+                  <InputFormAdmin
+                    className="border p-2 w-full"
+                    defaultValue={productData?.promoBundleQuantity}
+                    label="Số lượng theo gói (N)"
+                    register={register}
+                    errors={errors}
+                    id="promoBundleQuantity"
+                    type="number"
+                  />
+                  <InputFormAdmin
+                    className="border p-2 w-full"
+                    defaultValue={productData?.promoBundlePrice}
+                    label="Giá trọn gói"
+                    register={register}
+                    errors={errors}
+                    id="promoBundlePrice"
+                    type="number"
+                  />
+                </>
+              )}
+
+              {promotionType !== PROMOTION_TYPES.NONE && (
+                <InputFormAdmin
+                  className="border p-2 w-full"
+                  label="Số ngày hiệu lực"
+                  placeholder="Để trống = không giới hạn"
+                  register={register}
+                  errors={errors}
+                  id="promotionDurationDays"
+                  type="number"
+                />
+              )}
 
               <InputFormAdmin
                 className="border p-2 w-full"

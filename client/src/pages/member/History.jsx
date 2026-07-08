@@ -10,6 +10,7 @@ import withBaseComponent from "@/hocs/withBaseComponent"
 import { FaEye } from "react-icons/fa6";
 import { showModal } from "@/store/app/appSlice";
 import { convertToSlug } from "@/utils/helper";
+import { getOrderLinePromotionLabel, hasOrderLineDiscount } from "@/utils/promotion";
 
 
 const History = ({ navigate, location }) => {
@@ -78,6 +79,9 @@ const History = ({ navigate, location }) => {
             }));
         }
     }
+    // Đơn cũ tạo trước khi có snapshot khuyến mãi có lineTotal = 0 (giá trị DEFAULT của cột mới thêm),
+    // không phải null/undefined nên "??" không fallback được -> coi luôn giá trị falsy (0) là "chưa có snapshot".
+    const getLineTotal = (item) => item.lineTotal || item.unit_price * item.quantity;
     const updateOrderStatus = (orderId, newStatus) => {
         // Tìm đơn hàng cần cập nhật
         const updatedOrders = ordersPage.map(order => 
@@ -115,6 +119,7 @@ const History = ({ navigate, location }) => {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sản phẩm</th>
                                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Giá</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thành tiền</th>
                                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
                                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Xem chi tiết</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian đặt hàng</th>
@@ -154,12 +159,27 @@ const History = ({ navigate, location }) => {
                                             </div>
                                             <div className="ml-4">
                                                 <div className="text-sm font-medium text-gray-900">{order.productName}</div>
+                                                {getOrderLinePromotionLabel(order) && (
+                                                    <div className="text-xs text-red-500 font-medium">
+                                                        {getOrderLinePromotionLabel(order)}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">{order.quantity}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 font-medium">
+                                        {hasOrderLineDiscount(order) && (
+                                            <div className="text-xs text-gray-400 line-through font-normal">
+                                                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(+order.originalPrice)}
+                                            </div>
+                                        )}
                                         {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(+order.unit_price)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 font-medium">
+                                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                                            +getLineTotal(order)
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
                                         <span

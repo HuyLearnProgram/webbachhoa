@@ -59,7 +59,14 @@ public class OrderDetailService {
         res.setOrderId(orderDetail.getOrder().getId());
         res.setQuantity(orderDetail.getQuantity());
         res.setProductName(orderDetail.getProduct().getProductName());
-        res.setUnit_price(orderDetail.getProduct().getPrice());
+        // Dùng giá đã lưu tại thời điểm đặt hàng, không phải giá hiện tại của product (có thể đã đổi/hết khuyến mãi)
+        res.setUnit_price(orderDetail.getUnit_price());
+        res.setLineTotal(orderDetail.getLineTotal());
+        res.setPromotionType(orderDetail.getPromotionType());
+        res.setFreeUnits(orderDetail.getFreeUnits());
+        res.setPromoBundleQuantity(orderDetail.getPromoBundleQuantity());
+        res.setPromoBundlePrice(orderDetail.getPromoBundlePrice());
+        res.setOriginalPrice(orderDetail.getOriginalPrice());
         res.setImageUrl(orderDetail.getProduct().getImageUrl());
         return res;
     }

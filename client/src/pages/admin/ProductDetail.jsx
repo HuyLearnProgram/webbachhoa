@@ -13,6 +13,7 @@ import avatarDefault from "@/assets/avatarDefault.png";
 import { TurnBackHeader } from "@/components/admin";
 import { statusHideOrder } from "@/utils/constants";
 import { renderStarFromNumber } from "@/utils/helper";
+import { getPromotionBadgeLabel } from "@/utils/promotion";
 import icons from "@/utils/icons";
 
 const { MdOutlineBlock } = icons;
@@ -243,6 +244,10 @@ function ProductDetail() {
                   -{Math.round((1 - product.price / product.originalPrice) * 100)}%
                 </Tag>
               )}
+            </div>
+            <div>
+              <span className="text-gray-500">Khuyến mãi: </span>
+              {getPromotionBadgeLabel(product) || "Không có khuyến mãi"}
             </div>
             <div><span className="text-gray-500">Tồn kho: </span>{product.quantity}</div>
             <div>

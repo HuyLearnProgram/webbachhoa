@@ -19,6 +19,14 @@ public class OrderDetailDTO {
     private int quantity;
     private Double unit_price;
 
+    // Snapshot khuyến mãi tại thời điểm đặt hàng (từ OrderDetail), không phải trạng thái khuyến mãi hiện tại của product
+    private Double lineTotal;
+    private String promotionType;
+    private Integer freeUnits;
+    private Integer promoBundleQuantity;
+    private Double promoBundlePrice;
+    private Double originalPrice;
+
     @Transient
     private String imageUrl;
     @Transient

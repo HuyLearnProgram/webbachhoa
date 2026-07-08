@@ -137,47 +137,4 @@ public class SecurityUtil {
         }
     }
 
-    public static long getUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
-
-            Object userClaimObj = jwt.getClaims().get("user");
-
-            if (userClaimObj instanceof Map<?, ?> userClaim) {
-                Object idObj = userClaim.get("id");
-                if (idObj instanceof Number) {
-                    return ((Number) idObj).longValue();
-                } else {
-                    throw new IllegalArgumentException("User ID is not of type Number");
-                }
-            } else {
-                throw new IllegalArgumentException("User claim is not of type Map");
-            }
-        }
-
-        throw new IllegalArgumentException("User ID not found or invalid token");
-    }
-
-    // không sử dụng nếu sử dụng spring security
-    public static String getUserRole() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
-            Object userClaimObj = jwt.getClaims().get("user");
-
-            if (userClaimObj instanceof Map<?, ?> userClaim) {
-                Object roleObj = userClaim.get("role");
-                if (roleObj instanceof Map<?, ?> roleMap) {
-                    Object roleNameObj = roleMap.get("roleName");
-                    if (roleNameObj instanceof String) {
-                        return (String) roleNameObj;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
 }

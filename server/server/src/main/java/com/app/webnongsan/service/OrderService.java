@@ -41,6 +41,7 @@ public class OrderService {
     private final UserService userService;
     private final ProductRepository productRepository;
     private final PaginationHelper paginationHelper;
+    private final PromotionService promotionService;
     @Autowired
     private final AddressValidator addressValidator;
     @Autowired
@@ -233,7 +234,7 @@ public class OrderService {
                     .orElseThrow(() -> new ResourceInvalidException("Sản phẩm không tồn tại"));
             if(product.getQuantity() <= 0) throw new ResourceInvalidException("Sản phẩm không còn hàng");
             if(item.getQuantity() > product.getQuantity()) throw new ResourceInvalidException("Sản phẩm không còn đủ hàng");
-            total += product.getPrice() * item.getQuantity();
+            total += promotionService.calculateLineTotal(product, item.getQuantity()).getTotal();
         }
 
 
@@ -256,6 +257,8 @@ public class OrderService {
         orderDTO.getItems().forEach(item -> {
             Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
+            PromotionService.LineTotal lineTotal = promotionService.calculateLineTotal(product, item.getQuantity());
+
             OrderDetail orderDetail = new OrderDetail();
             OrderDetailId id = new OrderDetailId();
             id.setOrderId(savedOrder.getId());
@@ -265,6 +268,12 @@ public class OrderService {
             orderDetail.setProduct(product);
             orderDetail.setQuantity(item.getQuantity());
             orderDetail.setUnit_price(product.getPrice());
+            orderDetail.setLineTotal(lineTotal.getTotal());
+            orderDetail.setPromotionType(product.getPromotionType() == null ? "NONE" : product.getPromotionType());
+            orderDetail.setFreeUnits(lineTotal.getFreeUnits());
+            orderDetail.setPromoBundleQuantity(product.getPromoBundleQuantity());
+            orderDetail.setPromoBundlePrice(product.getPromoBundlePrice());
+            orderDetail.setOriginalPrice(product.getOriginalPrice());
             orderDetailRepository.save(orderDetail);
         });
 
@@ -352,6 +361,12 @@ public class OrderService {
                 dto.setProductName(detail.getProduct().getProductName());
                 dto.setQuantity(detail.getQuantity());
                 dto.setUnit_price(detail.getUnit_price());
+                dto.setLineTotal(detail.getLineTotal());
+                dto.setPromotionType(detail.getPromotionType());
+                dto.setFreeUnits(detail.getFreeUnits());
+                dto.setPromoBundleQuantity(detail.getPromoBundleQuantity());
+                dto.setPromoBundlePrice(detail.getPromoBundlePrice());
+                dto.setOriginalPrice(detail.getOriginalPrice());
                 dto.setImageUrl(detail.getProduct().getImageUrl());
                 dto.setCategory(detail.getProduct().getCategory().getName());
 

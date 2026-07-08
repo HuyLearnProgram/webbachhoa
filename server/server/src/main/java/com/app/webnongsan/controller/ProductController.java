@@ -39,16 +39,18 @@ public class ProductController {
         if (p.getCategory() == null || !this.productService.checkValidCategoryId(p.getCategory().getId())){
             throw new ResourceInvalidException("Category không tồn tại");
         }
-        this.validateOriginalPrice(p);
+        this.validatePromotion(p);
+        this.productService.preparePromotionForCreate(p);
         if (!this.productService.isSkuAvailable(p.getSku(), null)) {
             throw new ResourceInvalidException("SKU '" + p.getSku() + "' đã được dùng cho sản phẩm khác");
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(this.productService.create(p));
     }
 
-    private void validateOriginalPrice(Product p) throws ResourceInvalidException {
-        if (p.getOriginalPrice() != null && p.getOriginalPrice() <= p.getPrice()) {
-            throw new ResourceInvalidException("Giá gốc phải lớn hơn giá bán (chỉ điền giá gốc khi có khuyến mãi)");
+    private void validatePromotion(Product p) throws ResourceInvalidException {
+        String error = this.productService.validatePromotion(p);
+        if (error != null) {
+            throw new ResourceInvalidException(error);
         }
     }
 
@@ -74,7 +76,7 @@ public class ProductController {
         if (!check){
             throw new ResourceInvalidException("Product id = " + p.getId() + " không tồn tại");
         }
-        this.validateOriginalPrice(p);
+        this.validatePromotion(p);
         if (!this.productService.isSkuAvailable(p.getSku(), p.getId())) {
             throw new ResourceInvalidException("SKU '" + p.getSku() + "' đã được dùng cho sản phẩm khác");
         }

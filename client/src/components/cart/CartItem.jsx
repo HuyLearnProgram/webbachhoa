@@ -5,6 +5,7 @@ import { QuantitySelector } from '@/components';
 import { convertToSlug } from '@/utils/helper';
 import product_default from '@/assets/product_default.png';
 import icons from '@/utils/icons';
+import { getPromotionBadgeLabel } from '@/utils/promotion';
 
 const { IoTrashBinOutline } = icons;
 
@@ -55,7 +56,17 @@ const CartItem = ({
         />
         <div className="flex flex-col">
           <h3 className="text-lg truncate hover:underline">{item.productName}</h3>
-          <p className="text-sm text-gray-500">{item.price.toLocaleString('vi-VN')} đ</p>
+          {item.originalPrice && item.originalPrice > item.price ? (
+            <p className="text-sm">
+              <span className="text-main">{item.price.toLocaleString('vi-VN')} đ</span>{' '}
+              <span className="text-gray-400 line-through text-xs">{item.originalPrice.toLocaleString('vi-VN')} đ</span>
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500">{item.price.toLocaleString('vi-VN')} đ</p>
+          )}
+          {getPromotionBadgeLabel(item) && (
+            <p className="text-xs text-red-500">{getPromotionBadgeLabel(item)}</p>
+          )}
           <p className="text-xs text-gray-500">Có sẵn: {item.stock}</p>
           {item.stock <= 0 && (
             <p className="text-red-500 text-xs">Sản phẩm tạm hết hàng</p>

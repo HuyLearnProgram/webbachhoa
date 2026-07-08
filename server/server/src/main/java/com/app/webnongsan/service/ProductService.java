@@ -35,6 +35,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -68,6 +70,64 @@ public class ProductService {
 
     public Product create(Product p) {
         return this.productRepository.save(p);
+    }
+
+    // Trả về message lỗi nếu cấu hình khuyến mãi không hợp lệ, null nếu hợp lệ
+    public String validatePromotion(Product p) {
+        String type = p.getPromotionType() == null ? "NONE" : p.getPromotionType();
+        switch (type) {
+            case "PRICE_DISCOUNT":
+                if (p.getOriginalPrice() == null || p.getOriginalPrice() <= p.getPrice()) {
+                    return "Giá gốc phải lớn hơn giá bán (chỉ điền giá gốc khi có khuyến mãi)";
+                }
+                break;
+            case "BUY_X_GET_Y":
+                if (p.getPromoBuyQuantity() == null || p.getPromoBuyQuantity() < 1
+                        || p.getPromoFreeQuantity() == null || p.getPromoFreeQuantity() < 1) {
+                    return "Khuyến mãi 'Mua X tặng Y' cần số lượng mua và số lượng tặng đều >= 1";
+                }
+                break;
+            case "BUNDLE_PRICE":
+                if (p.getPromoBundleQuantity() == null || p.getPromoBundleQuantity() < 2
+                        || p.getPromoBundlePrice() == null || p.getPromoBundlePrice() <= 0
+                        || p.getPromoBundlePrice() >= p.getPrice() * p.getPromoBundleQuantity()) {
+                    return "Khuyến mãi 'Mua N sản phẩm giá cố định' cần số lượng >= 2 và giá gói phải rẻ hơn mua lẻ";
+                }
+                break;
+        }
+        if (p.getPromotionDurationDays() != null && p.getPromotionDurationDays() < 1) {
+            return "Số ngày hiệu lực khuyến mãi phải lớn hơn 0";
+        }
+        return null;
+    }
+
+    // Chuẩn hoá promotionType (mặc định NONE) + xoá field không thuộc loại đang chọn.
+    // KHÔNG đụng promotionExpiresAt ở đây — việc đó cần biết state cũ (curr) để tránh xoá nhầm
+    // hạn khuyến mãi đang chạy mỗi lần lưu sản phẩm cho việc không liên quan (VD nhập thêm kho, sửa mô tả).
+    public void normalizePromotionFields(Product p) {
+        String type = p.getPromotionType() == null ? "NONE" : p.getPromotionType();
+        p.setPromotionType(type);
+        if (!"PRICE_DISCOUNT".equals(type)) {
+            p.setOriginalPrice(null);
+        }
+        if (!"BUY_X_GET_Y".equals(type)) {
+            p.setPromoBuyQuantity(null);
+            p.setPromoFreeQuantity(null);
+        }
+        if (!"BUNDLE_PRICE".equals(type)) {
+            p.setPromoBundleQuantity(null);
+            p.setPromoBundlePrice(null);
+        }
+    }
+
+    // Dùng khi TẠO MỚI sản phẩm — không có state cũ để giữ lại nên luôn tính lại promotionExpiresAt từ promotionDurationDays
+    public void preparePromotionForCreate(Product p) {
+        normalizePromotionFields(p);
+        if ("NONE".equals(p.getPromotionType()) || p.getPromotionDurationDays() == null) {
+            p.setPromotionExpiresAt(null);
+        } else {
+            p.setPromotionExpiresAt(Instant.now().plus(p.getPromotionDurationDays(), ChronoUnit.DAYS));
+        }
     }
 
     public boolean checkValidProductId(long id) {
@@ -136,6 +196,12 @@ public class ProductService {
         res.setCategory(p.getCategory().getName());
         res.setPrice(p.getPrice());
         res.setOriginalPrice(p.getOriginalPrice());
+        res.setPromotionType(p.getPromotionType());
+        res.setPromoBuyQuantity(p.getPromoBuyQuantity());
+        res.setPromoFreeQuantity(p.getPromoFreeQuantity());
+        res.setPromoBundleQuantity(p.getPromoBundleQuantity());
+        res.setPromoBundlePrice(p.getPromoBundlePrice());
+        res.setPromotionExpiresAt(p.getPromotionExpiresAt());
         res.setActive(p.getActive());
         res.setSold(p.getSold());
         res.setQuantity(p.getQuantity());
@@ -156,7 +222,25 @@ public class ProductService {
             curr.setProductName(p.getProductName());
             curr.setSku(p.getSku());
             curr.setPrice(p.getPrice());
+
+            this.normalizePromotionFields(p);
+            boolean promotionTypeChanged = !Objects.equals(curr.getPromotionType(), p.getPromotionType());
+            curr.setPromotionType(p.getPromotionType());
             curr.setOriginalPrice(p.getOriginalPrice());
+            curr.setPromoBuyQuantity(p.getPromoBuyQuantity());
+            curr.setPromoFreeQuantity(p.getPromoFreeQuantity());
+            curr.setPromoBundleQuantity(p.getPromoBundleQuantity());
+            curr.setPromoBundlePrice(p.getPromoBundlePrice());
+            if (p.getPromotionDurationDays() != null) {
+                curr.setPromotionExpiresAt("NONE".equals(p.getPromotionType()) ? null
+                        : Instant.now().plus(p.getPromotionDurationDays(), ChronoUnit.DAYS));
+            } else if (promotionTypeChanged) {
+                // Đổi loại khuyến mãi mà không nhập số ngày mới -> coi là không giới hạn, xoá hạn cũ
+                curr.setPromotionExpiresAt(null);
+            }
+            // else: giữ nguyên promotionExpiresAt hiện có — admin không đổi loại và không nhập ngày mới,
+            // tránh xoá nhầm hạn khuyến mãi đang chạy mỗi lần lưu sản phẩm vì lý do không liên quan
+
             curr.setImageUrl(p.getImageUrl());
             curr.setDescription(p.getDescription());
             curr.setQuantity(p.getQuantity());
@@ -198,7 +282,13 @@ public class ProductService {
                 productRoot.get("productName"),
                 productRoot.get("price"),
                 productRoot.get("imageUrl"),
-                categoryJoin.get("name")
+                categoryJoin.get("name"),
+                productRoot.get("originalPrice"),
+                productRoot.get("promotionType"),
+                productRoot.get("promoBuyQuantity"),
+                productRoot.get("promoFreeQuantity"),
+                productRoot.get("promoBundleQuantity"),
+                productRoot.get("promoBundlePrice")
         ));
 
         List<SearchProductDTO> resultList = entityManager.createQuery(query)
@@ -363,9 +453,6 @@ public class ProductService {
         if (categoryName == null) {
             throw new IllegalArgumentException("Phân loại không được để trống");
         }
-        if (originalPrice != null && originalPrice <= price) {
-            throw new IllegalArgumentException("Giá gốc phải lớn hơn giá bán");
-        }
         Category category = this.categoryRepository.findByName(categoryName)
                 .orElseThrow(() -> new IllegalArgumentException("Phân loại '" + categoryName + "' không tồn tại"));
 
@@ -384,11 +471,26 @@ public class ProductService {
         product.setProductName(productName);
         product.setCategory(category);
         product.setPrice(price);
-        product.setOriginalPrice(originalPrice);
         product.setQuantity(quantity);
         product.setUnit(unit);
         product.setDescription(description);
         product.setActive(activeRaw == null || !(activeRaw.equalsIgnoreCase("false") || activeRaw.equals("0")));
+
+        // Excel import chỉ biết cơ chế giảm giá đơn giản (originalPrice) — không có cột cho Mua X tặng Y/Mua N giá cố định,
+        // nên import sẽ reset khuyến mãi về PRICE_DISCOUNT (nếu có originalPrice) hoặc NONE, không giữ lại các loại khác đã cấu hình qua UI
+        product.setPromotionType(originalPrice != null ? "PRICE_DISCOUNT" : "NONE");
+        product.setOriginalPrice(originalPrice);
+        product.setPromoBuyQuantity(null);
+        product.setPromoFreeQuantity(null);
+        product.setPromoBundleQuantity(null);
+        product.setPromoBundlePrice(null);
+        product.setPromotionExpiresAt(null);
+        product.setPromotionDurationDays(null);
+
+        String promotionError = this.validatePromotion(product);
+        if (promotionError != null) {
+            throw new IllegalArgumentException(promotionError);
+        }
 
         this.productRepository.save(product);
     }
