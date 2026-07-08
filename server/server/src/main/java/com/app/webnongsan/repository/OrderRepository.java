@@ -40,5 +40,8 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     long countByUser_Id(Long userId);
 
     Optional<Order> findByVnpTxnRef(String vnpTxnRef);
+
+    @Query("SELECT COUNT(DISTINCT od.order.id) FROM OrderDetail od WHERE od.product.id = :productId AND od.order.status = :status")
+    long countOrdersByProductIdAndStatus(@Param("productId") Long productId, @Param("status") int status);
 }
 

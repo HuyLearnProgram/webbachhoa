@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { Button, Select, Table, Modal, message } from "antd";
+import { Button, Select, Table, Modal, message, Input } from "antd";
 import { apiGetAllRatingsPage, apiHideRating } from "@/apis";
 import { useDispatch, useSelector } from "react-redux";
 import { showModal } from '@/store/app/appSlice';
-import {  useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { sortFeedbackOrder, statusHideOrder } from "@/utils/constants";
 import withBaseComponent from "@/hocs/withBaseComponent";
-import { FaEye } from "react-icons/fa6";
-import { MdOutlineBlock } from "react-icons/md";
+import icons from "@/utils/icons";
 import { getCurrentUser } from "@/store/user/asyncActions";
 import { FeedbackCard } from "@/components";
+
+const { FaInfoCircle, MdOutlineBlock } = icons;
 
 const Feedback = ({ navigate, location }) => {
     const { isLoggedIn } = useSelector(state => state.user);
@@ -22,28 +23,26 @@ const Feedback = ({ navigate, location }) => {
     const [params, setParams] = useSearchParams();
     const status = params.get("status");
     const sort = params.get("sort");
+    const search = params.get("search");
+    const [searchTerm, setSearchTerm] = useState(search || "");
+
+    useEffect(() => {
+        setSearchTerm(search || "");
+    }, [search]);
 
     const fetchRatings = async (page = 1, safParam = {}) => {
-        const { status, sort } = safParam;
-        let response;
-        if (status === "default" && sort !== "default" && sort !== "product_name") {
-            response = await apiGetAllRatingsPage({ page, sort })
-        } else if (status !== "default" && sort === "default") {
-            response = await apiGetAllRatingsPage({ page, status })
-        } else if (status !== "default" && sort === "product_name") {
-            response = await apiGetAllRatingsPage({ page, status })
-        } else if (status === "default" && sort === "product_name") {
-            response = await apiGetAllRatingsPage({ page })
-        } else if (status === "default" && sort === "default") {
-            response = await apiGetAllRatingsPage({ page })
-        } else {
-            response = await apiGetAllRatingsPage({ page, ...safParam })
-        }
+        const { status, sort, search } = safParam;
+        const queryParams = { page };
+        if (status !== undefined && status !== null && status !== "") queryParams.status = status;
+        if (sort && sort !== "product_name") queryParams.sort = sort;
+        if (search) queryParams.search = search;
+
+        const response = await apiGetAllRatingsPage(queryParams);
 
         if (response.statusCode === 200) {
-            let feedbacksList = response.data?.result
+            let feedbacksList = response.data?.result;
             if (sort === "product_name") {
-                feedbacksList = feedbacksList.sort((a, b) => {
+                feedbacksList = [...feedbacksList].sort((a, b) => {
                     if (a.product_name < b.product_name) return 1;
                     if (a.product_name > b.product_name) return -1;
                     return 0;
@@ -67,12 +66,21 @@ const Feedback = ({ navigate, location }) => {
         fetchRatings(1, pr);
     }, [params]);
 
+    const buildParams = (overrides) => {
+        const next = { ...Object.fromEntries([...params]) };
+        Object.assign(next, overrides);
+        Object.keys(next).forEach((key) => {
+            if (next[key] === undefined || next[key] === "") delete next[key];
+        });
+        setParams(next);
+    };
+
     const handleChangeSortValue = (value) => {
-        setParams({ ...Object.fromEntries([...params]), sort: value });
+        buildParams({ sort: value });
     };
 
     const handleChangeStatusValue = (value) => {
-        setParams({ ...Object.fromEntries([...params]), status: value });
+        buildParams({ status: value });
     };
 
     const handleViewDetail = (id) => {
@@ -123,39 +131,52 @@ const Feedback = ({ navigate, location }) => {
         { title: 'Mô tả', dataIndex: 'description', key: 'description', render: (text) => text.length > 50 ? `${text.substring(0, 50)}...` : text },
         { title: 'Thời gian cập nhật', dataIndex: 'updatedAt', key: 'updatedAt', align: 'right', render: (date) => new Date(date).toLocaleString("vi-VN") },
         {
-            title: 'Xem chi tiết',
+            title: 'Chi tiết',
             key: 'viewDetail',
             align: 'center',
-            render: (_, record) => <Button 
-            type="link" 
-            onClick={() => handleViewDetail(record.id)} 
-            icon={<FaEye color="green" />} 
-            title="Xem chi tiết"/>
+            render: (_, record) => <Button
+            type="link"
+            onClick={() => handleViewDetail(record.id)}
+            title="Xem chi tiết">
+                <FaInfoCircle className="w-5 h-5 inline-block" />
+            </Button>
         },
         {
             title: 'Ẩn',
             key: 'hide',
             align: 'center',
-            render: (_, record) => <Button 
-            type="link" 
-            onClick={() => handleHideFeedback(record.id)} 
-            icon={<MdOutlineBlock color={record.status === 0 ? "red" : "gray"} />} 
+            render: (_, record) => <Button
+            type="link"
+            onClick={() => handleHideFeedback(record.id)}
+            icon={<MdOutlineBlock color={record.status === 0 ? "red" : "gray"} />}
             title={record.status === 0 ? "Ẩn" : "Hiện"}/>
         }
     ];
 
     return (
         <div className="w-full">
-            <div className="mb-4">
-                <Select
-                    placeholder="Sắp xếp"
-                    options={sortFeedbackOrder}
-                    onChange={handleChangeSortValue}
-                    style={{ width: 200, marginRight: 16 }}
+            <div className="mb-4 flex gap-4 items-center flex-wrap">
+                <Input.Search
+                    allowClear
+                    placeholder="Tìm theo tên sản phẩm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onSearch={(value) => buildParams({ search: value.trim() || undefined })}
+                    style={{ width: 280 }}
                 />
                 <Select
+                    allowClear
+                    placeholder="Sắp xếp"
+                    options={sortFeedbackOrder}
+                    value={sort || undefined}
+                    onChange={handleChangeSortValue}
+                    style={{ width: 200 }}
+                />
+                <Select
+                    allowClear
                     placeholder="Lọc theo trạng thái"
                     options={statusHideOrder}
+                    value={status !== null && status !== undefined && status !== "" ? Number(status) : undefined}
                     onChange={handleChangeStatusValue}
                     style={{ width: 200 }}
                 />
@@ -171,15 +192,6 @@ const Feedback = ({ navigate, location }) => {
                     total: paginate?.total,
                   }}
             />
-            {/* {paginate?.pages > 1 && (
-                <Pagination
-                    current={currentPage}
-                    total={paginate?.total}
-                    pageSize={paginate?.pageSize}
-                    onChange={(page) => setCurrentPage(page)}
-                    style={{ textAlign: "center", marginTop: 16 }}
-                />
-            )} */}
         </div>
     );
 };

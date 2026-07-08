@@ -69,6 +69,7 @@ public class SecurityConfiguration {
                         // rule đầu tiên khớp sẽ thắng, nên rule cụ thể phải đứng trước rule tổng quát hơn
                         // (GET /api/v2/products/**), nếu không sẽ bị permitAll "nuốt" mất, không bao giờ chạy tới.
                         .requestMatchers(HttpMethod.GET, "/api/v2/products/export", "/api/v2/products/import-template").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/products/*/return-stats").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v2/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v2/product/ratings/**").permitAll()

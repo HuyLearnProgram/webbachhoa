@@ -8,7 +8,7 @@ import { MdModeEdit } from "react-icons/md";
 import { statusUserOption, lockReasonOptions, OTHER_LOCK_REASON } from "@/utils/constants";
 import icons from "@/utils/icons";
 
-const { FaEye } = icons;
+const { FaInfoCircle } = icons;
 
 const User = () => {
   const { current } = useSelector((state) => state.user);
@@ -52,7 +52,7 @@ const User = () => {
   useEffect(() => {
     const filters = [];
     if (search) filters.push(`name~'${search}'`);
-    if (status && status !== "default") filters.push(`status=${status}`);
+    if (status) filters.push(`status=${status}`);
 
     const queries = { page: currentPage, size: USER_PER_PAGE, filter: filters };
     fetchUsers(queries);
@@ -74,16 +74,9 @@ const User = () => {
     setCurrentPage(page);
   };
 
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      setCurrentPage(1);
-      buildParams({ search: searchTerm.trim() || undefined, page: 1 });
-    }
-  };
-
   const handleChangeStatusFilter = (value) => {
     setCurrentPage(1);
-    buildParams({ status: value === "default" ? undefined : value, page: 1 });
+    buildParams({ status: value, page: 1 });
   };
 
   const applyStatusChange = async (user, newStatus, lockReason) => {
@@ -166,12 +159,12 @@ const User = () => {
       ),
     },
     {
-      title: "Xem",
+      title: "Chi tiết",
       key: "detail",
       align: 'center',
       render: (_, record) => (
-        <Button type="link" onClick={() => navigate(`/admin/user/detail/${record.id}`)}>
-          <FaEye className="w-5 h-5 inline-block" />
+        <Button type="link" title="Xem chi tiết" onClick={() => navigate(`/admin/user/detail/${record.id}`)}>
+          <FaInfoCircle className="w-5 h-5 inline-block" />
         </Button>
       ),
     },
@@ -190,17 +183,22 @@ const User = () => {
   return (
     <div className="w-full">
       <div className="mb-4 flex gap-4">
-        <input
-          type="text"
+        <Input.Search
+          allowClear
           placeholder="Tìm kiếm theo tên"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyDown={handleSearchKeyDown}
-          className="w-[300px] border border-gray-300 rounded-lg p-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+          onSearch={(value) => {
+            setCurrentPage(1);
+            buildParams({ search: value.trim() || undefined, page: 1 });
+          }}
+          style={{ width: 300 }}
         />
         <Select
+          allowClear
           placeholder="Lọc theo trạng thái"
           options={statusUserOption}
+          value={status ? Number(status) : undefined}
           onChange={handleChangeStatusFilter}
           style={{ width: 200 }}
         />

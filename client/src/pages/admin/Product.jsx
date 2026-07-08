@@ -16,11 +16,14 @@ import {
   createSearchParams,
 } from "react-router-dom";
 import { AddScreenButton } from "@/components/admin";
-import { Table, Modal, Button, Select, Tag, Checkbox, Upload } from "antd";
+import { Table, Modal, Button, Select, Tag, Checkbox, Upload, Input } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import product_default from "@/assets/product_default.png";
 import { sortProductOption, LOW_STOCK_THRESHOLD } from "@/utils/constants";
 import { downloadBlob } from "@/utils/helper";
+import icons from "@/utils/icons";
+
+const { FaInfoCircle } = icons;
 
 const PRODUCT_PER_PAGE = 6;
 
@@ -31,9 +34,6 @@ const Product = () => {
   const [currentPage, setCurrentPage] = useState(Number(params.get("page")) || 1);
   const [products, setProducts] = useState(null);
   const [toggleProduct, setToggleProduct] = useState(null);
-  const [showMessage, setShowMessage] = useState(false);
-  const [messageContent, setMessageContent] = useState("");
-  const [productName, setProductName] = useState("");
   const [searchTerm, setSearchTerm] = useState(params.get("search") || "");
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
@@ -96,13 +96,6 @@ const Product = () => {
   const handlePagination = (page) => {
     setCurrentPage(page);
     buildParams({ page });
-  };
-
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      setCurrentPage(1);
-      buildParams({ search: searchTerm.trim() || undefined, page: 1 });
-    }
   };
 
   const handleCategoryChange = (value) => {
@@ -210,12 +203,6 @@ const Product = () => {
     setShowImportModal(false);
     setImportFile(null);
     setImportResult(null);
-  };
-
-  const handleShowMessage = (detailProduct, name) => {
-    setMessageContent(`Chi tiết sản phẩm: ${detailProduct}`);
-    setProductName(name);
-    setShowMessage(true);
   };
 
   const categoryOptions =
@@ -332,14 +319,14 @@ const Product = () => {
     {
       title: "Chi tiết",
       key: "details",
+      align: "center",
       render: (_, record) => (
         <Button
           type="link"
-          onClick={() =>
-            handleShowMessage(record.description, record.product_name)
-          }
+          title="Xem chi tiết"
+          onClick={() => navigate(`/admin/product/detail/${record.id}`)}
         >
-          Xem chi tiết
+          <FaInfoCircle className="w-5 h-5 inline-block" />
         </Button>
       ),
     },
@@ -373,17 +360,21 @@ const Product = () => {
   return (
     <div className="w-full">
       <div className="mb-4 flex gap-4 items-center flex-wrap">
-        <input
-          type="text"
+        <Input.Search
+          allowClear
           placeholder="Tìm kiếm theo tên sản phẩm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyDown={handleSearchKeyDown}
-          className="w-[300px] border border-gray-300 rounded-lg p-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+          onSearch={(value) => {
+            setCurrentPage(1);
+            buildParams({ search: value.trim() || undefined, page: 1 });
+          }}
+          style={{ width: 300 }}
         />
         <Select
           placeholder="Lọc theo phân loại"
           options={categoryOptions}
+          value={category || undefined}
           onChange={handleCategoryChange}
           allowClear
           style={{ width: 200 }}
@@ -399,6 +390,7 @@ const Product = () => {
         <Select
           placeholder="Sắp xếp"
           options={sortProductOption}
+          value={sort || undefined}
           onChange={handleSortChange}
           allowClear
           style={{ width: 200 }}
@@ -487,19 +479,6 @@ const Product = () => {
             ? `Hiện lại sản phẩm "${toggleProduct?.product_name}" cho khách hàng?`
             : `Ẩn sản phẩm "${toggleProduct?.product_name}"? Khách hàng sẽ không thấy và không mua được sản phẩm này nữa (dữ liệu đơn hàng/đánh giá cũ vẫn giữ nguyên).`}
         </p>
-      </Modal>
-
-      <Modal
-        title={`Sản phẩm: ${productName}`}
-        open={showMessage}
-        onCancel={() => setShowMessage(false)}
-        footer={[
-          <Button key="close" onClick={() => setShowMessage(false)}>
-            Đóng
-          </Button>,
-        ]}
-      >
-        <p>{messageContent}</p>
       </Modal>
 
       <Modal

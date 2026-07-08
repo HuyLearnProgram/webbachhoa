@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 
-const CategoryComboBox = ({ onSelectCategory, search }) => {
+const CategoryComboBox = ({ onSelectCategory, search, initialCategoryId }) => {
     const { categories } = useSelector((state) => state.app);
-    const [selectedCategory, setSelectedCategory] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState(initialCategoryId ?? '');
+
+    useEffect(() => {
+        setSelectedCategory(initialCategoryId ?? '');
+    }, [initialCategoryId]);
 
     const handleChange = (event) => {
         const selectedId = event.target.value;

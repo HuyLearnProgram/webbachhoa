@@ -9,7 +9,7 @@ const InputFormAdmin = ({
     validate,
     type='text',
     className,
-    // placeholder,
+    placeholder,
     defaultValue
 }) => {
     return (
@@ -21,6 +21,7 @@ const InputFormAdmin = ({
             {...register(id,validate)}
             disabled={disabled}
             className={`${className || ''} rounded-lg`.trim()}
+            placeholder={placeholder}
             defaultValue={defaultValue}
         />
         {errors[id] && <small className='text-x5 text-red-500'>{errors[id]?.message}</small>}

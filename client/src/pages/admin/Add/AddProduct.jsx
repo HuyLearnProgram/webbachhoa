@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Image } from "antd";
 import { TurnBackHeader } from "@/components/admin";
 import InputFormAdmin from "@/components/admin/InputFormAdmin";
 import product_default from "./../../../assets/product_default.png";
@@ -35,6 +36,7 @@ const AddProduct = () => {
       price: data?.price,
       originalPrice: data?.originalPrice ? Number(data.originalPrice) : null,
       quantity: data?.quantity,
+      unit: data?.unit || null,
       sold: 0,
       description: data?.description,
       category: { id: selectedCategory?.id },
@@ -104,13 +106,13 @@ const AddProduct = () => {
           header="Quay về trang sản phẩm"
         />
       </div>
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-xl">
+      <div className="flex justify-center items-center min-h-screen py-8">
+        <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-4xl">
           <form
             onSubmit={handleSubmit(handleCreateProduct)}
             className="space-y-6"
           >
-            <div className="mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-3">
               <InputFormAdmin
                 className="border p-2 w-full"
                 label="Tên sản phẩm"
@@ -119,19 +121,25 @@ const AddProduct = () => {
                 id="productName"
                 validate={{ required: "Cần điền thông tin vào trường này" }}
               />
-            </div>
 
-            <div className="mb-6">
               <InputFormAdmin
                 className="border p-2 w-full"
-                label="SKU (mã sản phẩm, để trống nếu chưa cần)"
+                label="SKU"
+                placeholder="Để trống nếu chưa cần"
                 register={register}
                 errors={errors}
                 id="sku"
               />
-            </div>
 
-            <div className="mb-6">
+              <div className="flex flex-col h-[78px] gap-2">
+                <label>Phân loại</label>
+                <CategoryComboBox
+                  onSelectCategory={(value) => {
+                    setSelectedCategory(value);
+                  }}
+                />
+              </div>
+
               <InputFormAdmin
                 className="border p-2 w-full"
                 label="Giá bán"
@@ -141,20 +149,17 @@ const AddProduct = () => {
                 validate={{ required: "Cần điền thông tin vào trường này" }}
                 type="number"
               />
-            </div>
 
-            <div className="mb-6">
               <InputFormAdmin
                 className="border p-2 w-full"
-                label="Giá gốc trước giảm (bỏ trống nếu không khuyến mãi)"
+                label="Giá gốc (khuyến mãi)"
+                placeholder="Bỏ trống nếu không khuyến mãi"
                 register={register}
                 errors={errors}
                 id="originalPrice"
                 type="number"
               />
-            </div>
 
-            <div className="mb-6">
               <InputFormAdmin
                 className="border p-2 w-full"
                 label="Số lượng"
@@ -168,9 +173,18 @@ const AddProduct = () => {
                 step={0}
                 min={0}
               />
+
+              <InputFormAdmin
+                className="border p-2 w-full"
+                label="Đơn vị tính"
+                placeholder="kg, hộp, gói..."
+                register={register}
+                errors={errors}
+                id="unit"
+              />
             </div>
 
-            <div className="mb-6">
+            <div>
               <label htmlFor="description" className="block mb-2 text-gray-700">
                 Mô tả
               </label>
@@ -179,67 +193,24 @@ const AddProduct = () => {
                 {...register("description", {
                   required: "Cần điền thông tin vào trường này",
                 })}
-                className="border p-2 w-full h-40"
+                className="border p-2 w-full h-32 rounded-lg"
               />
             </div>
 
-            <div>
-              Phân loại:
-              <CategoryComboBox
-                onSelectCategory={(value) => {
-                  setSelectedCategory(value);
-                }}
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block mb-2 text-gray-700">Hình ảnh đại diện</label>
-              <div className="w-full h-86 flex items-center justify-center border rounded-lg overflow-hidden bg-gray-50">
-                <img
-                  src={previewProductImage || product_default}
-                  alt="Product"
-                  className="max-h-full max-w-full object-contain"
-                />
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <label className="block mb-2 text-gray-700">Ảnh phụ (gallery, có thể chọn nhiều)</label>
-              <div className="flex flex-wrap gap-3 mb-3">
-                {galleryImages.map((img, index) => (
-                  <div key={index} className="relative w-20 h-20 border rounded-lg overflow-hidden">
-                    <img src={img.preview} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveGalleryImage(index)}
-                      className="absolute top-0 right-0 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <label className="cursor-pointer">
-                <span className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition">
-                  + Thêm ảnh phụ
-                </span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleGalleryImagesChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            <div className="mb-6">
-              <div className="flex justify-between mt-4">
-                <label
-                  className="cursor-pointer"
-                  style={{ marginRight: "70px", flex: 1 }}
-                >
-                  <span className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition w-full">
+            <Image.PreviewGroup>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block mb-2 text-gray-700">Hình ảnh đại diện</label>
+                <div className="w-full h-40 flex items-center justify-center border rounded-lg overflow-hidden bg-gray-50">
+                  <Image
+                    src={previewProductImage || product_default}
+                    alt="Product"
+                    className="max-h-full max-w-full object-contain"
+                    preview={!!previewProductImage}
+                  />
+                </div>
+                <label className="cursor-pointer block mt-2">
+                  <span className="inline-block text-center px-4 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition w-full">
                     Chọn ảnh
                   </span>
                   <input
@@ -248,14 +219,47 @@ const AddProduct = () => {
                     className="hidden"
                   />
                 </label>
-                <button
-                  type="submit"
-                  className="bg-green-500 text-white p-2 rounded-md w-full"
-                  style={{ marginLeft: "70px", flex: 1 }}
-                >
-                  Lưu
-                </button>
               </div>
+
+              <div>
+                <label className="block mb-2 text-gray-700">Ảnh phụ (gallery, có thể chọn nhiều)</label>
+                <div className="flex flex-wrap gap-3 mb-3">
+                  {galleryImages.map((img, index) => (
+                    <div key={index} className="relative w-20 h-20 border rounded-lg overflow-hidden">
+                      <Image src={img.preview} width={80} height={80} className="object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveGalleryImage(index)}
+                        className="absolute top-0 right-0 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center z-10"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <label className="cursor-pointer">
+                  <span className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition">
+                    + Thêm ảnh phụ
+                  </span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleGalleryImagesChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+            </Image.PreviewGroup>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                className="bg-green-500 hover:bg-green-600 text-white px-10 py-2 rounded-md"
+              >
+                Lưu
+              </button>
             </div>
           </form>
         </div>

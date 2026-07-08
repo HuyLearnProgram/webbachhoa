@@ -5,6 +5,7 @@ import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.order.OrderDTO;
 import com.app.webnongsan.domain.response.order.OrderDetailDTO;
 import com.app.webnongsan.domain.response.order.WeeklyRevenue;
+import com.app.webnongsan.domain.response.product.ProductReturnStatsDTO;
 import com.app.webnongsan.repository.*;
 import com.app.webnongsan.util.PaginationHelper;
 import com.app.webnongsan.util.SecurityUtil;
@@ -55,6 +56,20 @@ public class OrderService {
 
     public void delete(long id) {
         this.orderRepository.deleteById(id);
+    }
+
+    // status 2 = Succeed, 4 = Returned (chỉ có thể trả hàng từ đơn đã giao thành công, xem isValidStatusTransition
+    // trong OrderController) -> "đã giao" = Succeed + Returned, tỉ lệ hoàn trả = Returned / đã giao
+    public ProductReturnStatsDTO getProductReturnStats(Long productId) {
+        long succeeded = this.orderRepository.countOrdersByProductIdAndStatus(productId, 2);
+        long returned = this.orderRepository.countOrdersByProductIdAndStatus(productId, 4);
+        long delivered = succeeded + returned;
+
+        ProductReturnStatsDTO dto = new ProductReturnStatsDTO();
+        dto.setDeliveredCount(delivered);
+        dto.setReturnedCount(returned);
+        dto.setReturnRate(delivered > 0 ? (double) returned / delivered * 100 : 0);
+        return dto;
     }
 
 

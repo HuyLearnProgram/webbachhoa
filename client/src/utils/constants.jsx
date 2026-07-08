@@ -141,10 +141,6 @@ export const statusOrder = [
 ]
 export const statusHideOrder = [
   {
-    label: "Lọc theo trạng thái",
-    value: "default"
-  },
-  {
     label: 'Unhide',
     value: 0
   },
@@ -154,10 +150,6 @@ export const statusHideOrder = [
   }
 ]
 export const statusUserOption = [
-  {
-    label: "Default",
-    value: "default"
-  },
   {
     label: 'Active',
     value: 1
@@ -177,10 +169,6 @@ export const lockReasonOptions = [
   "Theo yêu cầu của chính khách hàng (khoá tạm thời)",
 ]
 export const sortFeedbackOrder = [
-  {
-    label: "Sắp xếp",
-    value: "default"
-  },
   {
     label: "Product",
     value: "product_name"

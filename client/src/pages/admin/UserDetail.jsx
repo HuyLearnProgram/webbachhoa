@@ -31,10 +31,11 @@ const paymentStatusLabel = {
   REFUNDED: { text: "Đã hoàn tiền", className: "text-blue-500" },
 };
 
-const paymentStatusOptions = [
-  { label: "Lọc theo thanh toán", value: "default" },
-  ...Object.entries(paymentStatusLabel).map(([value, { text }]) => ({ label: text, value })),
-];
+const paymentStatusOptions = Object.entries(paymentStatusLabel).map(([value, { text }]) => ({ label: text, value }));
+
+// statusOrder được dùng chung với trang khách (member/History.jsx) nên giữ nguyên constant gốc,
+// chỉ lọc bỏ option giả "Lọc theo trạng thái" ở đây để Select admin dùng placeholder thật.
+const orderStatusFilterOptions = statusOrder.filter((o) => o.value !== "default");
 
 const orderSortOptions = [
   { label: "Mới nhất", value: "newest" },
@@ -53,13 +54,13 @@ function UserDetail() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [orderStatusFilter, setOrderStatusFilter] = useState("default");
-  const [orderPaymentStatusFilter, setOrderPaymentStatusFilter] = useState("default");
+  const [orderStatusFilter, setOrderStatusFilter] = useState(undefined);
+  const [orderPaymentStatusFilter, setOrderPaymentStatusFilter] = useState(undefined);
   const [orderSort, setOrderSort] = useState("newest");
   const [orderSearch, setOrderSearch] = useState("");
 
-  const [feedbackStatusFilter, setFeedbackStatusFilter] = useState("default");
-  const [feedbackSort, setFeedbackSort] = useState("default");
+  const [feedbackStatusFilter, setFeedbackStatusFilter] = useState(undefined);
+  const [feedbackSort, setFeedbackSort] = useState(undefined);
   const [feedbackSearch, setFeedbackSearch] = useState("");
 
   const [showLockModal, setShowLockModal] = useState(false);
@@ -110,8 +111,8 @@ function UserDetail() {
 
   const filteredOrders = useMemo(() => {
     let list = orders.filter((o) => {
-      if (orderStatusFilter !== "default" && o.status !== orderStatusFilter) return false;
-      if (orderPaymentStatusFilter !== "default" && o.paymentStatus !== orderPaymentStatusFilter) return false;
+      if (orderStatusFilter != null && o.status !== orderStatusFilter) return false;
+      if (orderPaymentStatusFilter != null && o.paymentStatus !== orderPaymentStatusFilter) return false;
       if (orderSearch && !String(o.id).includes(orderSearch.trim())) return false;
       return true;
     });
@@ -129,7 +130,7 @@ function UserDetail() {
 
   const filteredFeedbacks = useMemo(() => {
     let list = feedbacks.filter((f) => {
-      if (feedbackStatusFilter !== "default" && f.status !== feedbackStatusFilter) return false;
+      if (feedbackStatusFilter != null && f.status !== feedbackStatusFilter) return false;
       if (feedbackSearch && !(f.product_name || "").toLowerCase().includes(feedbackSearch.trim().toLowerCase())) return false;
       return true;
     });
@@ -222,8 +223,8 @@ function UserDetail() {
       key: "detail",
       align: "center",
       render: (_, record) => (
-        <Button type="link" onClick={() => navigate(`/admin/order/${record.id}`)}>
-          <FaInfoCircle className="text-blue-500" />
+        <Button type="link" title="Xem chi tiết" onClick={() => navigate(`/admin/order/${record.id}`)}>
+          <FaInfoCircle className="w-5 h-5 inline-block" />
         </Button>
       ),
     },
@@ -324,14 +325,16 @@ function UserDetail() {
                     style={{ width: 240 }}
                   />
                   <Select
+                    allowClear
                     size="large"
                     placeholder="Lọc theo trạng thái"
-                    options={statusOrder}
+                    options={orderStatusFilterOptions}
                     value={orderStatusFilter}
                     onChange={setOrderStatusFilter}
                     style={{ width: 200 }}
                   />
                   <Select
+                    allowClear
                     size="large"
                     placeholder="Lọc theo thanh toán"
                     options={paymentStatusOptions}
@@ -372,6 +375,7 @@ function UserDetail() {
                     style={{ width: 240 }}
                   />
                   <Select
+                    allowClear
                     size="large"
                     placeholder="Lọc theo trạng thái"
                     options={statusHideOrder}
@@ -380,6 +384,7 @@ function UserDetail() {
                     style={{ width: 200 }}
                   />
                   <Select
+                    allowClear
                     size="large"
                     placeholder="Sắp xếp"
                     options={sortFeedbackOrder}

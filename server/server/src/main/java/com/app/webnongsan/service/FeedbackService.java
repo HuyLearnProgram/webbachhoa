@@ -84,11 +84,11 @@ public class FeedbackService {
 
     }
 
-    public PaginationDTO getBySortAndFilter(Pageable pageable, Integer status, String sort) {
+    public PaginationDTO getBySortAndFilter(Pageable pageable, Integer status, String sort, String productName) {
         if(sort != null){
             pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(sort).descending());
         }
-        Page<Feedback> feedbackPage = this.feedbackRepository.findByStatus(status, pageable);
+        Page<Feedback> feedbackPage = this.feedbackRepository.findByStatusAndProductName(status, productName, pageable);
 
         PaginationDTO p = new PaginationDTO();
         PaginationDTO.Meta meta = new PaginationDTO.Meta();

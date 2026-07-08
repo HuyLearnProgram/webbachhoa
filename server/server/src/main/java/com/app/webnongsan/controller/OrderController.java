@@ -6,6 +6,7 @@ import com.app.webnongsan.domain.response.RestResponse;
 import com.app.webnongsan.domain.response.order.OrderDTO;
 import com.app.webnongsan.domain.response.order.OrderDetailDTO;
 import com.app.webnongsan.domain.response.order.WeeklyRevenue;
+import com.app.webnongsan.domain.response.product.ProductReturnStatsDTO;
 import com.app.webnongsan.repository.ProductRepository;
 import com.app.webnongsan.service.OrderService;
 import com.app.webnongsan.util.SecurityUtil;
@@ -55,6 +56,12 @@ public class OrderController {
         }
         Pageable updatedPageable = PageRequest.of(pageable.getPageNumber(), size);
         return ResponseEntity.ok(this.orderService.getOrdersByUserId(id, updatedPageable));
+    }
+
+    @GetMapping("products/{id}/return-stats")
+    @ApiMessage("Get return rate stats for a product (admin)")
+    public ResponseEntity<ProductReturnStatsDTO> getProductReturnStats(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(this.orderService.getProductReturnStats(id));
     }
 
     @GetMapping("orderInfo/{orderId}")

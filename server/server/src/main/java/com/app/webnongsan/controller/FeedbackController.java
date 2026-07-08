@@ -58,8 +58,9 @@ public class FeedbackController {
     public ResponseEntity<PaginationDTO> getAllByStatus(
             Pageable pageable,
             @RequestParam(value = "status", required = false) Integer status,
-            @RequestParam(value = "sort", required = false) String sort){
-        return ResponseEntity.ok(this.feedbackService.getBySortAndFilter(pageable,status,sort));
+            @RequestParam(value = "sort", required = false) String sort,
+            @RequestParam(value = "search", required = false) String search){
+        return ResponseEntity.ok(this.feedbackService.getBySortAndFilter(pageable,status,sort,search));
     }
 
     @GetMapping("users/{id}/feedbacks")

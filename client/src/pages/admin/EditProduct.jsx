@@ -44,8 +44,8 @@ function EditProduct() {
   };
 
   const handleAdd = async () => {
-    if (inputCount <= 0) {
-      setMessageContent("Giá trị số bạn nhập nhỏ hơn hoặc bằng 1. Hãy nhập lại dữ liệu.");
+    if (!Number.isInteger(Number(inputCount)) || Number(inputCount) <= 0) {
+      setMessageContent("Vui lòng nhập số nguyên lớn hơn 0.");
       return;
     }
 
@@ -84,11 +84,11 @@ function EditProduct() {
   return (
     <div className="w-full">
       <TurnBackHeader turnBackPage="/admin/product" header="Quay về trang sản phẩm" />
-      <EditProductForm initialProductData={product} />
-      
+      <EditProductForm initialProductData={product} onUpdated={() => fetchProduct(pid)} />
+
       <div className="fixed bottom-16 right-16">
         <button className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full" onClick={handleShowAddProduct}>
-          + Thêm sản phẩm
+          + Nhập thêm hàng
         </button>
       </div>
 
@@ -102,6 +102,8 @@ function EditProduct() {
               onChange={(e) => setInputCount(e.target.value)}
               className="border p-2 rounded mt-2"
               placeholder="Nhập số lượng"
+              step={1}
+              min={1}
             />
             <p className="mt-2 text-red-500">{messageContent}</p>
             <div className="flex justify-between mt-4">

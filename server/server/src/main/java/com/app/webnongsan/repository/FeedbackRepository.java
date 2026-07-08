@@ -21,6 +21,9 @@ public interface FeedbackRepository extends JpaRepository<Feedback,Long>, JpaSpe
     Feedback findByUserIdAndProductId(@Param("userId") Long userId, @Param("productId") Long productId);
     @Query("SELECT f FROM Feedback f WHERE (:status IS NULL OR f.status = :status)")
     Page<Feedback> findByStatus(Integer status, Pageable pageable);
+    @Query("SELECT f FROM Feedback f WHERE (:status IS NULL OR f.status = :status) " +
+            "AND (:productName IS NULL OR LOWER(f.product.productName) LIKE LOWER(CONCAT('%', :productName, '%')))")
+    Page<Feedback> findByStatusAndProductName(@Param("status") Integer status, @Param("productName") String productName, Pageable pageable);
     Page<Feedback> findByProductId(Long productId, Pageable pageable);
     long countByUser_Id(Long userId);
     Page<Feedback> findByUser_Id(Long userId, Pageable pageable);

@@ -20,6 +20,12 @@ export const apiGetOrdersByUser = async (userId) =>
         method: "get",
     })
 
+export const apiGetProductReturnStats = async (productId) =>
+    axiosInstance({
+        url: `/products/${productId}/return-stats`,
+        method: "get",
+    })
+
 export const apiGetOrderDetail = async (oid) =>
     axiosInstance({
         url: `/OrderDetails/${oid}`,
