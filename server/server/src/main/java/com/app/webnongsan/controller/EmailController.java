@@ -1,69 +1,52 @@
 package com.app.webnongsan.controller;
 
 import com.app.webnongsan.domain.Order;
-import com.app.webnongsan.domain.User;
 import com.app.webnongsan.domain.response.RestResponse;
-import com.app.webnongsan.domain.response.feedback.FeedbackDTO;
-import com.app.webnongsan.domain.response.order.OrderDTO;
-import com.app.webnongsan.domain.response.order.OrderDetailDTO;
-import com.app.webnongsan.repository.UserRepository;
+import com.app.webnongsan.repository.OrderRepository;
 import com.app.webnongsan.service.EmailService;
-import com.app.webnongsan.service.UserService;
 import com.app.webnongsan.util.SecurityUtil;
 import com.app.webnongsan.util.annotation.ApiMessage;
+import com.app.webnongsan.util.exception.PermissionException;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("api/v2")
 @AllArgsConstructor
 public class EmailController {
     private final EmailService emailService;
-    private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
 
     @PostMapping("checkout/email")
-    @ApiMessage("Create a checkout payment")
-    public ResponseEntity<RestResponse<Long>> create(
-            @RequestParam("userId") Long userId,
-            @RequestParam("address") String address,
-            @RequestParam("phone") String phone,
-            @RequestParam("paymentMethod") String paymentMethod,
-            @RequestParam("totalPrice") Double totalPrice,
-            @RequestParam("items") MultipartFile itemsFile
-    ) throws ResourceInvalidException {
-        RestResponse<Long> response = new RestResponse<>();
+    @ApiMessage("Send order confirmation email")
+    public ResponseEntity<RestResponse<Void>> create(@RequestParam("orderId") Long orderId) {
+        RestResponse<Void> response = new RestResponse<>();
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            List<OrderDetailDTO> items = mapper.readValue(itemsFile.getInputStream(), new TypeReference<List<OrderDetailDTO>>() {});
-            String email = SecurityUtil.getCurrentUserLogin().isPresent() ? SecurityUtil.getCurrentUserLogin().get() : "";
-            User u = this.userRepository.findByEmail(email);
-            if (u == null) {
-                throw new ResourceInvalidException("User không tồn tại");
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new ResourceInvalidException("Đơn hàng id=" + orderId + " không tồn tại"));
+            String actorEmail = SecurityUtil.getCurrentUserLogin().orElse(null);
+            boolean isOwner = actorEmail != null && actorEmail.equalsIgnoreCase(order.getUser().getEmail());
+            if (!isOwner) {
+                throw new PermissionException("Bạn không có quyền gửi email cho đơn hàng này");
             }
 
-            String templateName = "checkout";
-
-            // Gửi email sau khi thanh toán thành công
-            String subject = "Thông tin đơn hàng";
-
-            emailService.sendEmailFromTemplateSyncCheckout(email, subject, templateName, u.getName(), address, phone, paymentMethod, totalPrice,items);
-//            response.setData(order.getId());
-            response.setStatusCode(HttpStatus.CREATED.value());
+            emailService.sendOrderConfirmationEmail(orderId);
+            response.setStatusCode(HttpStatus.OK.value());
             response.setMessage("Gửi email thành công");
 
-            return new ResponseEntity<>(response, HttpStatus.CREATED);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (PermissionException e) {
+            response.setStatusCode(HttpStatus.FORBIDDEN.value());
+            response.setError(e.getMessage());
+            response.setMessage("Không có quyền thực hiện");
+            return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
         } catch (Exception e) {
             response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
             response.setError(e.getMessage());
-            response.setMessage("Có lỗi xảy ra trong quá trình thanh toán");
+            response.setMessage("Có lỗi xảy ra khi gửi email xác nhận đơn hàng");
             return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

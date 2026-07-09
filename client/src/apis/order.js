@@ -64,6 +64,11 @@ export const apiGetSummary = async () =>
         url: `admin/summary`,
     })
 
+export const apiGetOrderStatusStats = async () =>
+    axiosInstance({
+        url: `admin/order-status-stats`,
+    })
+
 export const apiGetMyVouchers = async () =>
     axiosInstance({
         url: `vouchers/my`,

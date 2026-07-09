@@ -4,7 +4,7 @@ import { apiGetAllOrders, apiUpdateOrderStatus } from "@/apis";
 import { useNavigate, useSearchParams, createSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Table, Button, Dropdown, Select, Input } from "antd";
-import { statusOrder } from "@/utils/constants";
+import { statusOrder, paymentStatusLabel } from "@/utils/constants";
 import icons from "@/utils/icons";
 
 const { FaInfoCircle } = icons;
@@ -109,15 +109,6 @@ const Order = () => {
     }
 
     return items;
-  };
-
-  const paymentStatusLabel = {
-    UNPAID: "Chưa thanh toán",
-    PENDING_PAYMENT: "Chờ thanh toán",
-    PAID: "Đã thanh toán",
-    PAYMENT_FAILED: "Thanh toán thất bại",
-    REFUND_PENDING: "Chờ hoàn tiền",
-    REFUNDED: "Đã hoàn tiền",
   };
 
   const columns = [

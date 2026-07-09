@@ -162,6 +162,11 @@ export const apiHideRating = async (id)=>
         method: "put",
     })
 
+export const apiGetFeedbackStats = async () =>
+    axiosInstance({
+        url: `admin/feedback-stats`,
+    })
+
 export const apiCancelOrder = async (id,params)=>
     axiosInstance({
         url: `updateOrderStatus/${id}`,

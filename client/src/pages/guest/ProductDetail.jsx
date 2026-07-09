@@ -36,6 +36,8 @@ const ProductDetail = ({ isQuickView, data }) => {
   const [update, setUpdate] = useState(false)
   const [uid, setUid] = useState(null)
   const { isLoggedIn, current } = useSelector(state => state.user)
+  const { categories } = useSelector(state => state.app)
+  const categoryObj = categories?.find((c) => c.name === params.category)
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const [quantity, setQuantity] = useState(1);
@@ -185,7 +187,11 @@ const ProductDetail = ({ isQuickView, data }) => {
       {!isQuickView && <div className='h-20 flex justify-center items-center bg-gray-100'>
         <div className='w-main'>
           <h3 className='font-semibold'>{product?.productName}</h3>
-          <Breadcrumb title={product?.productName} category={params.category} />
+          <Breadcrumb
+            title={product?.productName}
+            categoryLabel={params.category}
+            categoryHref={categoryObj ? `/products?category=${categoryObj.id}` : '/products'}
+          />
         </div>
       </div>}
       <div className={clsx('m-auto mt-4 flex', isQuickView ? 'max-w-[900px] max-h-[80vh] bg-gray-100 rounded-lg gap-5 p-4 overflow-y-auto' : 'w-main')}>

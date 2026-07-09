@@ -3,7 +3,6 @@ const path = {
   HOME: "",
   ALL: "*",
   LOGIN: "login",
-  PRODUCTS: "products/:category",
   PRODUCTS_BASE: 'products',
 
   PRODUCT_DETAIL: "/products/:category/:pid/:productname",

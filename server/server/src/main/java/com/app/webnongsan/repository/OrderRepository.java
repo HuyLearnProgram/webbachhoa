@@ -31,11 +31,15 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     @Query(value = "CALL GetRevenueByWeekCycle(:month, :year)", nativeQuery = true)
     List<Object[]> getMonthlyRevenue(int month, int year);
 
-    @Query("SELECT SUM(o.total_price) FROM Order o WHERE o.status = :status")
+    @Query("SELECT COALESCE(SUM(o.total_price), 0) FROM Order o WHERE o.status = :status")
     double sumTotalPriceByStatus(@Param("status") int status);
 
     @Query("SELECT COALESCE(SUM(o.total_price), 0) FROM Order o WHERE o.paymentStatus = :paymentStatus")
     double sumTotalPriceByPaymentStatus(@Param("paymentStatus") String paymentStatus);
+
+    long countByStatus(int status);
+
+    long countByPaymentStatus(String paymentStatus);
 
     long countByUser_Id(Long userId);
 

@@ -7,6 +7,7 @@ import { Provider } from "react-redux";
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from "@/store/redux";
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import '@/utils/chartSetup';
 
 createRoot(document.getElementById('root')).render(
   <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>

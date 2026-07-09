@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8">
-  <title>Thông tin thanh toán</title>
+  <title>Xác nhận đơn hàng</title>
   <style>
     body {
         font-family: Arial, sans-serif;
@@ -10,105 +10,188 @@
         margin: 0;
         padding: 20px;
         background-color: #f4f4f4;
+        color: #333333;
+    }
+    .container {
+        max-width: 680px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
     }
     .header {
-            background-color: #4a90e2;
-            color: #ffffff;
-            padding: 15px;
-            text-align: center;
-        }
-    .content {
-            padding: 20px;
+        background-color: #10B981;
+        color: #ffffff;
+        padding: 20px;
+        text-align: center;
     }
-    h2 {
-            color: #333333;
-            margin-top: 0;
+    .header h2 {
+        margin: 0;
+    }
+    .header p {
+        margin: 4px 0 0;
+        opacity: 0.9;
+        font-size: 14px;
+    }
+    .content {
+        padding: 20px 24px;
+    }
+    .info-row {
+        display: flex;
+        padding: 3px 0;
+        font-size: 14px;
+    }
+    .info-row .label {
+        width: 160px;
+        color: #666666;
+    }
+    .info-row .value {
+        font-weight: 600;
     }
     table {
         width: 100%;
         border-collapse: collapse;
-         margin-top: 20px;
+        margin-top: 20px;
+        font-size: 14px;
     }
     th, td {
-        border: 1px solid #ddd;
-        padding: 12px;
+        border: 1px solid #e1e0d9;
+        padding: 10px 12px;
         text-align: left;
+        vertical-align: top;
     }
     th {
         background-color: #f8f8f8;
         font-weight: bold;
         color: #333333;
     }
-    .total-row {
+    .promo-label {
+        color: #e34948;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .strike {
+        text-decoration: line-through;
+        color: #999999;
+        font-size: 12px;
+    }
+    .summary-table td {
+        border: none;
+        padding: 6px 0;
+    }
+    .summary-table .summary-label {
+        text-align: right;
+        color: #666666;
+    }
+    .summary-table .summary-value {
+        text-align: right;
+        width: 140px;
+    }
+    .summary-table .discount-row td {
+        color: #e34948;
+    }
+    .summary-table .total-row td {
         font-weight: bold;
-        background-color: #f2f2f2;
+        font-size: 17px;
+        color: #10B981;
+        border-top: 1px solid #e1e0d9;
+        padding-top: 10px;
     }
     .footer {
-            background-color: #f8f8f8;
-            color: #666666;
-            text-align: center;
-            padding: 10px;
-            font-size: 12px;
-        }
+        background-color: #f8f8f8;
+        color: #666666;
+        text-align: center;
+        padding: 14px;
+        font-size: 12px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h2>Thông tin thanh toán</h2>
+      <h2>Cảm ơn bạn đã đặt hàng!</h2>
+      <p>Mã đơn hàng #<span th:text="${orderId}"></span></p>
     </div>
     <div class="content">
-      <p>Gửi <span th:text="${NAME}"></span>,</p>
-      <p>Cảm ơn bạn đã đặt hàng sản phẩm của chúng tôi. Dưới đây là thông tin đơn hàng của bạn:</p>
-      <hr>
-      <div style="display:flex;">
-        <p style="margin-right: 5px;">Khách hàng: </p>
-        <p th:text="${customerName}"></p>
+      <p>Xin chào <strong th:text="${customerName}"></strong>,</p>
+      <p>Chúng tôi đã xác nhận đơn hàng của bạn. Dưới đây là thông tin chi tiết:</p>
+
+      <div class="info-row">
+        <span class="label">Người nhận</span>
+        <span class="value" th:text="${customerName}"></span>
       </div>
-      <div style="display:flex;">
-        <p style="margin-right: 5px;">Địa chỉ giao hàng: </p>
-        <p th:text="${customerAddress}"></p>
+      <div class="info-row">
+        <span class="label">Địa chỉ giao hàng</span>
+        <span class="value" th:text="${customerAddress}"></span>
       </div>
-      <div style="display:flex;">
-        <p style="margin-right: 5px;">Số điện thoại: </p>
-        <p th:text="${customerPhone}"></p>
+      <div class="info-row">
+        <span class="label">Số điện thoại</span>
+        <span class="value" th:text="${customerPhone}"></span>
       </div>
-      <div style="display:flex;">
-        <p style="margin-right: 5px;">Thời gian thanh toán: </p>
-        <p  th:text="${invoiceDate}"></p>
+      <div class="info-row">
+        <span class="label">Thời gian đặt hàng</span>
+        <span class="value" th:text="${invoiceDate}"></span>
       </div>
-      <div style="display:flex;">
-        <p style="margin-right: 5px;">Phương thức thanh toán: </p>
-        <p  th:text="${paymentMethod}"></p>
+      <div class="info-row">
+        <span class="label">Phương thức thanh toán</span>
+        <span class="value" th:text="${paymentMethod}"></span>
       </div>
 
       <table>
         <thead>
         <tr>
-          <th>Sản Phẩm</th>
-          <th>Số lượng</th>
-          <th>Giá</th>
+          <th>Sản phẩm</th>
+          <th style="text-align:center">SL</th>
+          <th>Đơn giá</th>
+          <th>Khuyến mãi</th>
+          <th>Thành tiền</th>
         </tr>
         </thead>
         <tbody>
         <tr th:each="item : ${items}">
           <td th:text="${item.productName}"></td>
-          <td th:text="${item.quantity}"></td>
-          <td th:text="${item.formattedPrice}"></td>
+          <td style="text-align:center" th:text="${item.quantity}"></td>
+          <td>
+            <div class="strike"
+                 th:if="${item.promotionType == 'PRICE_DISCOUNT' and item.originalPrice != null and item.originalPrice > item.unit_price}"
+                 th:text="${item.formattedOriginalPrice}"></div>
+            <div th:text="${item.formattedPrice}"></div>
+          </td>
+          <td class="promo-label">
+            <span th:if="${item.promotionType == 'BUY_X_GET_Y' and item.freeUnits != null and item.freeUnits > 0}"
+                  th:text="'Tặng ' + ${item.freeUnits}"></span>
+            <span th:if="${item.promotionType == 'BUNDLE_PRICE' and item.promoBundleQuantity != null and item.promoBundlePrice != null}"
+                  th:text="'Mua ' + ${item.promoBundleQuantity} + ' giá ' + ${item.formattedPromoBundlePrice}"></span>
+            <span th:if="${item.promotionType == 'PRICE_DISCOUNT'}">Giảm giá</span>
+            <span th:if="${item.promotionType == null or item.promotionType == 'NONE'}">—</span>
+          </td>
+          <td th:text="${item.formattedLineTotal}" style="font-weight:600"></td>
         </tr>
         </tbody>
-        <tfoot>
-        <tr class="total-row">
-          <td colspan="2">Tổng tiền</td>
-          <td th:text="${TOTAL_PRICE}"></td>
-        </tr>
-        </tfoot>
       </table>
 
-      <p>Nếu bạn có bất kỳ câu hỏi nào vui lòng liên hệ với chúng tôi.</p>
+      <table class="summary-table">
+        <tr>
+          <td colspan="3"></td>
+          <td class="summary-label">Tổng tiền hàng</td>
+          <td class="summary-value" th:text="${formattedSubtotal}"></td>
+        </tr>
+        <tr class="discount-row" th:if="${voucherCode != null}">
+          <td colspan="3"></td>
+          <td class="summary-label">Giảm giá (<span th:text="${voucherCode}"></span>)</td>
+          <td class="summary-value" th:text="'-' + ${formattedVoucherDiscount}"></td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="3"></td>
+          <td class="summary-label">Tổng thanh toán</td>
+          <td class="summary-value" th:text="${formattedTotalPrice}"></td>
+        </tr>
+      </table>
+
+      <p style="margin-top: 24px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
     </div>
     <div class="footer">
-      <p>&copy; website nông sản</p>
+      <p>&copy; Website nông sản</p>
     </div>
   </div>
 </body>

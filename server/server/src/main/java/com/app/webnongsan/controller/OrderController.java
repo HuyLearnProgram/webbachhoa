@@ -3,8 +3,10 @@ package com.app.webnongsan.controller;
 import com.app.webnongsan.domain.Order;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.RestResponse;
+import com.app.webnongsan.domain.response.order.OrderBreakdownDTO;
 import com.app.webnongsan.domain.response.order.OrderDTO;
 import com.app.webnongsan.domain.response.order.OrderDetailDTO;
+import com.app.webnongsan.domain.response.order.OverviewStatsDTO;
 import com.app.webnongsan.domain.response.order.WeeklyRevenue;
 import com.app.webnongsan.domain.response.product.ProductReturnStatsDTO;
 import com.app.webnongsan.repository.ProductRepository;
@@ -254,9 +256,15 @@ public class OrderController {
     }
 
     @GetMapping("/admin/summary")
-    @ApiMessage("Get ...")
-    public ResponseEntity<List<Object>> getOverview(){
+    @ApiMessage("Get overview stats for admin dashboard")
+    public ResponseEntity<OverviewStatsDTO> getOverview(){
         return ResponseEntity.of(Optional.ofNullable(this.orderService.getOverviewStats()));
+    }
+
+    @GetMapping("/admin/order-status-stats")
+    @ApiMessage("Get order count/revenue breakdown by status and payment status")
+    public ResponseEntity<OrderBreakdownDTO> getOrderStatusStats(){
+        return ResponseEntity.ok(this.orderService.getOrderBreakdown());
     }
 
     // Hàm hỗ trợ kiểm tra chuyển trạng thái hợp lệ

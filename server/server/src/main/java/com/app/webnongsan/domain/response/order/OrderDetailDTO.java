@@ -41,6 +41,12 @@ public class OrderDetailDTO {
     @Transient
     private String formattedPrice;
     @Transient
+    private String formattedLineTotal;
+    @Transient
+    private String formattedOriginalPrice;
+    @Transient
+    private String formattedPromoBundlePrice;
+    @Transient
     private Long voucherId;
     @Transient
     private String voucherCode;

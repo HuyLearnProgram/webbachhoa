@@ -72,6 +72,9 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v2/products/*/return-stats").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v2/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v2/categories").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v2/categories").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v2/categories/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/product/ratings/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v2/files").permitAll()
                         .requestMatchers(HttpMethod.GET,"/api/v2/payment/vn-pay/**").permitAll()
@@ -92,6 +95,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v2/users/*/orders").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/users/*/feedbacks").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/orders/*/confirm-refund").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
 

@@ -20,7 +20,7 @@ import { Table, Modal, Button, Select, Tag, Checkbox, Upload, Input, Popover } f
 import { UploadOutlined } from "@ant-design/icons";
 import product_default from "@/assets/product_default.png";
 import { sortProductOption, LOW_STOCK_THRESHOLD, promotionTypeOptions } from "@/utils/constants";
-import { downloadBlob } from "@/utils/helper";
+import { downloadBlob, stripDiacritics } from "@/utils/helper";
 import { getPromotionBadgeLabel } from "@/utils/promotion";
 import icons from "@/utils/icons";
 
@@ -58,7 +58,7 @@ const Product = () => {
 
   const getQueries = () => {
     const filters = [];
-    if (search) filters.push(`productName~'${search}'`);
+    if (search) filters.push(`productName~'${stripDiacritics(search)}'`);
     if (category) filters.push(`category.id='${category}'`);
     if (status === "active") filters.push(`active=true`);
     if (status === "hidden") filters.push(`active=false`);

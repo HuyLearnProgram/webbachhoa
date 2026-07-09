@@ -5,6 +5,8 @@ import com.app.webnongsan.domain.Product;
 import com.app.webnongsan.domain.User;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.feedback.FeedbackDTO;
+import com.app.webnongsan.domain.response.feedback.FeedbackStatsDTO;
+import com.app.webnongsan.domain.response.feedback.RatingCountDTO;
 import com.app.webnongsan.domain.response.product.ResProductDTO;
 import com.app.webnongsan.repository.FeedbackRepository;
 import com.app.webnongsan.repository.ProductRepository;
@@ -19,6 +21,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -197,5 +200,18 @@ public class FeedbackService {
             feedbackDTO.setUpdatedAt(feedback.getUpdatedAt());
         }
         return feedbackDTO;
+    }
+
+    public FeedbackStatsDTO getFeedbackStats() {
+        Double avgRating = feedbackRepository.calculateGlobalAverageRating();
+        long totalFeedbacks = feedbackRepository.count();
+        long hiddenCount = feedbackRepository.countByStatus(1);
+
+        List<RatingCountDTO> ratingDistribution = new ArrayList<>();
+        for (Object[] row : feedbackRepository.countGroupByRatingStar()) {
+            ratingDistribution.add(new RatingCountDTO((Integer) row[0], (Long) row[1]));
+        }
+
+        return new FeedbackStatsDTO(avgRating != null ? avgRating : 0, totalFeedbacks, hiddenCount, ratingDistribution);
     }
 }

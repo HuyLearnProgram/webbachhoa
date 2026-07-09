@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FaRegCreditCard } from "react-icons/fa6";
 import { showModal } from "@/store/app/appSlice";
+import { getCurrentUser } from "@/store/user/asyncActions";
 import { calculateLineTotal, getFreeGiftUnits, getPromotionBadgeLabel } from "@/utils/promotion";
 
 
@@ -120,6 +121,7 @@ const Checkout = () => {
                 });
     
                 await Promise.all(promises);
+                formObject.orderId = response.data;
                 localStorage.setItem('paymentData', JSON.stringify(JSON.stringify(formObject)));
                 location.state = {};
                 window.location.href = vnpayRes.data.data.paymentUrl;
@@ -132,9 +134,10 @@ const Checkout = () => {
                     await apiUpdateProduct(item?.id, { quantity: item.quantity });
                     await apiDeleteCart(item?.id);
                 }));
-    
-                await apiSendEmail(formData);
-    
+
+                dispatch(getCurrentUser());
+                await apiSendEmail(response.data);
+
                 // setTimeout(() => {
                     navigate('/payment-success-cod');
                     window.location.reload();

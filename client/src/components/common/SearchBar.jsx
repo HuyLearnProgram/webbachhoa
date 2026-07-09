@@ -1,27 +1,39 @@
 import React, { useState, useEffect, useRef } from "react";
 import { apiSearchProducts } from "@/apis";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import product_default from '@/assets/product_default.png';
 import { ProductMiniItem } from "@/components";
-import { convertToSlug } from "@/utils/helper";
+import { convertToSlug, buildProductNameFilter } from "@/utils/helper";
+import icons from "@/utils/icons";
+
+const { FaSearch } = icons;
 
 const SearchBar = () => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams] = useSearchParams();
+  // Khởi tạo từ URL hiện tại (?search=...) để ô tìm kiếm không bị mất giá trị khi F5 lại trang kết quả
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || "");
   const [products, setProducts] = useState(null);
   const [error, setError] = useState(null);
   const [showResults, setShowResults] = useState(false);
   const navigate = useNavigate();
   const resultsRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    if (searchTerm.trim() !== "") {
+    // Bỏ qua lần chạy đầu tiên: searchTerm lúc này chỉ là giá trị lấy lại từ URL (F5 trang kết quả),
+    // không phải người dùng vừa gõ, nên không nên tự bật dropdown gợi ý.
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (searchTerm.trim().length >= 2) {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
       searchTimeoutRef.current = setTimeout(() => {
         handleSearch();
-      }, 1500);
+      }, 400);
     } else {
       setProducts(null);
       setShowResults(false);
@@ -40,7 +52,7 @@ const SearchBar = () => {
       const params = {
         page: 1,
         size: 3,
-        filter: `productName~'${searchTerm}' and active=true`,
+        filter: `${buildProductNameFilter(searchTerm)} and active=true`,
       };
       const response = await apiSearchProducts(params);
       setProducts(response.data.result);
@@ -50,10 +62,16 @@ const SearchBar = () => {
     }
   };
 
-  const handleShowAll = () => {
+  const handleSubmitSearch = () => {
+    if (searchTerm.trim() === "") return;
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     navigate(`/products?search=${searchTerm}`);
     setShowResults(false);
   };
+
+  const handleShowAll = () => handleSubmitSearch();
 
   const handleClickOutside = (event) => {
     if (resultsRef.current && !resultsRef.current.contains(event.target)) {
@@ -69,12 +87,8 @@ const SearchBar = () => {
   }, []);
 
   const handleKeyDown = (event) => {
-    if (event.key === "Enter" && searchTerm.trim() !== "") {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-      navigate(`/products?search=${searchTerm}`);
-      setShowResults(false);
+    if (event.key === "Enter") {
+      handleSubmitSearch();
     }
   };
 
@@ -85,14 +99,24 @@ const SearchBar = () => {
 
   return (
     <div className="flex flex-grow justify-center mx-5 relative items-center">
-      <input
-        type="text"
-        placeholder="Tìm kiếm..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-[500px] border border-gray-300 rounded-lg p-1 focus:outline-none focus:ring-2 focus:ring-green-500"
-      />
+      <div className="relative w-[500px]">
+        <input
+          type="text"
+          placeholder="Tìm kiếm..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-full border border-gray-300 rounded-lg p-1 pr-9 focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+        <button
+          type="button"
+          onClick={handleSubmitSearch}
+          aria-label="Tìm kiếm"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-main"
+        >
+          <FaSearch size={14} />
+        </button>
+      </div>
 
       {showResults && (
         <div ref={resultsRef} className="absolute top-full w-[500px] bg-white shadow-md rounded-md mt-2 z-10">
@@ -117,7 +141,7 @@ const SearchBar = () => {
               </button>
             </>
           ) : (
-            <div className="p-2 text-sm">Không tìm thấy sản phẩm. Tìm kiếm với hệ thống đề xuất?</div>
+            <div className="p-2 text-sm">Không tìm thấy sản phẩm phù hợp.</div>
           )}
         </div>
       )}

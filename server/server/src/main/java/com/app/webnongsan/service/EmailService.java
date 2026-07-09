@@ -1,6 +1,12 @@
 package com.app.webnongsan.service;
 
+import com.app.webnongsan.domain.Order;
+import com.app.webnongsan.domain.OrderDetail;
+import com.app.webnongsan.domain.Voucher;
 import com.app.webnongsan.domain.response.order.OrderDetailDTO;
+import com.app.webnongsan.repository.OrderDetailRepository;
+import com.app.webnongsan.repository.OrderRepository;
+import com.app.webnongsan.util.exception.ResourceInvalidException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.AllArgsConstructor;
@@ -11,6 +17,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
@@ -28,6 +35,9 @@ public class EmailService {
     private final MailSender mailSender;
     private final JavaMailSender javaMailSender;
     private final SpringTemplateEngine templateEngine;
+    private final OrderRepository orderRepository;
+    private final OrderDetailService orderDetailService;
+    private final OrderDetailRepository orderDetailRepository;
 
     public void sendMail(String email){
         SimpleMailMessage msg = new SimpleMailMessage();
@@ -62,31 +72,70 @@ public class EmailService {
         String content = this.templateEngine.process(templateName, context);
         this.sendEmailSync(to, subject, content, false, true);
     }
+    // Gửi email xác nhận đơn hàng — luôn đọc lại Order/OrderDetail đã lưu trong DB (không tin dữ liệu
+    // client tự gửi lên), để email luôn khớp đúng khuyến mãi/voucher đã chốt tại thời điểm đặt hàng,
+    // kể cả sau khi khuyến mãi trên Product đã hết hạn/đổi khác.
+    // Đọc thẳng Order entity qua OrderRepository (không qua OrderService) để tránh vòng phụ thuộc:
+    // UserService -> EmailService -> OrderService -> UserService.
+    // @Transactional bắt buộc phải có: method chạy trên thread @Async riêng (không có session của
+    // request gốc), trong khi Order.user/Order.voucher/OrderDetail.product đều LAZY — thiếu annotation
+    // này sẽ ném LazyInitializationException ngay khi đọc order.getUser()/getVoucher(), nhưng vì method
+    // trả void nên lỗi chỉ bị log ra console, controller vẫn trả 200 "gửi email thành công" như bình
+    // thường — im lặng gửi thất bại, rất khó phát hiện nếu không đọc log server.
     @Async
-    public void sendEmailFromTemplateSyncCheckout(String to, String subject, String templateName,
-                                                  String username,String address, String phone, String paymentMethod, Double totalPrice, List<OrderDetailDTO> items) {
+    @Transactional(readOnly = true)
+    public void sendOrderConfirmationEmail(Long orderId) throws ResourceInvalidException {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceInvalidException("Đơn hàng id=" + orderId + " không tồn tại"));
+        Voucher voucher = order.getVoucher();
 
-        String formattedTotalPrice = formatCurrency(totalPrice);
-        // Format từng sản phẩm trong danh sách items
-        items.forEach(item -> item.setFormattedPrice(formatCurrency(item.getUnit_price())));
+        List<OrderDetail> details = orderDetailRepository.findByOrderId(orderId);
+        List<OrderDetailDTO> items = details.stream()
+                .map(orderDetailService::convertToOrderDetailDTO)
+                .toList();
 
-        // Lấy thời gian hiện tại và định dạng
+        double subtotal = 0;
+        for (OrderDetailDTO item : items) {
+            double lineTotal = (item.getLineTotal() != null && item.getLineTotal() > 0)
+                    ? item.getLineTotal() : item.getUnit_price() * item.getQuantity();
+            subtotal += lineTotal;
+
+            item.setFormattedPrice(formatCurrency(item.getUnit_price()));
+            item.setFormattedLineTotal(formatCurrency(lineTotal));
+            if (item.getOriginalPrice() != null) {
+                item.setFormattedOriginalPrice(formatCurrency(item.getOriginalPrice()));
+            }
+            if (item.getPromoBundlePrice() != null) {
+                item.setFormattedPromoBundlePrice(formatCurrency(item.getPromoBundlePrice()));
+            }
+        }
+
+        // Chênh lệch subtotal (tổng lineTotal, snapshot đúng lúc đặt hàng) với total_price thật đã lưu
+        // chính là số tiền voucher đã giảm — tránh tính lại công thức PERCENT/FIXED ở đây, luôn khớp
+        // tuyệt đối với số tiền khách thực sự đã trả.
+        Double voucherDiscountAmount = voucher != null ? subtotal - order.getTotal_price() : null;
+
         LocalDateTime currentDateTime = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
-        String formattedDateTime = currentDateTime.format(formatter);
 
         Context context = new Context();
-        context.setVariable("NAME", username);
-        context.setVariable("TOTAL_PRICE", totalPrice);
-        context.setVariable("customerName",username);
-        context.setVariable("customerAddress",address);
-        context.setVariable("customerPhone",phone);
-        context.setVariable("customerCountry","Việt Nam");
-        context.setVariable("paymentMethod",paymentMethod);
-        context.setVariable("invoiceDate",formattedDateTime);
+        context.setVariable("customerName", order.getUser().getName());
+        context.setVariable("customerAddress", order.getAddress());
+        context.setVariable("customerPhone", order.getPhone());
+        context.setVariable("customerCountry", "Việt Nam");
+        context.setVariable("paymentMethod", "COD".equalsIgnoreCase(order.getPaymentMethod())
+                ? "Thanh toán khi nhận hàng (COD)" : "Thanh toán online (VNPay)");
+        context.setVariable("invoiceDate", currentDateTime.format(formatter));
+        context.setVariable("orderId", order.getId());
         context.setVariable("items", items);
-        String content = this.templateEngine.process(templateName, context);
-        this.sendEmailSync(to, subject, content, false, true);
+        context.setVariable("formattedSubtotal", formatCurrency(subtotal));
+        context.setVariable("voucherCode", voucher != null ? voucher.getCode() : null);
+        context.setVariable("formattedVoucherDiscount",
+                voucherDiscountAmount != null ? formatCurrency(voucherDiscountAmount) : null);
+        context.setVariable("formattedTotalPrice", formatCurrency(order.getTotal_price()));
+
+        String content = this.templateEngine.process("checkout", context);
+        this.sendEmailSync(order.getUser().getEmail(), "Xác nhận đơn hàng #" + order.getId(), content, false, true);
     }
     @Async
     public void sendEmailFromTemplateSyncUserUpdate(String to, String username, String templateName,

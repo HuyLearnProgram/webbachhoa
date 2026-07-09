@@ -2,8 +2,12 @@ package com.app.webnongsan.service;
 
 import com.app.webnongsan.domain.*;
 import com.app.webnongsan.domain.response.PaginationDTO;
+import com.app.webnongsan.domain.response.order.OrderBreakdownDTO;
 import com.app.webnongsan.domain.response.order.OrderDTO;
 import com.app.webnongsan.domain.response.order.OrderDetailDTO;
+import com.app.webnongsan.domain.response.order.OverviewStatsDTO;
+import com.app.webnongsan.domain.response.order.PaymentStatusCountDTO;
+import com.app.webnongsan.domain.response.order.StatusCountDTO;
 import com.app.webnongsan.domain.response.order.WeeklyRevenue;
 import com.app.webnongsan.domain.response.product.ProductReturnStatsDTO;
 import com.app.webnongsan.repository.*;
@@ -24,7 +28,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -398,11 +401,33 @@ public class OrderService {
         return weeklyRevenues;
     }
 
-    public List<Object> getOverviewStats() {
+    public OverviewStatsDTO getOverviewStats() {
         long totalUsers = userRepository.count();
         double totalProfit = orderRepository.sumTotalPriceByPaymentStatus("PAID");
         long totalOrders = orderRepository.count();
         long totalProducts = productRepository.count();
-        return Arrays.asList(totalProfit, totalUsers, totalProducts, totalOrders);
+        return new OverviewStatsDTO(totalProfit, totalUsers, totalProducts, totalOrders);
+    }
+
+    private static final int[] ORDER_STATUSES = {0, 1, 2, 3, 4};
+    private static final String[] PAYMENT_STATUSES =
+            {"UNPAID", "PENDING_PAYMENT", "PAID", "PAYMENT_FAILED", "REFUND_PENDING", "REFUNDED"};
+
+    public OrderBreakdownDTO getOrderBreakdown() {
+        List<StatusCountDTO> byStatus = new ArrayList<>();
+        for (int status : ORDER_STATUSES) {
+            long count = orderRepository.countByStatus(status);
+            double revenue = orderRepository.sumTotalPriceByStatus(status);
+            byStatus.add(new StatusCountDTO(status, count, revenue));
+        }
+
+        List<PaymentStatusCountDTO> byPaymentStatus = new ArrayList<>();
+        for (String paymentStatus : PAYMENT_STATUSES) {
+            long count = orderRepository.countByPaymentStatus(paymentStatus);
+            double revenue = orderRepository.sumTotalPriceByPaymentStatus(paymentStatus);
+            byPaymentStatus.add(new PaymentStatusCountDTO(paymentStatus, count, revenue));
+        }
+
+        return new OrderBreakdownDTO(byStatus, byPaymentStatus);
     }
 }

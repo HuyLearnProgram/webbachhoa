@@ -190,16 +190,12 @@ export const apiGetSelectedCart = async (pids) => {
         method: 'get',
     });
 };
-export const apiSendEmail = async (formData) => {
-    return axiosInstance({
+export const apiSendEmail = async (orderId) =>
+    axiosInstance({
         url: `checkout/email`,
         method: 'post',
-        data: formData,
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    })
-}
+        params: { orderId },
+    });
 export const apiPaymentVNPay = async (params) =>
     axiosInstance({
         url: `payment/vn-pay`,

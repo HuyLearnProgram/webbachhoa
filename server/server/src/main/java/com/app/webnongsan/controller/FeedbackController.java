@@ -5,6 +5,7 @@ import com.app.webnongsan.domain.Product;
 import com.app.webnongsan.domain.User;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.feedback.FeedbackDTO;
+import com.app.webnongsan.domain.response.feedback.FeedbackStatsDTO;
 import com.app.webnongsan.repository.FeedbackRepository;
 import com.app.webnongsan.repository.ProductRepository;
 import com.app.webnongsan.repository.UserRepository;
@@ -81,5 +82,11 @@ public class FeedbackController {
     @ApiMessage("Hide a feedback")
     public ResponseEntity<FeedbackDTO> hideFeedback(@PathVariable Long id) throws ResourceInvalidException{
         return ResponseEntity.status(HttpStatus.CREATED).body(this.feedbackService.hideFeedback(id));
+    }
+
+    @GetMapping("admin/feedback-stats")
+    @ApiMessage("Get global feedback/rating stats for admin dashboard")
+    public ResponseEntity<FeedbackStatsDTO> getFeedbackStats() {
+        return ResponseEntity.ok(this.feedbackService.getFeedbackStats());
     }
 }

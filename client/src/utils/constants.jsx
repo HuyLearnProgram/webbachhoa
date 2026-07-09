@@ -96,6 +96,15 @@ export const promotionTypeOptions = [
   { value: PROMOTION_TYPES.BUNDLE_PRICE, label: "Mua N sản phẩm giá cố định" },
 ];
 
+// Nhãn thân thiện cho khách hàng (checkbox filter guest/Product.jsx) — value giữ nguyên như promotionTypeOptions,
+// chỉ đổi label cho dễ hiểu hơn với người không rành thuật ngữ khuyến mãi.
+export const promotionTypeCustomerOptions = [
+  { value: PROMOTION_TYPES.NONE, label: "Không khuyến mãi" },
+  { value: PROMOTION_TYPES.PRICE_DISCOUNT, label: "Giảm giá" },
+  { value: PROMOTION_TYPES.BUY_X_GET_Y, label: "Mua nhiều tặng kèm" },
+  { value: PROMOTION_TYPES.BUNDLE_PRICE, label: "Combo giá ưu đãi" },
+];
+
 export const memberSidebar = [
   {
     id: 4,
@@ -154,6 +163,16 @@ export const statusOrder = [
     value: 4,
   }
 ]
+
+export const paymentStatusLabel = {
+  UNPAID: "Chưa thanh toán",
+  PENDING_PAYMENT: "Chờ thanh toán",
+  PAID: "Đã thanh toán",
+  PAYMENT_FAILED: "Thanh toán thất bại",
+  REFUND_PENDING: "Chờ hoàn tiền",
+  REFUNDED: "Đã hoàn tiền",
+};
+
 export const statusHideOrder = [
   {
     label: 'Unhide',
