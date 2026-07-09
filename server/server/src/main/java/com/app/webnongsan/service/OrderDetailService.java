@@ -68,6 +68,12 @@ public class OrderDetailService {
         res.setPromoBundlePrice(orderDetail.getPromoBundlePrice());
         res.setOriginalPrice(orderDetail.getOriginalPrice());
         res.setImageUrl(orderDetail.getProduct().getImageUrl());
+        res.setProductId(orderDetail.getProduct().getId());
+        res.setCategory(orderDetail.getProduct().getCategory().getName());
+        res.setOrderTime(orderDetail.getOrder().getOrderTime());
+        res.setDeliveryTime(orderDetail.getOrder().getDeliveryTime());
+        res.setStatus(orderDetail.getOrder().getStatus());
+        res.setPaymentStatus(orderDetail.getOrder().getPaymentStatus());
         return res;
     }
 }

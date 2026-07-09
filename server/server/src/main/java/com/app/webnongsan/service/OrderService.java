@@ -87,35 +87,7 @@ public class OrderService {
 
 
     public Optional<OrderDTO> findOrder(long id) {
-        OrderDTO res = new OrderDTO();
-        Optional<Order> orderOptional = this.orderRepository.findById(id);
-        if (orderOptional.isPresent()) {
-            Order order = orderOptional.get();
-            res.setId(order.getId());
-            res.setOrderTime(order.getOrderTime());
-            res.setDeliveryTime(order.getDeliveryTime());
-            res.setStatus(order.getStatus());
-            res.setPaymentMethod(order.getPaymentMethod());
-            res.setPaymentStatus(order.getPaymentStatus());
-            res.setAddress(order.getAddress());
-            res.setTotal_price(order.getTotal_price()); // Chú ý: có thể cần sửa lại tên phương thức
-            res.setUserEmail(order.getUser().getEmail());
-            res.setUserId(order.getUser().getId());
-            res.setUserName(order.getUser().getName());
-            res.setPhone(order.getPhone());
-
-
-            if (order.getVoucher() != null) {
-                Voucher voucher = order.getVoucher();
-                res.setVoucherId(voucher.getId());
-                res.setVoucherCode(voucher.getCode());
-                res.setVoucherType(voucher.getType().name()); // PERCENT / FIXED
-                res.setVoucherDiscountValue(voucher.getDiscountValue());
-            }
-            return Optional.of(res);
-        } else {
-            return Optional.empty();
-        }
+        return this.orderRepository.findById(id).map(this::convertToOrderDTO);
     }
 
     public PaginationDTO getAll(Specification<Order> spec, Pageable pageable) {
@@ -176,6 +148,8 @@ public class OrderService {
             orderDTO.setPaymentMethod(o.getPaymentMethod());
 
             orderDTO.setAddress(o.getAddress());
+            orderDTO.setPhone(o.getPhone());
+            orderDTO.setPaymentStatus(o.getPaymentStatus());
             orderDTO.setTotal_price(o.getTotal_price());
             orderDTO.setTotalPrice(o.getTotal_price());
 
@@ -198,6 +172,7 @@ public class OrderService {
         res.setAddress(order.getAddress());
         res.setPhone(order.getPhone());
         res.setTotal_price(order.getTotal_price());
+        res.setTotalPrice(order.getTotal_price());
         res.setPaymentStatus(order.getPaymentStatus());
         res.setUserEmail(order.getUser().getEmail());
         res.setUserId(order.getUser().getId());
