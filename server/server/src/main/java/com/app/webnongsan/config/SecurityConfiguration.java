@@ -79,6 +79,9 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v2/files").permitAll()
                         .requestMatchers(HttpMethod.GET,"/api/v2/payment/vn-pay/**").permitAll()
                         .requestMatchers(HttpMethod.GET,"/api/v2/payment/vn-pay-callback").permitAll()
+                        // Event tracking cho hệ thống gợi ý AI — phải permitAll vì guest (chưa đăng nhập)
+                        // cũng cần ghi được hành vi qua sessionId ẩn danh; service phía sau tự bỏ qua input không hợp lệ
+                        .requestMatchers(HttpMethod.POST, "/api/v2/events/**").permitAll()
                         .requestMatchers("/favicon.ico").permitAll()
                         // filter role with spring security
                         .requestMatchers(HttpMethod.POST, "/api/v2/products").hasRole("ADMIN")

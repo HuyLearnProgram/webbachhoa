@@ -36,6 +36,14 @@ public class SearchProductDTO {
         this.rating = rating;
     }
 
+    public SearchProductDTO(long id, String product_name, double price, String imageUrl, String category, double rating,
+                            Double originalPrice, String promotionType, Integer promoBuyQuantity, Integer promoFreeQuantity,
+                            Integer promoBundleQuantity, Double promoBundlePrice) {
+        this(id, product_name, price, imageUrl, category, originalPrice, promotionType,
+                promoBuyQuantity, promoFreeQuantity, promoBundleQuantity, promoBundlePrice);
+        this.rating = rating;
+    }
+
     public SearchProductDTO(long id, String product_name, double price, String imageUrl, String category,
                             Double originalPrice, String promotionType, Integer promoBuyQuantity, Integer promoFreeQuantity,
                             Integer promoBundleQuantity, Double promoBundlePrice) {

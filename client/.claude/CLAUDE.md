@@ -1,5 +1,23 @@
 # Bách Hóa E-commerce — Frontend (client)
 
+## ƯU TIÊN CAO NHẤT — Đang xây dựng: Hệ thống gợi ý sản phẩm AI tự học
+
+**Đây là hạng mục ưu tiên số 1 hiện tại, tách biệt hoàn toàn khỏi các nợ kỹ thuật ở mục "Vấn đề còn lại"** — không gộp chung khi lên kế hoạch làm việc, luôn ưu tiên phần này trước các mục khác trong file này.
+
+Thay thế hoàn toàn cho nợ cũ "`apiGetRecommendedProducts` gãy" (mục đó đã lỗi thời, xem cập nhật trong "Vấn đề còn lại") — không chỉ sửa lại link chết mà xây hẳn 1 hệ thống gợi ý cá nhân hoá **tự học liên tục** (continual learning), dựa trên lịch sử mua/xem/tìm kiếm/mua chung/bán chạy, bắt buộc có cơ chế chống nhàm chán (không được lặp lại mãi 1 vài category khiến khách chán).
+
+**Tài liệu đầy đủ** (research tham số/signal, thiết kế entity/DB, thuật toán candidate generation + diversity + bandit, ngưỡng dữ liệu từng giai đoạn, rủi ro kỹ thuật đặc thù dự án): `../recommendation-service/AI_Recommendation_Roadmap.docx`.
+
+**Kiến trúc đã chốt**: Python microservice riêng (thư mục `recommendation-service/` ở root repo), Java backend đóng vai trò proxy sang (giữ JWT auth tập trung, không expose Python service ra ngoài trực tiếp). Roadmap bắt buộc theo mốc dữ liệu (không build 1 lần xong) vì dữ liệu tương tác thật hiện gần như bằng 0 (dump DB seed chỉ ~4 đơn hàng, ~2 user, 0 feedback) — chưa đủ điều kiện train ML thật, phải xây hạ tầng thu thập dữ liệu trước rồi mới bật từng phần ML theo ngưỡng.
+
+**Tiến độ** (cập nhật trạng thái ở đây mỗi khi hoàn thành 1 phase, để theo dõi xuyên suốt dự án):
+- [x] **Phase 0** — Event tracking mới (`ProductView`, `SearchLog`, `RecommendationImpression`, `CartEvent`; migration `Wishlist.addedAt`; expose `Cart.timestamp` vào `CartItemDTO`), sessionId ẩn danh cho guest + merge khi login, fix tạm "Sản phẩm tương tự" bằng rule-based thuần Java (cùng category, sort `sold`/`rating`). **Đã code xong + verify end-to-end qua API/DB thật** (guest tracking, merge session, cart ADD/UPDATE_QTY/REMOVE, dấu tiếng Việt trong keyword, validation input, similar-products slate). **Còn lại 1 việc**: kiểm tra UI trình duyệt thật (impression qua IntersectionObserver, click-through rail, log search từ trang tìm kiếm) — chưa xác nhận vì phiên làm việc không có công cụ điều khiển trình duyệt.
+- [ ] **Phase 1** — Dựng Python service (`recommendation-service/`), content-based + co-purchase + popularity, bật diversity re-rank (MMR) ngay từ đầu.
+- [ ] **Phase 2** — Collaborative filtering (ALS) thật + category-fatigue decay + time-decay preference vector.
+- [ ] **Phase 3** — Bandit explore-exploit (LinUCB/Thompson Sampling) + A/B testing + đo lường continual learning (CTR, diversity, coverage).
+
+Ngưỡng dữ liệu cụ thể để chuyển giai đoạn (số đơn hàng/user/tuần tối thiểu) xem trong file Word ở mục "Roadmap theo mốc dữ liệu".
+
 ## Tổng quan
 
 Frontend React cho website thương mại điện tử bách hóa (Vietnamese grocery e-commerce). Kiến trúc SOA/REST: frontend này giao tiếp với backend Spring Boot nằm ở `../server` qua RESTful API. Repo: https://github.com/HuyLearnProgram/webbachhoa
@@ -91,7 +109,7 @@ Tất cả các mục dưới đây coi như **đã hoàn thành và đã xác n
 ## Vấn đề còn lại — bước tiếp theo
 
 **Tạm hoãn, chờ giải pháp thay thế (người dùng chủ động chọn không vá):**
-1. `apiGetRecommendedProducts` gọi `axiosInstanceRecommended` không tồn tại — gợi ý sản phẩm gãy hoàn toàn.
+1. ~~`apiGetRecommendedProducts` gọi `axiosInstanceRecommended` không tồn tại — gợi ý sản phẩm gãy hoàn toàn.~~ **Đã nâng cấp thành hạng mục ưu tiên cao nhất** — xem mục "ƯU TIÊN CAO NHẤT" ở đầu file, không sửa lẻ tẻ nữa mà xây hẳn hệ thống gợi ý AI mới.
 2. Google OAuth login đã viết nhưng bị comment out trong `Login.jsx` (thiếu `VITE_GOOGLE_CLIENT_ID`).
 3. Đăng ký tài khoản chưa xác thực OTP qua email.
 
@@ -127,3 +145,4 @@ VITE_RECOMMENDED_URL = http://localhost:8000
 - [rules/tech-defaults.md](rules/tech-defaults.md) — quy ước code mặc định.
 - [rules/workflow.md](rules/workflow.md) — cách chạy/build/test.
 - [rules/design.md](rules/design.md) — quy ước thiết kế/giao diện.
+- `../recommendation-service/AI_Recommendation_Roadmap.docx` — roadmap đầy đủ hệ thống gợi ý AI (ưu tiên cao nhất hiện tại, xem đầu file).

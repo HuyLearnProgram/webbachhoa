@@ -5,6 +5,7 @@ import { apiLogin, apiRegister, apiLoginGoogle } from "@/apis";
 import { useNavigate, Link } from "react-router-dom";
 import path from "@/utils/path";
 import { login } from '@/store/user/userSlice';
+import { apiMergeTrackingSession } from '@/apis/recommendation';
 import { useDispatch } from "react-redux";
 import { useForm } from 'react-hook-form';
 import { ClipLoader } from "react-spinners";
@@ -44,6 +45,10 @@ const Login = () => {
       if (result.statusCode === 200) {
         dispatch(login({ isLoggedIn: true, token: result.data.access_token, userData: result.data.user }));
         setTimeout(() => {
+          // Nối lịch sử hành vi ẩn danh (event tracking) vào user vừa đăng nhập.
+          // Gọi trong setTimeout để redux-persist kịp ghi token vào localStorage
+          // (axios interceptor đọc JWT từ đó) — fire-and-forget, không chặn điều hướng.
+          apiMergeTrackingSession();
           navigate(`/${path.HOME}`);
         }, 1000);
       } else {

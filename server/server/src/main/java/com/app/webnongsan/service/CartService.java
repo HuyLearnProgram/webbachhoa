@@ -1,11 +1,13 @@
 package com.app.webnongsan.service;
 
 import com.app.webnongsan.domain.Cart;
+import com.app.webnongsan.domain.CartEvent;
 import com.app.webnongsan.domain.CartId;
 import com.app.webnongsan.domain.Product;
 import com.app.webnongsan.domain.User;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.cart.CartItemDTO;
+import com.app.webnongsan.repository.CartEventRepository;
 import com.app.webnongsan.repository.CartRepository;
 import com.app.webnongsan.repository.ProductRepository;
 import com.app.webnongsan.repository.UserRepository;
@@ -28,6 +30,22 @@ public class CartService {
     private final UserRepository userRepository;
     private final PaginationHelper paginationHelper;
     private final PromotionService promotionService;
+    private final CartEventRepository cartEventRepository;
+
+    // Audit log hành vi giỏ hàng (tín hiệu cho hệ thống gợi ý AI) — ghi server-side để không
+    // phụ thuộc frontend gọi tracking; lỗi khi ghi log không được làm hỏng thao tác giỏ hàng chính
+    private void logCartEvent(User user, Product product, String eventType, int quantity) {
+        try {
+            CartEvent event = new CartEvent();
+            event.setUser(user);
+            event.setProduct(product);
+            event.setEventType(eventType);
+            event.setQuantity(quantity);
+            this.cartEventRepository.save(event);
+        } catch (Exception e) {
+            System.out.println(">>> Cart event log error: " + e.getMessage());
+        }
+    }
 
     public Cart addOrUpdateCart(Cart cart) throws ResourceInvalidException {
         String email = SecurityUtil.getCurrentUserLogin().isPresent() ? SecurityUtil.getCurrentUserLogin().get() : "";
@@ -51,7 +69,9 @@ public class CartService {
             }
 
             cartItem.setQuantity(newQuantity);
-            return this.cartRepository.save(cartItem);
+            Cart saved = this.cartRepository.save(cartItem);
+            this.logCartEvent(u, p, "UPDATE_QTY", newQuantity);
+            return saved;
         } else {
             // Thêm mới vào giỏ — trước đây hoàn toàn không có bước kiểm tra tồn kho nào ở nhánh này
             int freeUnits = this.promotionService.calculateLineTotal(p, cart.getQuantity()).getFreeUnits();
@@ -60,7 +80,9 @@ public class CartService {
             }
             cart.setUser(u);
             cart.setProduct(p);
-            return this.cartRepository.save(cart);
+            Cart saved = this.cartRepository.save(cart);
+            this.logCartEvent(u, p, "ADD", cart.getQuantity());
+            return saved;
         }
 
     }
@@ -80,6 +102,8 @@ public class CartService {
 
         CartId cartId = new CartId(user.getId(), productId);
         this.cartRepository.deleteById(cartId);
+        this.productRepository.findById(productId)
+                .ifPresent(p -> this.logCartEvent(user, p, "REMOVE", 0));
     }
 
     public PaginationDTO getCartByCurrentUser(Pageable pageable) throws ResourceInvalidException {

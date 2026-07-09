@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { apiGetProduct, apiGetRatingsPage, apiRatings, apiFetchRecommendProductById, apiAddOrUpdateCart, apiAddWishList } from '@/apis';
-import { Breadcrumb, Button, QuantitySelector, ProductExtraInfoItem, ProductInfomation, VoteOption, Comment, ProductCard, PromotionOfferBox } from '@/components';
+import { apiGetProduct, apiGetRatingsPage, apiRatings, apiAddOrUpdateCart, apiAddWishList } from '@/apis';
+import { apiGetSimilarProducts, apiTrackProductView } from '@/apis/recommendation';
+import { Breadcrumb, Button, QuantitySelector, ProductExtraInfoItem, ProductInfomation, VoteOption, Comment, RecommendationRail, PromotionOfferBox } from '@/components';
+import { VIEW_SOURCE_HANDOFF_KEY } from '@/components/products/RecommendationRail';
 import { formatMoney, renderStarFromNumber } from '@/utils/helper'
 import product_default from '@/assets/product_default.png'
 import { productExtraInfo } from '@/utils/constants';
@@ -41,9 +43,10 @@ const ProductDetail = ({ isQuickView, data }) => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const [quantity, setQuantity] = useState(1);
-  const [recommendedProducts, setRecommendedProducts] = useState(null)
+  const [recommendedSlate, setRecommendedSlate] = useState(null)
   const [pid, setPid] = useState(null)
   const [selectedImage, setSelectedImage] = useState(null)
+  const lastViewLoggedPidRef = React.useRef(null)
 
   useEffect(() => {
     if (data) {
@@ -62,10 +65,32 @@ const ProductDetail = ({ isQuickView, data }) => {
   };
 
   const fetchRecommended = async () => {
-    const res = await apiFetchRecommendProductById(pid);
+    // Trả về slate: { requestId, algorithmSource, placement, items } — requestId dùng để log impression/click
+    const res = await apiGetSimilarProducts(pid);
     if (res.statusCode === 200) {
-      setRecommendedProducts(res.data);
+      setRecommendedSlate(res.data);
     }
+  };
+
+  // Ghi nhận lượt xem sản phẩm (dữ liệu nền cho hệ thống gợi ý AI).
+  // Nguồn view (SIMILAR/HOME_FEED...) do RecommendationRail bàn giao qua sessionStorage trước khi navigate.
+  const logProductView = () => {
+    if (!pid || lastViewLoggedPidRef.current === pid) return;
+    lastViewLoggedPidRef.current = pid;
+    let source = 'DIRECT';
+    let referrerProductId = null;
+    try {
+      const handoff = sessionStorage.getItem(VIEW_SOURCE_HANDOFF_KEY);
+      if (handoff) {
+        const parsed = JSON.parse(handoff);
+        source = parsed.source || 'DIRECT';
+        referrerProductId = parsed.referrerProductId ?? null;
+        sessionStorage.removeItem(VIEW_SOURCE_HANDOFF_KEY);
+      }
+    } catch {
+      // handoff hỏng — dùng DIRECT
+    }
+    apiTrackProductView(pid, source, referrerProductId);
   };
 
   const fetchFeedbacksData = async (page = 1) => {
@@ -86,9 +111,10 @@ const ProductDetail = ({ isQuickView, data }) => {
   useEffect(() => {
     const fetchData = async () => {
       if (pid) {
+        logProductView();
         await fetchProductData();
         await fetchRecommended();
-        
+
         // Chỉ gọi fetchFeedbacksData nếu không ở chế độ Quick View
         if (!isQuickView) {
           await fetchFeedbacksData(currentPage);
@@ -325,14 +351,12 @@ const ProductDetail = ({ isQuickView, data }) => {
       </div>
         <div className='w-full flex justify-center'>
           <div className="w-main">
-            <h2 className="text-[20px] uppercase font-semibold py-2 border-b-4 border-main">
-              Sản phẩm tương tự
-            </h2>
-            <div className="grid grid-cols-6 gap-4 mt-4 ">
-              {recommendedProducts?.map((e) => (
-                <ProductCard key={e.id} productData={e} />
-              ))}
-            </div>
+            <RecommendationRail
+              title="Sản phẩm tương tự"
+              slate={recommendedSlate}
+              viewSource="SIMILAR"
+              referrerProductId={pid}
+            />
           </div>
         </div></>}
     </div>

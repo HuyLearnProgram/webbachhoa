@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, createSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Breadcrumb, ProductCard, Pagination, SortItem } from '@/components';
 import { apiGetProducts, apiGetMaxPrice } from '@/apis';
+import { apiTrackSearch, apiTrackSearchClick } from '@/apis/recommendation';
 import Masonry from 'react-masonry-css';
 import { v4 as uuidv4 } from 'uuid';
 import { sortProductOption, promotionTypeCustomerOptions, PROMOTION_TYPES } from '@/utils/constants';
@@ -56,6 +57,12 @@ const Product = () => {
 
   const activeRatingMin = params.get('rating') ? Number(params.get('rating').split('-')[0]) : null;
   const selectedPromotions = (params.get('promotion') || '').split(',').filter(Boolean);
+
+  // Log lịch sử tìm kiếm (dữ liệu nền cho hệ thống gợi ý AI):
+  // mỗi từ khoá chỉ log 1 lần (đổi trang/filter cùng từ khoá không log lại),
+  // giữ searchLogId để cập nhật clickedProductId khi user click 1 sản phẩm trong kết quả
+  const lastLoggedSearchRef = useRef(null);
+  const searchLogIdRef = useRef(null);
 
   const getPageTitle = () => {
     const searchTerm = params.get('search');
@@ -205,6 +212,23 @@ const Product = () => {
       setIsLoading(false);
     }
   }, [isProductLoading, error, products.result]);
+
+  useEffect(() => {
+    const searchTerm = params.get('search');
+    if (isProductLoading || error || !searchTerm) return;
+    if (lastLoggedSearchRef.current === searchTerm) return;
+    lastLoggedSearchRef.current = searchTerm;
+    searchLogIdRef.current = null;
+    apiTrackSearch(searchTerm, products?.meta?.total ?? 0).then((logId) => {
+      searchLogIdRef.current = logId;
+    });
+  }, [isProductLoading, error, params, products?.meta?.total]);
+
+  const handleSearchResultClick = (productId) => {
+    if (params.get('search') && searchLogIdRef.current) {
+      apiTrackSearchClick(searchLogIdRef.current, productId);
+    }
+  };
 
   const handleCategoryToggle = (id) => {
     const current = new Set(selectedCategoryIds);
@@ -431,7 +455,9 @@ const Product = () => {
                 columnClassName="my-masonry-grid_column mb-[-20px]"
               >
                 {products.result.map((e) => (
-                  <ProductCard key={uuidv4()} productData={e} />
+                  <div key={uuidv4()} onClickCapture={() => handleSearchResultClick(e.id)}>
+                    <ProductCard productData={e} />
+                  </div>
                 ))}
               </Masonry>
             ) : (

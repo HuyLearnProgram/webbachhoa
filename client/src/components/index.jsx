@@ -6,6 +6,7 @@ export { default as Sidebar } from "./sidebar/Sidebar";
 export { default as FeatureProduct } from "./products/FeatureProduct";
 export { default as HotDeals } from "./products/HotDeals";
 export { default as ProductCard } from './products/ProductCard'
+export { default as RecommendationRail } from './products/RecommendationRail'
 export { default as SelectOption } from './common/SelectOption'
 export { default as TopHeader } from './headers/TopHeader'
 export { default as InputField } from './input/InputField'

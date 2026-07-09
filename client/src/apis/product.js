@@ -35,12 +35,6 @@ export const apiGetProduct = async (pid) =>
         method: "get",
     });
 
-export const apiGetRecommendedProducts = async (pid) =>
-    axiosInstanceRecommended({
-        url: `/similar-products/${pid}`,
-        method: 'get',
-    });
-
 // Ẩn/hiện 1 hoặc nhiều sản phẩm (thay cho xoá cứng)
 export const apiBulkUpdateProductActive = async (ids, active) =>
     axiosInstance({
@@ -173,9 +167,4 @@ export const apiCancelOrder = async (id,params)=>
         method: "get",
         params,
     })
-
-export const apiFetchRecommendProductById = async(id) => 
-    axiosInstance({
-        url: `products/similar/${id}`,
-        method: "get",
-    })
+// Gợi ý "sản phẩm tương tự" đã chuyển sang src/apis/recommendation.js (apiGetSimilarProducts)

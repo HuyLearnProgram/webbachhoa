@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "wishlists")
 @Getter
@@ -23,4 +25,12 @@ public class Wishlist {
     @JoinColumn(name = "product_id")
     @JsonIgnore
     private Product product;
+
+    // NULL với các dòng có trước khi thêm cột (không suy ra được thời điểm thật)
+    private Instant addedAt;
+
+    @PrePersist
+    public void handleAddToWishlist() {
+        this.addedAt = Instant.now();
+    }
 }

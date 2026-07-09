@@ -5,9 +5,11 @@ import com.app.webnongsan.domain.request.BulkActiveRequestDTO;
 import com.app.webnongsan.domain.request.AddImageRequestDTO;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.product.ProductImportResultDTO;
+import com.app.webnongsan.domain.response.product.RecommendationSlateDTO;
 import com.app.webnongsan.domain.response.product.ResProductDTO;
 import com.app.webnongsan.domain.response.product.SearchProductDTO;
 import com.app.webnongsan.service.ProductService;
+import com.app.webnongsan.service.RecommendationService;
 import com.app.webnongsan.util.annotation.ApiMessage;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import com.turkraft.springfilter.boot.Filter;
@@ -32,6 +34,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ProductController {
     private final ProductService productService;
+    private final RecommendationService recommendationService;
 
     @PostMapping("products")
     @ApiMessage("Create product")
@@ -108,10 +111,11 @@ public class ProductController {
         return ResponseEntity.ok(this.productService.deductStock(id, quantity));
     }
 
-//    @GetMapping("products/similar/{productId}")
-//    public ResponseEntity<List<SearchProductDTO>> getSimilarProducts(@PathVariable Long productId) {
-//        return ResponseEntity.ok(productService.getSimilarProducts(productId));
-//    }
+    @GetMapping("products/similar/{productId}")
+    @ApiMessage("Get similar products")
+    public ResponseEntity<RecommendationSlateDTO> getSimilarProducts(@PathVariable("productId") long productId) {
+        return ResponseEntity.ok(this.recommendationService.getSimilarProducts(productId));
+    }
 
     @PostMapping("products/{id}/images")
     @ApiMessage("Add product gallery image")
