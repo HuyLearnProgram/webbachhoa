@@ -53,6 +53,23 @@ export const apiTrackRecommendationClick = (requestId, productId) =>
         data: { sessionId: getOrCreateSessionId(), requestId, productId },
     }).catch(() => {})
 
+// Gợi ý cho trang Home: guest → popularity/trending, đã đăng nhập → cá nhân hoá theo lịch sử xem
+// (backend tự nhận diện user qua JWT, client chỉ gửi sessionId)
+export const apiGetHomeRecommendations = async () =>
+    axiosInstance({
+        url: 'recommendations/home',
+        method: 'get',
+        params: { sessionId: getOrCreateSessionId() },
+    })
+
+// "Có thể bạn cũng thích" ở giỏ hàng: co-purchase theo sản phẩm trong giỏ, fallback popularity
+export const apiGetCartSuggestions = async (productIds) =>
+    axiosInstance({
+        url: 'recommendations/cart-suggestions',
+        method: 'get',
+        params: { sessionId: getOrCreateSessionId(), productIds: productIds.join(',') },
+    })
+
 // Gọi 1 lần ngay sau khi login thành công — nối lịch sử hành vi ẩn danh vào user thật
 export const apiMergeTrackingSession = () => {
     const sessionId = getOrCreateSessionId()

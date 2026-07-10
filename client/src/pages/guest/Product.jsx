@@ -5,7 +5,6 @@ import { Breadcrumb, ProductCard, Pagination, SortItem } from '@/components';
 import { apiGetProducts, apiGetMaxPrice } from '@/apis';
 import { apiTrackSearch, apiTrackSearchClick } from '@/apis/recommendation';
 import Masonry from 'react-masonry-css';
-import { v4 as uuidv4 } from 'uuid';
 import { sortProductOption, promotionTypeCustomerOptions, PROMOTION_TYPES } from '@/utils/constants';
 import { buildProductNameFilter, stripDiacritics, renderStarFromNumber } from '@/utils/helper';
 import { ClipLoader } from "react-spinners";
@@ -455,9 +454,12 @@ const Product = () => {
                 columnClassName="my-masonry-grid_column mb-[-20px]"
               >
                 {products.result.map((e) => (
-                  <div key={uuidv4()} onClickCapture={() => handleSearchResultClick(e.id)}>
-                    <ProductCard productData={e} />
-                  </div>
+                  <ProductCard
+                    key={e.id}
+                    productData={e}
+                    viewSource={params.get('search') ? 'SEARCH_RESULT' : (selectedCategoryIds.length > 0 ? 'CATEGORY_PAGE' : undefined)}
+                    onBeforeNavigate={() => handleSearchResultClick(e.id)}
+                  />
                 ))}
               </Masonry>
             ) : (

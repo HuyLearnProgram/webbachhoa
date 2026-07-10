@@ -2,8 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import  {CartItem, CartFooter, EmptyCart, GiftDetailModal} from '@/components';
+import  {CartItem, CartFooter, EmptyCart, GiftDetailModal, RecommendationRail} from '@/components';
 import { apiGetCart, apiAddOrUpdateCart, apiDeleteCart } from '@/apis';
+import { apiGetCartSuggestions } from '@/apis/recommendation';
 import { getCurrentUser } from '@/store/user/asyncActions';
 import { showModal } from '@/store/app/appSlice';
 import withBaseComponent from '@/hocs/withBaseComponent';
@@ -29,6 +30,26 @@ const Cart = ({ dispatch }) => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [suggestionSlate, setSuggestionSlate] = useState(null);
+
+  // "Có thể bạn cũng thích": co-purchase theo sản phẩm trong giỏ (fallback popularity phía backend).
+  // Key theo danh sách id đã sort — chỉ refetch khi thành phần giỏ đổi, không refetch khi chỉ đổi số lượng.
+  const cartIdsKey = cartItems.map((item) => item.id).sort((a, b) => a - b).join(',');
+  useEffect(() => {
+    if (!cartIdsKey) {
+      setSuggestionSlate(null);
+      return;
+    }
+    const fetchSuggestions = async () => {
+      try {
+        const response = await apiGetCartSuggestions(cartIdsKey.split(',').map(Number));
+        if (response.statusCode === 200) setSuggestionSlate(response.data);
+      } catch {
+        setSuggestionSlate(null); // gợi ý gãy không được làm vỡ trang giỏ hàng
+      }
+    };
+    fetchSuggestions();
+  }, [cartIdsKey]);
 
   // Refs
   const debounceTimeouts = useRef({});
@@ -313,6 +334,7 @@ const Cart = ({ dispatch }) => {
   }, [selectedItems, cartItems]);
 
   return (
+    <>
     <div className="w-main mt-10 p-6 bg-white shadow-md rounded-lg">
       <h2 className="text-xl font-semibold mb-4">Giỏ hàng</h2>
       
@@ -363,6 +385,16 @@ const Cart = ({ dispatch }) => {
         <EmptyCart />
       )}
     </div>
+    {cartItems?.length > 0 && (
+      <div className="w-main mt-8 mb-10">
+        <RecommendationRail
+          title="Có thể bạn cũng thích"
+          slate={suggestionSlate}
+          viewSource="CART_SUGGESTION"
+        />
+      </div>
+    )}
+    </>
   );
 };
 

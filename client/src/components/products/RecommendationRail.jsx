@@ -2,15 +2,24 @@ import React, { useEffect, useRef } from 'react'
 import ProductCard from './ProductCard'
 import { apiTrackImpressions, apiTrackRecommendationClick } from '@/apis/recommendation'
 
-// Key sessionStorage bàn giao nguồn view giữa 2 trang: rail set trước khi ProductCard tự navigate,
-// ProductDetail đọc + xoá khi log product-view (tránh phải sửa API của ProductCard)
-export const VIEW_SOURCE_HANDOFF_KEY = 'ogani_view_source_handoff'
-
 // Grid sản phẩm gợi ý dùng chung cho mọi vị trí (PDP "tương tự", Home cá nhân hoá, giỏ hàng...).
 // Tự log impression (1 lần khi rail thực sự lọt vào viewport) + click-through về backend —
 // đây là vòng feedback loop của hệ thống gợi ý AI, không có nó model không tự học được.
 // slate: { requestId, algorithmSource, placement, items } — trả về từ apiGetSimilarProducts & các API gợi ý sau này.
-const RecommendationRail = ({ title, slate, viewSource = 'SIMILAR', referrerProductId = null, gridClassName = 'grid grid-cols-6 gap-4 mt-4' }) => {
+
+// Điểm neo thị giác tinh tế theo vị trí (Gutenberg diagram + serial position effect + "row skipping"
+// trên lưới ảnh — xem nghiên cứu trong lịch sử trao đổi): ô đầu tiên luôn là điểm mạnh nhất (sản phẩm
+// điểm cao nhất do MMR xếp hạng — không cần đổi thuật toán); ô đầu hàng 2 (nếu có ≥2 hàng) chống bỏ
+// hàng dưới; ô cuối cùng tận dụng recency effect. `columns` phải khớp số cột thật của gridClassName.
+const getEmphasisTier = (index, total, columns) => {
+    if (index === 0) return 'primary'
+    const lastIndex = total - 1
+    const hasSecondRow = total > columns
+    if ((hasSecondRow && index === columns) || index === lastIndex) return 'secondary'
+    return undefined
+}
+
+const RecommendationRail = ({ title, slate, viewSource = 'SIMILAR', referrerProductId = null, gridClassName = 'grid grid-cols-6 gap-4 mt-4', columns = 6 }) => {
     const containerRef = useRef(null)
     const impressionLoggedRef = useRef(null)
 
@@ -39,15 +48,6 @@ const RecommendationRail = ({ title, slate, viewSource = 'SIMILAR', referrerProd
 
     if (!items?.length) return null
 
-    const handleClickCapture = (productId) => {
-        apiTrackRecommendationClick(requestId, productId)
-        try {
-            sessionStorage.setItem(VIEW_SOURCE_HANDOFF_KEY, JSON.stringify({ source: viewSource, referrerProductId }))
-        } catch {
-            // sessionStorage bị chặn — bỏ qua, chỉ mất độ chính xác của field source
-        }
-    }
-
     return (
         <div ref={containerRef}>
             {title && (
@@ -56,10 +56,15 @@ const RecommendationRail = ({ title, slate, viewSource = 'SIMILAR', referrerProd
                 </h2>
             )}
             <div className={gridClassName}>
-                {items.map((e) => (
-                    <div key={e.id} onClickCapture={() => handleClickCapture(e.id)}>
-                        <ProductCard productData={e} />
-                    </div>
+                {items.map((e, index) => (
+                    <ProductCard
+                        key={e.id}
+                        productData={e}
+                        viewSource={viewSource}
+                        referrerProductId={referrerProductId}
+                        onBeforeNavigate={() => apiTrackRecommendationClick(requestId, e.id)}
+                        emphasisTier={getEmphasisTier(index, items.length, columns)}
+                    />
                 ))}
             </div>
         </div>

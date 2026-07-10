@@ -11,9 +11,10 @@ Tạo/kiểm tra file `.env` tại `client/`:
 ```
 VITE_BACKEND_URL = "http://localhost:8080/api/v2"
 VITE_BACKEND_TARGET = http://localhost:8080
-VITE_RECOMMENDED_URL = http://localhost:8000
 ```
 Backend Spring Boot (`../server`) phải chạy trước ở `http://localhost:8080` để frontend gọi API được.
+Muốn gợi ý dùng nguồn AI thật (không fallback): chạy thêm `../recommendation-service` (uvicorn :8000,
+xem README trong đó) — không chạy cũng không vỡ gì, Java tự fallback rule-based.
 
 ## Chạy dev
 ```bash

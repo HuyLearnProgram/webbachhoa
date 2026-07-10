@@ -95,8 +95,8 @@ const Login = () => {
               validationRules={{
                 required: 'Tên không được bỏ trống',
                 pattern: {
-                  value: /^[a-zA-ZÀ-ỹ\s]+$/,
-                  message: 'Tên chỉ được chứa các ký tự chữ cái và khoảng trắng'
+                  value: /^[a-zA-ZÀ-ỹ0-9\s]+$/,
+                  message: 'Tên chỉ được chứa chữ cái, số và khoảng trắng'
                 }
               }}
               // Disable input during loading

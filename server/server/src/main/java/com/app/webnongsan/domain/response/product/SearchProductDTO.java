@@ -18,6 +18,7 @@ public class SearchProductDTO {
     private Integer promoFreeQuantity;
     private Integer promoBundleQuantity;
     private Double promoBundlePrice;
+    private Integer quantity;
 
     public SearchProductDTO(long id, String product_name, double price, String imageUrl, String category) {
         this.id = id;
@@ -36,12 +37,14 @@ public class SearchProductDTO {
         this.rating = rating;
     }
 
+    // Dùng cho các query gợi ý (recommendation) — cần thêm quantity để ProductCard biết còn hàng hay không
     public SearchProductDTO(long id, String product_name, double price, String imageUrl, String category, double rating,
                             Double originalPrice, String promotionType, Integer promoBuyQuantity, Integer promoFreeQuantity,
-                            Integer promoBundleQuantity, Double promoBundlePrice) {
+                            Integer promoBundleQuantity, Double promoBundlePrice, Integer quantity) {
         this(id, product_name, price, imageUrl, category, originalPrice, promotionType,
                 promoBuyQuantity, promoFreeQuantity, promoBundleQuantity, promoBundlePrice);
         this.rating = rating;
+        this.quantity = quantity;
     }
 
     public SearchProductDTO(long id, String product_name, double price, String imageUrl, String category,

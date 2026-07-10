@@ -3,7 +3,8 @@ import {
     Banner,
     Sidebar,
     FeatureProduct,
-    HotDeals
+    HotDeals,
+    HomeRecommendation
 } from "@/components";
 const Home = () => {
     return (
@@ -15,6 +16,9 @@ const Home = () => {
                 <div className="flex flex-col gap-5 pl-5 w-[75%] flex-auto">
                     <Banner />
                 </div>
+            </div>
+            <div className="mt-8">
+                <HomeRecommendation />
             </div>
             <div className="mt-8">
                 <HotDeals />

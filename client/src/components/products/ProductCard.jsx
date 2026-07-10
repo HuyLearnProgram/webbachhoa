@@ -13,10 +13,15 @@ import Swal from "sweetalert2";
 import path from "@/utils/path";
 import { getCurrentUser } from "@/store/user/asyncActions";
 import { getPromotionBadgeLabel } from "@/utils/promotion";
+import { setViewSourceHandoff } from "@/utils/viewSourceHandoff";
 
 const { FaCartShopping, FaHeart, FaEye } = icons;
 
-const ProductCard = ({ productData, navigate, dispatch }) => {
+// emphasisTier: điểm neo thị giác tinh tế cho rail gợi ý (nghiên cứu Gutenberg diagram + serial
+// position effect + hiện tượng "row skipping" trên lưới ảnh) — 'primary' cho ô đầu tiên (sản phẩm
+// điểm cao nhất), 'secondary' cho ô đầu hàng 2 và ô cuối cùng (chống bỏ hàng, tăng ghi nhớ điểm kết).
+// Không dùng badge/màu loè loẹt — chỉ scale/viền nhẹ để không "cướp" hết chú ý khỏi các sản phẩm khác.
+const ProductCard = ({ productData, navigate, dispatch, viewSource, referrerProductId, onBeforeNavigate, emphasisTier }) => {
   const [showOption, setShowOption] = useState(false);
   const { isLoggedIn } = useSelector(state => state.user)
 
@@ -39,6 +44,7 @@ const ProductCard = ({ productData, navigate, dispatch }) => {
   const handleClickOptions = async (e, flag) => {
     e.stopPropagation();
     if (flag === 'QUICK_VIEW') {
+      if (viewSource) setViewSourceHandoff(viewSource, referrerProductId);
       dispatch(showModal({
         isShowModal: true,
         modalChildren: <ProductDetail isQuickView data={{ pid: productData?.id, category: productData?.category }} />
@@ -71,10 +77,24 @@ const ProductCard = ({ productData, navigate, dispatch }) => {
     }
   };
 
+  // Gold nhạt (amber-300/200) — chốt sau khi so sánh với xanh thương hiệu (lẫn vào nút/giá) và
+  // tím violet (yếu hơn ở cùng độ nhạt); đủ tương phản để nổi bật mà không cạnh tranh với sao
+  // đánh giá màu cam bên dưới ảnh.
+  const emphasisClass =
+    emphasisTier === 'primary'
+      ? 'border-2 border-amber-300 shadow-md shadow-amber-50 scale-[1.04] z-10 relative'
+      : emphasisTier === 'secondary'
+      ? 'border border-amber-200/70 shadow-sm'
+      : 'border';
+
   return (
     <div className="w-full h-auto text-base px-[10px]">
       <div
-        onClick={e => navigate(`/products/${encodeURIComponent(productData?.category)}/${productData?.id}/${convertToSlug(productData?.product_name)}`)}
+        onClick={e => {
+          onBeforeNavigate?.();
+          if (viewSource) setViewSourceHandoff(viewSource, referrerProductId);
+          navigate(`/products/${encodeURIComponent(productData?.category)}/${productData?.id}/${convertToSlug(productData?.product_name)}`);
+        }}
         onMouseEnter={(e) => {
           e.stopPropagation();
           setShowOption(true);
@@ -83,7 +103,7 @@ const ProductCard = ({ productData, navigate, dispatch }) => {
           e.stopPropagation();
           setShowOption(false);
         }}
-        className="w-full border p-[15px] flex flex-col items-center"
+        className={`w-full ${emphasisClass} p-[15px] flex flex-col items-center transition-transform duration-200`}
       >
         <div className="w-full relative flex items-center justify-center">
           {showOption && (

@@ -92,8 +92,8 @@ const Personal = () => {
                             message: 'Tên không được vượt quá 100 ký tự',
                         },
                         pattern: {
-                            value: /^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯăẠ-ỹ\s,.-/]+$/,
-                            message: 'Tên không được chứa số hay ký tự đặc biệt',
+                            value: /^[a-zA-ZÀ-ỹ0-9\s]+$/,
+                            message: 'Tên chỉ được chứa chữ cái, số và khoảng trắng'
                         },
                     }}
                 />

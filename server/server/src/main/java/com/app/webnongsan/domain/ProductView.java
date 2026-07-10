@@ -36,7 +36,7 @@ public class ProductView {
 
     private Instant viewedAt;
 
-    // HOME_FEED | SEARCH_RESULT | SIMILAR | CATEGORY_PAGE | DIRECT
+    // HOME_FEED | SEARCH_RESULT | SIMILAR | CATEGORY_PAGE | CART_SUGGESTION | DIRECT
     @Column(length = 30, columnDefinition = "VARCHAR(30) DEFAULT 'DIRECT'")
     private String source;
 

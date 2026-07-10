@@ -81,6 +81,9 @@ security:
     - path: /api/v2/products/similar/*
       methods:
         - GET
+    - path: /api/v2/recommendations/*
+      methods:
+        - GET
     - path: /api/v2/auth/signin/google
       methods:
         - POST

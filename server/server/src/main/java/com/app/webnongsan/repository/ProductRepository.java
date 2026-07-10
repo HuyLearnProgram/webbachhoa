@@ -35,14 +35,34 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     List<SearchProductDTO> findByIdInList(@Param("ids") List<Long> ids);
 
     // Rule-based fallback cho "sản phẩm tương tự" (Phase 0 hệ thống gợi ý):
-    // cùng category, đang bán, loại chính nó, ưu tiên bán chạy rồi đến rating
+    // cùng category, đang bán, còn hàng, loại chính nó, ưu tiên bán chạy rồi đến rating.
+    // quantity > 0: sản phẩm hết hàng tạm thời (active vẫn true) không nên gợi ý cho khách.
     @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
             "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.originalPrice, p.promotionType, " +
-            "p.promoBuyQuantity, p.promoFreeQuantity, p.promoBundleQuantity, p.promoBundlePrice) " +
+            "p.promoBuyQuantity, p.promoFreeQuantity, p.promoBundleQuantity, p.promoBundlePrice, p.quantity) " +
             "FROM Product p JOIN p.category c " +
-            "WHERE c.id = :categoryId AND p.id <> :productId AND p.active = true " +
+            "WHERE c.id = :categoryId AND p.id <> :productId AND p.active = true AND p.quantity > 0 " +
             "ORDER BY p.sold DESC, p.rating DESC")
     List<SearchProductDTO> findSimilarByCategory(@Param("categoryId") long categoryId,
                                                  @Param("productId") long productId,
                                                  Pageable pageable);
+
+    // Hydrate danh sách productId do Python recommendation-service trả về thành DTO đầy đủ
+    // (giá/khuyến mãi/tồn kho luôn đọc mới nhất từ DB, không tin dữ liệu có thể stale từ Python;
+    // item đã ẩn/xoá/hết hàng bị loại tự nhiên nhờ điều kiện active + quantity)
+    @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
+            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.originalPrice, p.promotionType, " +
+            "p.promoBuyQuantity, p.promoFreeQuantity, p.promoBundleQuantity, p.promoBundlePrice, p.quantity) " +
+            "FROM Product p JOIN p.category c " +
+            "WHERE p.id IN :ids AND p.active = true AND p.quantity > 0")
+    List<SearchProductDTO> findActiveDtoByIdIn(@Param("ids") List<Long> ids);
+
+    // Fallback thuần Java cho Home/Cart khi Python service down: best-seller đang bán, còn hàng
+    @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
+            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.originalPrice, p.promotionType, " +
+            "p.promoBuyQuantity, p.promoFreeQuantity, p.promoBundleQuantity, p.promoBundlePrice, p.quantity) " +
+            "FROM Product p JOIN p.category c " +
+            "WHERE p.active = true AND p.quantity > 0 " +
+            "ORDER BY p.sold DESC, p.rating DESC")
+    List<SearchProductDTO> findTopSellingActive(Pageable pageable);
 }

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { apiGetProduct, apiGetRatingsPage, apiRatings, apiAddOrUpdateCart, apiAddWishList } from '@/apis';
 import { apiGetSimilarProducts, apiTrackProductView } from '@/apis/recommendation';
 import { Breadcrumb, Button, QuantitySelector, ProductExtraInfoItem, ProductInfomation, VoteOption, Comment, RecommendationRail, PromotionOfferBox } from '@/components';
-import { VIEW_SOURCE_HANDOFF_KEY } from '@/components/products/RecommendationRail';
+import { VIEW_SOURCE_HANDOFF_KEY } from '@/utils/viewSourceHandoff';
 import { formatMoney, renderStarFromNumber } from '@/utils/helper'
 import product_default from '@/assets/product_default.png'
 import { productExtraInfo } from '@/utils/constants';
@@ -339,7 +339,9 @@ const ProductDetail = ({ isQuickView, data }) => {
             <div className='flex flex-col gap-4'>
               {feedbacksPage?.map((el, index) => (
                 <Comment key={index} ratingStar={el.ratingStar} content={el.description}
-                  updatedAt={el.updatedAt} name={el.userName} image={`${import.meta.env.VITE_BACKEND_TARGET}/storage/avatar/${el?.userAvatarUrl}`} />
+                  updatedAt={el.updatedAt} name={el.userName} 
+                  image={el?.userAvatarUrl != null && el?.userAvatarUrl?.includes('http') ? 
+                    el?.userAvatarUrl : `${import.meta.env.VITE_BACKEND_TARGET}/storage/avatar/${el?.userAvatarUrl}`} />
               ))}
             </div>
             {paginate?.pages > 1 && <div>

@@ -57,7 +57,6 @@ public class SecurityConfiguration {
                 "/api/v2/auth/validate-token",
                 "/api/v2/auth/signin/google",
                 "/storage/**",
-                "/api/v2/similar/**",
                 "/oauth2/**"
         };
 
@@ -82,6 +81,9 @@ public class SecurityConfiguration {
                         // Event tracking cho hệ thống gợi ý AI — phải permitAll vì guest (chưa đăng nhập)
                         // cũng cần ghi được hành vi qua sessionId ẩn danh; service phía sau tự bỏ qua input không hợp lệ
                         .requestMatchers(HttpMethod.POST, "/api/v2/events/**").permitAll()
+                        // Gợi ý cá nhân hoá (Home/Cart) — permitAll vì guest cũng có gợi ý (popularity);
+                        // user đăng nhập vẫn được cá nhân hoá vì JWT filter chạy trước, SecurityContext có sẵn
+                        .requestMatchers(HttpMethod.GET, "/api/v2/recommendations/**").permitAll()
                         .requestMatchers("/favicon.ico").permitAll()
                         // filter role with spring security
                         .requestMatchers(HttpMethod.POST, "/api/v2/products").hasRole("ADMIN")

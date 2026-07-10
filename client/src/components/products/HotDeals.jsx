@@ -30,7 +30,7 @@ const HotDeals = () => {
 
       <div className="grid grid-cols-6 gap-4 mt-4">
         {products.map((e) => (
-          <ProductCard key={e.id} productData={e} />
+          <ProductCard key={e.id} productData={e} viewSource="HOME_FEED" />
         ))}
       </div>
     </div>
