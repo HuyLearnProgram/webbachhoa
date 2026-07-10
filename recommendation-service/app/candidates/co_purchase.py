@@ -5,7 +5,7 @@ Chạy "im lặng": thiếu dữ liệu → rules rỗng, không lỗi, log info
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from mlxtend.frequent_patterns import association_rules, fpgrowth
 from mlxtend.preprocessing import TransactionEncoder
@@ -25,7 +25,10 @@ WHERE o.status IN (1, 2) AND o.order_time >= :cutoff
 
 
 def build() -> dict[int, list[tuple[int, float]]]:
-    cutoff = datetime.now() - timedelta(days=settings.copurchase_window_days)
+    # order_time lưu Instant (UTC naive) — so bằng UTC, không dùng giờ local (lệch 7h ở VN)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+        days=settings.copurchase_window_days
+    )
     df = fetch_df(BASKET_SQL, {"cutoff": cutoff})
 
     transactions = [

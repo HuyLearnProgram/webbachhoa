@@ -2,9 +2,9 @@
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
-from app.candidates import co_purchase, content_based, popularity
+from app.candidates import co_purchase, collaborative, content_based, popularity, repurchase
 from app.config import settings
 from app.metrics import metrics
 from app.store import ModelArtifacts, store
@@ -12,12 +12,13 @@ from app.store import ModelArtifacts, store
 logger = logging.getLogger(__name__)
 
 
-def train_all() -> ModelArtifacts:
+def train_all(force_cf: bool = False) -> ModelArtifacts:
     t0 = time.perf_counter()
 
     matrix, product_ids, pid_to_idx, neighbors = content_based.build(settings.top_k_neighbors)
     rules = co_purchase.build()
     pop, pop_by_category, pid_to_category = popularity.build()
+    cf, cycle_days = _train_cf(force_cf)
 
     elapsed = time.perf_counter() - t0
     artifacts = ModelArtifacts(
@@ -30,13 +31,43 @@ def train_all() -> ModelArtifacts:
         popularity=pop,
         popularity_by_category=pop_by_category,
         pid_to_category=pid_to_category,
+        cf=cf,
+        repurchase_cycle_days=cycle_days,
         last_train_seconds=round(elapsed, 2),
     )
     store.swap(artifacts)
     metrics.last_train_at = artifacts.model_version
     metrics.last_train_seconds = artifacts.last_train_seconds
     logger.info(
-        "Train xong trong %.2fs: %d sản phẩm, %d co-purchase antecedent.",
+        "Train xong trong %.2fs: %d sản phẩm, %d co-purchase antecedent, CF %s.",
         elapsed, len(product_ids), len(rules),
+        "off" if cf is None else f"{len(cf.uid_to_idx)}u/{len(cf.item_ids)}i ({cf.backend})",
     )
     return artifacts
+
+
+def _train_cf(force_cf: bool):
+    """Hybrid cadence: dữ liệu ít → retrain nightly; volume vượt cf_nightly_max_interactions
+    → giữ model cũ (carry-forward qua swap) tới khi quá cf_retrain_max_age_days.
+    Lỗi CF không bao giờ được giết các nguồn còn lại. Trả về (cf, repurchase_cycle_days) —
+    2 thứ luôn đi cùng nhau vì collaborative.build() dùng cycle_days để hãm tín hiệu mua thật."""
+    if not settings.cf_enabled:
+        return None, {}
+    prev = store.get()
+    prev_cf = prev.cf if prev else None
+    prev_cycle_days = prev.repurchase_cycle_days if prev else {}
+    try:
+        if not force_cf and prev_cf is not None:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            age_days = (now - prev_cf.trained_at).total_seconds() / 86400.0
+            if (
+                prev_cf.n_interactions >= settings.cf_nightly_max_interactions
+                and age_days < settings.cf_retrain_max_age_days
+            ):
+                logger.info("CF: reuse model cũ (%.1f ngày tuổi, volume lớn — cadence weekly).", age_days)
+                return prev_cf, prev_cycle_days
+        cycle_days = repurchase.build_cycle_days()
+        return collaborative.build(cycle_days=cycle_days), cycle_days
+    except Exception:
+        logger.exception("CF train lỗi — nguồn CF tắt kỳ này, các nguồn khác không ảnh hưởng.")
+        return prev_cf, prev_cycle_days  # giữ model cũ nếu có còn hơn mất hẳn

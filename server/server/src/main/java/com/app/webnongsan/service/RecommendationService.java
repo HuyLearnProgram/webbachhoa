@@ -53,12 +53,12 @@ public class RecommendationService {
         this.baseUrl = baseUrl;
     }
 
-    public RecommendationSlateDTO getSimilarProducts(long productId) {
-        String url = UriComponentsBuilder.fromHttpUrl(this.baseUrl)
+    public RecommendationSlateDTO getSimilarProducts(long productId, String sessionId) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(this.baseUrl)
                 .path("/recommend/similar/" + productId)
-                .queryParam("k", SIMILAR_LIMIT)
-                .toUriString();
-        RecommendationSlateDTO fromPython = callPython(url, "PDP_SIMILAR");
+                .queryParam("k", SIMILAR_LIMIT);
+        appendIdentity(builder, sessionId);
+        RecommendationSlateDTO fromPython = callPython(builder.toUriString(), "PDP_SIMILAR");
         return fromPython != null ? fromPython : fallbackSimilar(productId);
     }
 
@@ -66,14 +66,7 @@ public class RecommendationService {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(this.baseUrl)
                 .path("/recommend/home")
                 .queryParam("k", HOME_LIMIT);
-        if (sessionId != null && !sessionId.isBlank()) {
-            builder.queryParam("session_id", sessionId);
-        }
-        // userId chỉ derive từ JWT — không bao giờ nhận từ client (chặn IDOR xem hồ sơ người khác)
-        User user = getCurrentUserOrNull();
-        if (user != null) {
-            builder.queryParam("user_id", user.getId());
-        }
+        appendIdentity(builder, sessionId);
         RecommendationSlateDTO fromPython = callPython(builder.toUriString(), "HOME_PERSONALIZED");
         return fromPython != null ? fromPython
                 : fallbackBestSeller("HOME_PERSONALIZED", HOME_LIMIT, List.of());
@@ -85,14 +78,26 @@ public class RecommendationService {
         if (cartIds.isEmpty()) {
             return fallbackBestSeller("CART_SUGGESTION", CART_LIMIT, cartIds);
         }
-        String url = UriComponentsBuilder.fromHttpUrl(this.baseUrl)
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(this.baseUrl)
                 .path("/recommend/cart")
                 .queryParam("product_ids", cartIds.stream().map(String::valueOf).collect(Collectors.joining(",")))
-                .queryParam("k", CART_LIMIT)
-                .toUriString();
-        RecommendationSlateDTO fromPython = callPython(url, "CART_SUGGESTION");
+                .queryParam("k", CART_LIMIT);
+        appendIdentity(builder, sessionId);
+        RecommendationSlateDTO fromPython = callPython(builder.toUriString(), "CART_SUGGESTION");
         return fromPython != null ? fromPython
                 : fallbackBestSeller("CART_SUGGESTION", CART_LIMIT, cartIds);
+    }
+
+    // Phase 2: mọi placement gửi session_id + user_id sang Python cho CF cá nhân hoá + fatigue decay.
+    // userId chỉ derive từ JWT — không bao giờ nhận từ client (chặn IDOR xem hồ sơ người khác)
+    private void appendIdentity(UriComponentsBuilder builder, String sessionId) {
+        if (sessionId != null && !sessionId.isBlank()) {
+            builder.queryParam("session_id", sessionId);
+        }
+        User user = getCurrentUserOrNull();
+        if (user != null) {
+            builder.queryParam("user_id", user.getId());
+        }
     }
 
     // Gọi Python + hydrate; trả null khi lỗi/timeout/rỗng để caller quyết định fallback

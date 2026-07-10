@@ -113,8 +113,10 @@ public class ProductController {
 
     @GetMapping("products/similar/{productId}")
     @ApiMessage("Get similar products")
-    public ResponseEntity<RecommendationSlateDTO> getSimilarProducts(@PathVariable("productId") long productId) {
-        return ResponseEntity.ok(this.recommendationService.getSimilarProducts(productId));
+    public ResponseEntity<RecommendationSlateDTO> getSimilarProducts(
+            @PathVariable("productId") long productId,
+            @RequestParam(value = "sessionId", required = false) String sessionId) {
+        return ResponseEntity.ok(this.recommendationService.getSimilarProducts(productId, sessionId));
     }
 
     @PostMapping("products/{id}/images")

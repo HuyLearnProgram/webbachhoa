@@ -1,4 +1,5 @@
-"""FastAPI recommendation service — Phase 1: content-based + co-purchase + popularity + MMR.
+"""FastAPI recommendation service — Phase 2: content + co-purchase + popularity + CF (ALS)
++ MMR + category-fatigue decay.
 
 Chỉ Java backend gọi service này (giữ JWT auth tập trung); không expose ra ngoài.
 Java tự fallback rule-based khi service down/rỗng nên mọi endpoint được phép trả rỗng/500.
@@ -13,10 +14,13 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException, Query
 
 from app.blend import blend
+from app.candidates import repurchase
+from app.candidates.collaborative import item_scores, user_scores
 from app.config import settings
 from app.db import fetch_df
 from app.metrics import metrics
 from app.rerank.diversity import adaptive_lambda, mmr_rerank
+from app.rerank.fatigue import apply_fatigue, category_exposure
 from app.schemas import RecItem, RecResponse
 from app.store import ModelArtifacts, store
 from app.trainer import train_all
@@ -27,16 +31,30 @@ logger = logging.getLogger(__name__)
 CONTENT = "CONTENT_BASED"
 CO_PURCHASE = "CO_PURCHASE"
 POPULARITY = "POPULARITY"
+COLLABORATIVE = "CF"
 
-VIEWS_SQL_USER = """
-SELECT product_id, viewed_at FROM product_views
-WHERE user_id = :uid OR session_id = :sid
-ORDER BY viewed_at DESC LIMIT 30
+# Preference vector đa tín hiệu (Phase 2): view + cart-add + purchase, LIMIT riêng từng loại.
+# Purchase chỉ có nghĩa khi có user_id; guest lấy view + cart-add theo session.
+INTERACTIONS_SQL_USER = """
+(SELECT product_id, viewed_at AS ts, 'V' AS kind FROM product_views
+ WHERE user_id = :uid OR session_id = :sid ORDER BY viewed_at DESC LIMIT :view_lim)
+UNION ALL
+(SELECT product_id, occurred_at, 'C' FROM cart_events
+ WHERE (user_id = :uid OR session_id = :sid) AND event_type = 'ADD'
+ ORDER BY occurred_at DESC LIMIT :cart_lim)
+UNION ALL
+(SELECT od.product_id, o.order_time, 'P' FROM order_detail od
+ JOIN orders o ON o.id = od.order_id
+ WHERE o.user_id = :uid AND o.status IN (1, 2)
+ ORDER BY o.order_time DESC LIMIT :purchase_lim)
 """
-VIEWS_SQL_SESSION = """
-SELECT product_id, viewed_at FROM product_views
-WHERE session_id = :sid
-ORDER BY viewed_at DESC LIMIT 30
+INTERACTIONS_SQL_SESSION = """
+(SELECT product_id, viewed_at AS ts, 'V' AS kind FROM product_views
+ WHERE session_id = :sid ORDER BY viewed_at DESC LIMIT :view_lim)
+UNION ALL
+(SELECT product_id, occurred_at, 'C' FROM cart_events
+ WHERE session_id = :sid AND event_type = 'ADD'
+ ORDER BY occurred_at DESC LIMIT :cart_lim)
 """
 
 
@@ -78,28 +96,52 @@ def _to_response(
     )
 
 
-def _fetch_views(user_id: int | None, session_id: str | None):
-    """View history live từ product_views (Phase 0 tracking). [] khi không có định danh."""
+def _fetch_interactions(user_id: int | None, session_id: str | None):
+    """Lịch sử tương tác đa tín hiệu (view/cart-add/purchase) từ tracking Phase 0.
+    None khi không có định danh nào."""
+    limits = {
+        "view_lim": settings.profile_view_limit,
+        "cart_lim": settings.profile_cart_limit,
+        "purchase_lim": settings.profile_purchase_limit,
+    }
     if user_id is not None:
-        return fetch_df(VIEWS_SQL_USER, {"uid": user_id, "sid": session_id or ""})
+        return fetch_df(INTERACTIONS_SQL_USER, {"uid": user_id, "sid": session_id or "", **limits})
     if session_id:
-        return fetch_df(VIEWS_SQL_SESSION, {"sid": session_id})
+        return fetch_df(INTERACTIONS_SQL_SESSION, {"sid": session_id, **limits})
     return None
 
 
-def _profile_scores(views, art: ModelArtifacts) -> tuple[dict[int, float], list[int], set[int]]:
-    """Preference vector time-decay: score[cand] = Σ_seed exp(-Δh/τ)·cosine(seed, cand)."""
-    now = datetime.now(timezone.utc).replace(tzinfo=None)  # viewed_at lưu UTC (Instant)
+_PROFILE_PARAMS = {
+    # kind -> (weight, tau_hours) — lazy đọc settings để .env override được
+    "V": lambda: (settings.profile_w_view, settings.profile_tau_view_h),
+    "C": lambda: (settings.profile_w_cart, settings.profile_tau_cart_h),
+    "P": lambda: (settings.profile_w_purchase, settings.profile_tau_purchase_h),
+}
+
+
+def _profile_scores(interactions, art: ModelArtifacts) -> tuple[dict[int, float], list[int], set[int]]:
+    """Preference vector time-decay đa tín hiệu:
+    score[cand] = Σ_seed w_kind·exp(-Δh/τ_kind)·cosine(seed, cand).
+    `seen` (exclude khỏi gợi ý) chỉ lấy từ view — grocery là hàng mua lặp,
+    sản phẩm đã mua/đã bỏ giỏ vẫn phải gợi ý được.
+    Riêng tín hiệu mua thật ('P') nhân thêm readiness theo chu kỳ mua lại ước tính — vừa mua
+    thì còn yếu, tăng dần khi gần tới lúc hết hàng, tránh boost "sản phẩm giống cái vừa mua"
+    mạnh nhất ngay lúc khách rõ ràng chưa cần mua lại."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)  # timestamp DB lưu UTC (Instant)
     scores: dict[int, float] = {}
     seen: set[int] = set()
     categories: list[int] = []
-    for _, row in views.iterrows():
-        pid = int(row["product_id"])
-        seen.add(pid)
+    for row in interactions.itertuples(index=False):
+        pid = int(row.product_id)
+        if row.kind == "V":
+            seen.add(pid)
         if pid in art.pid_to_category:
             categories.append(art.pid_to_category[pid])
-        age_h = max((now - row["viewed_at"].to_pydatetime()).total_seconds() / 3600.0, 0.0)
-        weight = math.exp(-age_h / settings.time_decay_tau_h)
+        w, tau = _PROFILE_PARAMS[row.kind]()
+        age_h = max((now - row.ts.to_pydatetime()).total_seconds() / 3600.0, 0.0)
+        weight = w * math.exp(-age_h / tau)
+        if row.kind == "P":
+            weight *= repurchase.readiness(age_h / 24.0, art.repurchase_cycle_days.get(pid))
         for nbr, sim in art.neighbors.get(pid, []):
             scores[nbr] = scores.get(nbr, 0.0) + weight * sim
     return scores, categories, seen
@@ -109,18 +151,24 @@ def _majority_source(items: list[tuple[int, float, str]]) -> str:
     counts: dict[str, int] = {}
     for _, _, src in items:
         counts[src] = counts.get(src, 0) + 1
-    priority = {CO_PURCHASE: 2, CONTENT: 1, POPULARITY: 0}
+    priority = {COLLABORATIVE: 3, CO_PURCHASE: 2, CONTENT: 1, POPULARITY: 0}
     return max(counts, key=lambda s: (counts[s], priority.get(s, -1))) if counts else POPULARITY
 
 
 @app.get("/health")
 def health():
     art = store.get()
+    cf = art.cf if art else None
     return {
         "status": "ok" if art else "training",
         "model_version": art.model_version if art else None,
         "products_indexed": len(art.product_ids) if art else 0,
         "copurchase_rules": len(art.rules) if art else 0,
+        "cf_enabled": cf is not None,
+        "cf_users": len(cf.uid_to_idx) if cf else 0,
+        "cf_items": len(cf.item_ids) if cf else 0,
+        "cf_backend": cf.backend if cf else None,
+        "cf_trained_at": cf.trained_at.isoformat(timespec="seconds") if cf else None,
         "last_train_seconds": art.last_train_seconds if art else None,
     }
 
@@ -132,12 +180,17 @@ def get_metrics():
 
 @app.post("/internal/retrain")
 def retrain():
-    art = train_all()
+    art = train_all(force_cf=True)  # dev retrain luôn muốn CF tươi, bỏ qua hybrid cadence
     return {"model_version": art.model_version, "last_train_seconds": art.last_train_seconds}
 
 
 @app.get("/recommend/similar/{product_id}", response_model=RecResponse)
-def recommend_similar(product_id: int, k: int = Query(12, ge=1, le=50)):
+def recommend_similar(
+    product_id: int,
+    session_id: str | None = Query(None, max_length=64),
+    user_id: int | None = None,  # Java resolve từ JWT — không bao giờ nhận từ FE
+    k: int = Query(12, ge=1, le=50),
+):
     art = _art()
 
     if product_id not in art.pid_to_idx:
@@ -154,17 +207,21 @@ def recommend_similar(product_id: int, k: int = Query(12, ge=1, le=50)):
     sources = {
         CONTENT: art.neighbors.get(product_id, []),
         CO_PURCHASE: art.rules.get(product_id, []),
+        COLLABORATIVE: art.cf.item_neighbors.get(product_id, []) if art.cf else [],
         POPULARITY: art.popularity[:40],
     }
     weights = {
         CONTENT: settings.w_similar_content,
         CO_PURCHASE: settings.w_similar_copurchase,
+        COLLABORATIVE: settings.w_similar_collaborative,
         POPULARITY: settings.w_similar_popularity,
     }
     pool = blend(sources, weights, exclude={product_id})
+    pool = apply_fatigue(pool, category_exposure(user_id, session_id, art), art)
     items = mmr_rerank(pool, k, settings.mmr_lambda, art)
-    metrics.inc_request("similar", CONTENT)
-    return _to_response(items, CONTENT, art)
+    source = _majority_source(items)
+    metrics.inc_request("similar", source)
+    return _to_response(items, source, art)
 
 
 @app.get("/recommend/home", response_model=RecResponse)
@@ -174,30 +231,39 @@ def recommend_home(
     k: int = Query(12, ge=1, le=50),
 ):
     art = _art()
-    views = _fetch_views(user_id, session_id)
+    interactions = _fetch_interactions(user_id, session_id)
 
-    if views is None or views.empty:
+    if interactions is None or interactions.empty:
         items = [(pid, s, POPULARITY) for pid, s in art.popularity[: max(k * 3, 30)]]
         items = mmr_rerank(items, k, settings.mmr_lambda, art)
         metrics.inc_request("home", POPULARITY)
         return _to_response(items, POPULARITY, art)
 
-    profile, view_categories, seen = _profile_scores(views, art)
+    profile, interaction_categories, seen = _profile_scores(interactions, art)
     sources = {
         CONTENT: sorted(profile.items(), key=lambda x: -x[1])[:60],
+        COLLABORATIVE: user_scores(art.cf, user_id) if (art.cf and user_id is not None) else [],
         POPULARITY: art.popularity[:40],
     }
-    weights = {CONTENT: settings.w_home_content, POPULARITY: settings.w_home_popularity}
+    weights = {
+        CONTENT: settings.w_home_content,
+        COLLABORATIVE: settings.w_home_collaborative,
+        POPULARITY: settings.w_home_popularity,
+    }
     pool = blend(sources, weights, exclude=seen)
-    lam = adaptive_lambda(view_categories)
+    pool = apply_fatigue(pool, category_exposure(user_id, session_id, art), art)
+    lam = adaptive_lambda(interaction_categories)
     items = mmr_rerank(pool, k, lam, art)
-    metrics.inc_request("home", CONTENT)
-    return _to_response(items, CONTENT, art)
+    source = _majority_source(items)
+    metrics.inc_request("home", source)
+    return _to_response(items, source, art)
 
 
 @app.get("/recommend/cart", response_model=RecResponse)
 def recommend_cart(
     product_ids: str = Query(..., description="Comma-separated, VD: 3,15,22"),
+    session_id: str | None = Query(None, max_length=64),
+    user_id: int | None = None,  # Java resolve từ JWT — không bao giờ nhận từ FE
     k: int = Query(6, ge=1, le=50),
 ):
     art = _art()
@@ -223,14 +289,17 @@ def recommend_cart(
     sources = {
         CO_PURCHASE: sorted(copurchase_scores.items(), key=lambda x: -x[1]),
         CONTENT: sorted(content_scores.items(), key=lambda x: -x[1])[:60],
+        COLLABORATIVE: item_scores(art.cf, cart_pids) if art.cf else [],
         POPULARITY: art.popularity[:40],
     }
     weights = {
         CO_PURCHASE: settings.w_cart_copurchase,
         CONTENT: settings.w_cart_content,
+        COLLABORATIVE: settings.w_cart_collaborative,
         POPULARITY: settings.w_cart_popularity,
     }
     pool = blend(sources, weights, exclude=cart_pids)
+    pool = apply_fatigue(pool, category_exposure(user_id, session_id, art), art)
     items = mmr_rerank(pool, k, settings.mmr_lambda, art)
     source = _majority_source(items)
     metrics.inc_request("cart", source)

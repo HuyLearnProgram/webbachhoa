@@ -10,6 +10,7 @@ class Metrics:
         self._requests: dict[str, int] = defaultdict(int)
         self._served_by_source: dict[str, int] = defaultdict(int)
         self._copurchase_empty_serves = 0
+        self._fatigue_applied_serves = 0
         self.last_train_at: str | None = None
         self.last_train_seconds: float | None = None
 
@@ -23,12 +24,17 @@ class Metrics:
         with self._lock:
             self._copurchase_empty_serves += 1
 
+    def inc_fatigue_applied(self) -> None:
+        with self._lock:
+            self._fatigue_applied_serves += 1
+
     def snapshot(self) -> dict:
         with self._lock:
             return {
                 "requests": dict(self._requests),
                 "served_by_source": dict(self._served_by_source),
                 "copurchase_empty_serves": self._copurchase_empty_serves,
+                "fatigue_applied_serves": self._fatigue_applied_serves,
                 "last_train_at": self.last_train_at,
                 "last_train_seconds": self.last_train_seconds,
             }

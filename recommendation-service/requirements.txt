@@ -9,3 +9,7 @@ scikit-learn==1.6.1
 mlxtend==0.23.4
 apscheduler==3.11.0
 pydantic-settings==2.9.1
+scipy==1.15.2
+# Backend ALS tăng tốc (optional — wheel Windows/py3.12/numpy2 không đảm bảo,
+# thiếu thì collaborative.py tự fallback solver numpy, không cần cài):
+# implicit==0.7.2

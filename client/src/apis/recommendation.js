@@ -5,10 +5,12 @@ import { getOrCreateSessionId } from '@/utils/sessionId'
 // Các hàm track* là fire-and-forget: nuốt lỗi để tracking không bao giờ làm vỡ trải nghiệm chính.
 
 // Trả về slate gợi ý: { requestId, algorithmSource, placement, items: [SearchProductDTO...] }
+// sessionId để backend áp fatigue-decay + CF cá nhân hoá (Phase 2)
 export const apiGetSimilarProducts = async (pid) =>
     axiosInstance({
         url: `products/similar/${pid}`,
         method: 'get',
+        params: { sessionId: getOrCreateSessionId() },
     })
 
 export const apiTrackProductView = (productId, source = 'DIRECT', referrerProductId = null) =>
