@@ -72,6 +72,15 @@ export const apiGetCartSuggestions = async (productIds) =>
         params: { sessionId: getOrCreateSessionId(), productIds: productIds.join(',') },
     })
 
+// Phase 3: metrics experiment (CTR/diversity/coverage/entropy/A-B) cho dashboard admin —
+// Java proxy sang Python, khoá ADMIN
+export const apiGetRecommendationMetrics = async (days = 30) =>
+    axiosInstance({
+        url: 'admin/recommendation-metrics',
+        method: 'get',
+        params: { days },
+    })
+
 // Gọi 1 lần ngay sau khi login thành công — nối lịch sử hành vi ẩn danh vào user thật
 export const apiMergeTrackingSession = () => {
     const sessionId = getOrCreateSessionId()

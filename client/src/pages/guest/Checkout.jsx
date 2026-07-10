@@ -10,6 +10,7 @@ import { FaRegCreditCard } from "react-icons/fa6";
 import { showModal } from "@/store/app/appSlice";
 import { getCurrentUser } from "@/store/user/asyncActions";
 import { calculateLineTotal, getFreeGiftUnits, getPromotionBadgeLabel } from "@/utils/promotion";
+import { getOrCreateSessionId } from "@/utils/sessionId";
 
 
 const Checkout = () => {
@@ -61,6 +62,9 @@ const Checkout = () => {
             formData.append("userId", current?.id);
             formData.append("address", data.address);
             formData.append("phone", data.phone);
+            // Phase 3: sessionId để backend attribute conversion cho cả impression
+            // được ghi lúc còn là guest (trước khi login/merge session)
+            formData.append("sessionId", getOrCreateSessionId());
             let total = getCartTotal();
             if (selectedVoucher) {
                 if (selectedVoucher.type === "PERCENT") {

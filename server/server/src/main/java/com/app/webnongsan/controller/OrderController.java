@@ -10,6 +10,7 @@ import com.app.webnongsan.domain.response.order.OverviewStatsDTO;
 import com.app.webnongsan.domain.response.order.WeeklyRevenue;
 import com.app.webnongsan.domain.response.product.ProductReturnStatsDTO;
 import com.app.webnongsan.repository.ProductRepository;
+import com.app.webnongsan.service.EventTrackingService;
 import com.app.webnongsan.service.OrderService;
 import com.app.webnongsan.util.SecurityUtil;
 import com.app.webnongsan.util.annotation.ApiMessage;
@@ -38,6 +39,7 @@ import java.util.Optional;
 public class OrderController {
     private final OrderService orderService;
     private final ProductRepository productRepository;
+    private final EventTrackingService eventTrackingService;
 
     @GetMapping("allOrders")
     @ApiMessage("Get all Orders")
@@ -210,6 +212,7 @@ public class OrderController {
             @RequestParam("paymentMethod") String paymentMethod,
             @RequestParam("totalPrice") Double totalPrice,
             @RequestParam(value = "voucherId", required = false) Long voucherId,
+            @RequestParam(value = "sessionId", required = false) String sessionId,
             @RequestPart("items") List<OrderDetailDTO> items
     ) throws ResourceInvalidException{
         try {
@@ -222,6 +225,11 @@ public class OrderController {
             orderDTO.setVoucherId(voucherId);
             orderDTO.setItems(items);
             Order order = orderService.create(orderDTO);
+
+            // Phase 3: đánh dấu converted cho impression gợi ý dẫn tới đơn này (reward bandit).
+            // Method tự nuốt lỗi — không bao giờ phá luồng đặt hàng.
+            eventTrackingService.attributeOrderConversions(userId, sessionId, order.getId(),
+                    items.stream().map(OrderDetailDTO::getProductId).toList());
 
             // Không tự bọc RestResponse ở đây - FormatResponse (ResponseBodyAdvice toàn cục) đã tự bọc
             // mọi response thành công, tự tay bọc thêm ở đây sẽ khiến "data" bị lồng 2 lớp phía client.

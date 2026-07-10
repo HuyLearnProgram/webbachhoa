@@ -23,7 +23,7 @@ const RecommendationRail = ({ title, slate, viewSource = 'SIMILAR', referrerProd
     const containerRef = useRef(null)
     const impressionLoggedRef = useRef(null)
 
-    const { requestId, algorithmSource, placement, items } = slate || {}
+    const { requestId, algorithmSource, placement, items, itemSources } = slate || {}
 
     useEffect(() => {
         if (!requestId || !items?.length || !containerRef.current) return
@@ -36,7 +36,13 @@ const RecommendationRail = ({ title, slate, viewSource = 'SIMILAR', referrerProd
                     requestId,
                     placement,
                     algorithmSource,
-                    items.map((p, index) => ({ productId: p.id, rankPosition: index }))
+                    // Phase 3: gửi kèm source per-item — slot explore của bandit là BANDIT_EXPLORE
+                    // khác source cấp slate (key của itemSources là string vì JSON object)
+                    items.map((p, index) => ({
+                        productId: p.id,
+                        rankPosition: index,
+                        algorithmSource: itemSources?.[String(p.id)],
+                    }))
                 )
                 observer.disconnect()
             }
@@ -44,7 +50,7 @@ const RecommendationRail = ({ title, slate, viewSource = 'SIMILAR', referrerProd
 
         observer.observe(containerRef.current)
         return () => observer.disconnect()
-    }, [requestId, placement, algorithmSource, items])
+    }, [requestId, placement, algorithmSource, items, itemSources])
 
     if (!items?.length) return null
 

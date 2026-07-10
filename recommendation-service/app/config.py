@@ -87,5 +87,32 @@ class Settings(BaseSettings):
     # Nightly retrain
     retrain_cron_hour: int = 2
 
+    # ===== Phase 3 — LinUCB bandit (explore-exploit) =====
+    bandit_enabled: bool = True
+    bandit_alpha: float = 1.0  # hệ số UCB — càng lớn càng ưu tiên explore arm ít dữ liệu
+    bandit_explore_positions: str = "2,7"  # vị trí chèn slot explore (không để ô cuối — position bias)
+    bandit_min_slate_for_two_slots: int = 8  # slate ngắn hơn ngưỡng này chỉ explore 1 slot
+    bandit_pick_top_n: int = 5  # weighted-random trong top-N popularity của arm được chọn
+    bandit_max_slate_category_items: int = 2  # category đã có >= N item organic thì loại khỏi eligible arms
+    bandit_new_session_max_interactions: int = 3  # dưới ngưỡng này coi là "session mới" (context feature)
+    bandit_state_path: str = "data/bandit.db"  # SQLite — arms + decision log, sống sót qua restart
+
+    # Reward polling (đọc recommendation_impressions định kỳ — không message broker)
+    bandit_poll_interval_s: int = 120
+    bandit_impression_wait_h: float = 6.0  # decision không có impression sau N giờ → bỏ (rail chưa được nhìn thấy)
+    bandit_negative_after_h: float = 24.0  # impression không click sau N giờ → reward âm nhẹ
+    bandit_reward_click: float = 0.2
+    bandit_reward_purchase: float = 1.0
+    bandit_reward_no_click: float = -0.05  # thay cho dismiss=-0.5 roadmap (UI không có nút dismiss)
+    bandit_decision_ttl_days: int = 7
+
+    # A/B testing: cohort bandit-on/off theo hash CRC32 identity (user_id ưu tiên, guest theo session)
+    ab_bandit_enabled: bool = True
+    ab_bandit_pct: int = 50  # % identity vào cohort bandit-on
+
+    # Metrics experiment (CTR/diversity/coverage/A-B) — endpoint /metrics/experiment
+    metrics_experiment_cache_ttl_s: int = 300
+    metrics_experiment_days_default: int = 30
+
 
 settings = Settings()

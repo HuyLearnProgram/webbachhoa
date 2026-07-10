@@ -40,6 +40,7 @@ const path = {
 
   ADMIN_FEEDBACK: "feedback",
   ADMIN_FEEDBACK_DETAIL: "",
+  ADMIN_RECOMMENDATION: "recommendation-metrics",
 
   ADD_PRODUCT: "product/add",
   ADD_CATEGORY: "category/add",

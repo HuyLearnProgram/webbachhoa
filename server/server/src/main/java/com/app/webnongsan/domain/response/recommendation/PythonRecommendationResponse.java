@@ -13,6 +13,11 @@ import java.util.List;
 @Setter
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PythonRecommendationResponse {
+    // Phase 3: Python sinh request_id để join decision bandit với impressions khi poll reward.
+    // Java dùng lại giá trị này làm requestId của slate thay vì tự sinh UUID.
+    @JsonProperty("request_id")
+    private String requestId;
+
     @JsonProperty("algorithm_source")
     private String algorithmSource;
 

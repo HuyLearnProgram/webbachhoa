@@ -41,15 +41,18 @@ public class RecommendationService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final RestTemplate restTemplate;
+    private final RestTemplate metricsRestTemplate;
     private final String baseUrl;
 
     public RecommendationService(ProductRepository productRepository,
                                  UserRepository userRepository,
                                  @Qualifier("recommendationRestTemplate") RestTemplate restTemplate,
+                                 @Qualifier("recommendationMetricsRestTemplate") RestTemplate metricsRestTemplate,
                                  @Value("${recommendation.service.base-url}") String baseUrl) {
         this.productRepository = productRepository;
         this.userRepository = userRepository;
         this.restTemplate = restTemplate;
+        this.metricsRestTemplate = metricsRestTemplate;
         this.baseUrl = baseUrl;
     }
 
@@ -112,8 +115,19 @@ public class RecommendationService {
             if (items.isEmpty()) {
                 return null;
             }
+            // Phase 3: dùng request_id do Python sinh (join được với decision log của bandit);
+            // fallback UUID phòng Python cũ chưa trả field này. itemSources cho FE log đúng
+            // BANDIT_EXPLORE per-item thay vì source cấp slate.
+            String requestId = response.getRequestId() != null && !response.getRequestId().isBlank()
+                    ? response.getRequestId() : UUID.randomUUID().toString();
+            Map<Long, String> itemSources = response.getItems().stream()
+                    .filter(i -> i.getSource() != null)
+                    .collect(Collectors.toMap(
+                            PythonRecommendationResponse.PythonRecItem::getProductId,
+                            PythonRecommendationResponse.PythonRecItem::getSource,
+                            (a, b) -> a));
             return new RecommendationSlateDTO(
-                    UUID.randomUUID().toString(), response.getAlgorithmSource(), placement, items);
+                    requestId, response.getAlgorithmSource(), placement, items, itemSources);
         } catch (Exception e) {
             log.warn("Recommendation-service không phản hồi ({}), fallback rule-based: {}",
                     placement, e.getMessage());
@@ -148,6 +162,23 @@ public class RecommendationService {
                 .limit(limit)
                 .toList();
         return new RecommendationSlateDTO(UUID.randomUUID().toString(), RULE_BASED_FALLBACK, placement, items);
+    }
+
+    // Phase 3: proxy metrics experiment (CTR/diversity/coverage/A-B) cho dashboard admin.
+    // Dùng bean timeout dài riêng — metrics quét bảng impressions lớn, không fail-fast như serve.
+    // Python down → trả null, controller trả 503 message rõ (không có fallback vì đây là số liệu).
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getExperimentMetrics(int days) {
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(this.baseUrl)
+                    .path("/metrics/experiment")
+                    .queryParam("days", days)
+                    .toUriString();
+            return this.metricsRestTemplate.getForObject(url, Map.class);
+        } catch (Exception e) {
+            log.warn("Không lấy được metrics experiment từ recommendation-service: {}", e.getMessage());
+            return null;
+        }
     }
 
     private User getCurrentUserOrNull() {

@@ -1,6 +1,6 @@
 # recommendation-service
 
-Python microservice gợi ý sản phẩm (Phase 1 + Phase 2 hệ thống gợi ý AI — xem `AI_Recommendation_Roadmap.docx`).
+Python microservice gợi ý sản phẩm (Phase 1 + 2 + 3 hệ thống gợi ý AI — xem `AI_Recommendation_Roadmap.docx`).
 Chỉ Java backend gọi vào service này (proxy giữ JWT auth tập trung, timeout 2-3s + tự fallback
 rule-based khi service down) — **không expose ra ngoài**.
 
@@ -31,6 +31,19 @@ rule-based khi service down) — **không expose ra ngoài**.
   atomic swap toàn bộ artifact (không có trạng thái nửa vời). Dev: `POST /internal/retrain` (force CF tươi).
   **CF hybrid cadence**: volume < `cf_nightly_max_interactions` (50k) → train nightly cùng các nguồn khác;
   vượt ngưỡng → carry-forward model CF cũ qua swap, chỉ train lại khi quá `cf_retrain_max_age_days` (7d).
+- **LinUCB bandit** (**Phase 3**, `app/bandit/`): explore 1-2 slot/slate (vị trí 2,7 — không ô cuối)
+  thử category "ngoài vùng quen" của user, item mang source `BANDIT_EXPLORE`. Arms = category,
+  context d=8 (giờ/thứ sin-cos, session mới/cũ, category-entropy, fatigue của arm). A/B cohort
+  bandit-on/off theo `CRC32(user_id|session_id) % 100 < AB_BANDIT_PCT` (50) — deterministic,
+  recompute được trong MySQL, không cần cột variant. State (arms A/b + decision log) persist
+  SQLite `data/bandit.db` (mất file → học lại, không mất dữ liệu nghiệp vụ). **Reward loop**
+  (`rewards.py`, poll mỗi 120s — không message broker): click=+0.2, purchase(=converted, Java ghi
+  khi tạo đơn)=+1.0, không click sau 24h=-0.05, không có impression sau 6h → bỏ qua.
+  Kill-switch qua `.env`: `BANDIT_ENABLED=false` hoặc `AB_BANDIT_PCT=0` — không cần sửa code.
+- **Metrics experiment** (`app/metrics_experiment.py`): CTR/CVR theo placement×source, intra-list
+  diversity, entropy shown vs clicked theo tuần, catalog coverage 30d, repeat-no-click theo
+  category, so sánh cohort A/B. Xem qua dashboard admin "Gợi ý AI" (Java proxy khoá ADMIN)
+  hoặc gọi thẳng `GET /metrics/experiment?days=30` khi dev.
 
 ## Chạy (Windows, dev)
 
@@ -50,8 +63,9 @@ MySQL (`webnongsan`) phải chạy trước. Java backend đọc `RECOMMENDATION
 
 | Endpoint | Mô tả |
 |---|---|
-| `GET /health` | model_version, products_indexed, copurchase_rules, cf_enabled/cf_users/cf_items/cf_backend, last_train_seconds |
-| `GET /metrics` | counter request theo endpoint/nguồn, copurchase_empty_serves, fatigue_applied_serves |
+| `GET /health` | model_version, products_indexed, copurchase_rules, cf_*, bandit_arms/bandit_pending_decisions/ab_bandit_pct, last_train_seconds |
+| `GET /metrics` | counter request theo endpoint/nguồn, copurchase_empty_serves, fatigue_applied_serves, bandit_explore_served, bandit_rewards_applied |
+| `GET /metrics/experiment?days=30` | **Phase 3**: CTR/CVR, diversity, entropy, coverage, A/B cohort — Java proxy qua `admin/recommendation-metrics` (ADMIN) |
 | `GET /recommend/similar/{product_id}?session_id=&user_id=&k=12` | PDP "Sản phẩm tương tự" (content + item-CF + fatigue; cold-start → trending category) |
 | `GET /recommend/home?session_id=&user_id=&k=12` | Home — có history → profile đa tín hiệu + user-CF, guest → popularity |
 | `GET /recommend/cart?product_ids=1,2&session_id=&user_id=&k=6` | Giỏ hàng — co-purchase + content + item-CF, fallback popularity |
@@ -68,7 +82,11 @@ Phase 2 (manifest `scripts/seed_manifest_*.json`). Khi đủ dữ liệu thật,
 `python scripts/cleanup_seed_data.py scripts/seed_manifest_<timestamp>.json` — CF có thể rơi
 xuống dưới guard và tự tắt im lặng (đúng thiết kế, không phải bug).
 
-## Ngưỡng chuyển Phase 3 (xem roadmap docx)
+## Dữ liệu seed tạm cho Phase 3
 
-Ổn định 4-8 tuần, ≥2000-3000 impression/tuần — bandit (LinUCB/Thompson) cần lượng thử nghiệm
-lớn để hội tụ, triển khai sớm hơn chỉ gây nhiễu.
+Ngưỡng vào Phase 3 (ổn định 4-8 tuần, ≥2000-3000 impression/tuần từ nguồn AI thật) đạt bằng
+`scripts/seed_phase3_gate.py`: bù đủ 8 tuần × ~2600 AI-sourced impression/tuần + 230 conversion
+neo vào đơn PAID thật (manifest `scripts/seed_manifest_phase3_*.json`). Xoá bằng cùng
+`cleanup_seed_data.py <manifest>`. **Nên xoá seed TRƯỚC khi tin số liệu bandit thật** — trong
+thời gian test bandit học trên click/convert của seed. Sau khi xoá, pending decisions trỏ tới
+impression đã mất sẽ tự bị discard sau 6h (đúng thiết kế), metrics tụt là hành vi đúng.

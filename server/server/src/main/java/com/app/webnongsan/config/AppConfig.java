@@ -22,4 +22,15 @@ public class AppConfig {
         factory.setReadTimeout(2500);
         return new RestTemplate(factory);
     }
+
+    // Phase 3: riêng cho proxy metrics experiment (dashboard admin) — query GROUP BY quét bảng
+    // impressions lớn cần read timeout dài hơn nhiều. TUYỆT ĐỐI không nới timeout của
+    // recommendationRestTemplate ở trên (phá fail-fast fallback của Home/PDP/Cart).
+    @Bean(name = "recommendationMetricsRestTemplate")
+    public RestTemplate recommendationMetricsRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(2000);
+        factory.setReadTimeout(15000);
+        return new RestTemplate(factory);
+    }
 }

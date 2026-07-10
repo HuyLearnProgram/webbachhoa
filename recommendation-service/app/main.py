@@ -7,18 +7,24 @@ Java tự fallback rule-based khi service down/rỗng nên mọi endpoint đư�
 
 import logging
 import math
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException, Query
 
+from app.bandit.explore import maybe_explore
+from app.bandit.linucb import linucb
+from app.bandit.rewards import process_rewards
+from app.bandit.state import state as bandit_state
 from app.blend import blend
 from app.candidates import repurchase
 from app.candidates.collaborative import item_scores, user_scores
 from app.config import settings
 from app.db import fetch_df
 from app.metrics import metrics
+from app.metrics_experiment import build_report
 from app.rerank.diversity import adaptive_lambda, mmr_rerank
 from app.rerank.fatigue import apply_fatigue, category_exposure
 from app.schemas import RecItem, RecResponse
@@ -64,6 +70,12 @@ async def lifespan(app: FastAPI):
     train_all()
     scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(_safe_retrain, "cron", hour=settings.retrain_cron_hour)
+    if settings.bandit_enabled:
+        # Phase 3: reward loop của LinUCB — poll impressions, KHÔNG batch retrain
+        scheduler.add_job(
+            _safe_process_rewards, "interval",
+            seconds=settings.bandit_poll_interval_s, max_instances=1, coalesce=True,
+        )
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)
@@ -74,6 +86,13 @@ def _safe_retrain() -> None:
         train_all()
     except Exception:
         logger.exception("Nightly retrain lỗi — giữ nguyên model cũ.")
+
+
+def _safe_process_rewards() -> None:
+    try:
+        process_rewards()
+    except Exception:
+        logger.exception("Bandit reward poll lỗi — thử lại kỳ sau.")
 
 
 app = FastAPI(title="webbachhoa recommendation-service", lifespan=lifespan)
@@ -87,9 +106,10 @@ def _art() -> ModelArtifacts:
 
 
 def _to_response(
-    items: list[tuple[int, float, str]], algorithm_source: str, art: ModelArtifacts
+    items: list[tuple[int, float, str]], algorithm_source: str, art: ModelArtifacts, request_id: str
 ) -> RecResponse:
     return RecResponse(
+        request_id=request_id,
         algorithm_source=algorithm_source,
         model_version=art.model_version,
         items=[RecItem(product_id=pid, score=round(score, 6), source=src) for pid, score, src in items],
@@ -170,12 +190,23 @@ def health():
         "cf_backend": cf.backend if cf else None,
         "cf_trained_at": cf.trained_at.isoformat(timespec="seconds") if cf else None,
         "last_train_seconds": art.last_train_seconds if art else None,
+        "bandit_enabled": settings.bandit_enabled,
+        "bandit_arms": linucb.n_arms(),
+        "bandit_pending_decisions": bandit_state.count_pending(),
+        "ab_bandit_pct": settings.ab_bandit_pct if settings.ab_bandit_enabled else 100,
     }
 
 
 @app.get("/metrics")
 def get_metrics():
     return metrics.snapshot()
+
+
+@app.get("/metrics/experiment")
+def get_experiment_metrics(days: int = Query(None, ge=1, le=180)):
+    """Phase 3: CTR/diversity/coverage/entropy/A-B — Java proxy qua admin/recommendation-metrics
+    (khoá ADMIN). Cache TTL ngắn phía service, dashboard refresh không đập DB."""
+    return build_report(days or settings.metrics_experiment_days_default, _art())
 
 
 @app.post("/internal/retrain")
@@ -192,6 +223,7 @@ def recommend_similar(
     k: int = Query(12, ge=1, le=50),
 ):
     art = _art()
+    request_id = uuid.uuid4().hex
 
     if product_id not in art.pid_to_idx:
         # Cold-start: sản phẩm tạo sau lần train gần nhất — trả trending theo category.
@@ -202,7 +234,7 @@ def recommend_similar(
         pool = art.popularity_by_category.get(cat, art.popularity)
         items = [(pid, s, POPULARITY) for pid, s in pool if pid != product_id][:k]
         metrics.inc_request("similar", POPULARITY)
-        return _to_response(items, POPULARITY, art)
+        return _to_response(items, POPULARITY, art, request_id)
 
     sources = {
         CONTENT: art.neighbors.get(product_id, []),
@@ -217,11 +249,19 @@ def recommend_similar(
         POPULARITY: settings.w_similar_popularity,
     }
     pool = blend(sources, weights, exclude={product_id})
-    pool = apply_fatigue(pool, category_exposure(user_id, session_id, art), art)
+    exposure = category_exposure(user_id, session_id, art)
+    pool = apply_fatigue(pool, exposure, art)
     items = mmr_rerank(pool, k, settings.mmr_lambda, art)
+    # PDP không fetch interactions (giữ latency) — proxy "session mới" từ exposure:
+    # đã từng thấy impression nào trong 14 ngày thì không còn là khách mới.
+    items = maybe_explore(
+        items, k, user_id, session_id, art, exposure,
+        interaction_categories=[], exclude={product_id}, request_id=request_id,
+        interaction_count=settings.bandit_new_session_max_interactions if exposure else 0,
+    )
     source = _majority_source(items)
     metrics.inc_request("similar", source)
-    return _to_response(items, source, art)
+    return _to_response(items, source, art, request_id)
 
 
 @app.get("/recommend/home", response_model=RecResponse)
@@ -231,13 +271,21 @@ def recommend_home(
     k: int = Query(12, ge=1, le=50),
 ):
     art = _art()
+    request_id = uuid.uuid4().hex
     interactions = _fetch_interactions(user_id, session_id)
 
     if interactions is None or interactions.empty:
         items = [(pid, s, POPULARITY) for pid, s in art.popularity[: max(k * 3, 30)]]
         items = mmr_rerank(items, k, settings.mmr_lambda, art)
+        # Khách hoàn toàn mới vẫn explore được (identity = session_id) — bandit thu tín hiệu
+        # cold-start sớm; exposure rỗng vì chưa có impression nào.
+        items = maybe_explore(
+            items, k, user_id, session_id, art, exposure={},
+            interaction_categories=[], exclude=set(), request_id=request_id,
+            interaction_count=0,
+        )
         metrics.inc_request("home", POPULARITY)
-        return _to_response(items, POPULARITY, art)
+        return _to_response(items, POPULARITY, art, request_id)
 
     profile, interaction_categories, seen = _profile_scores(interactions, art)
     sources = {
@@ -251,12 +299,18 @@ def recommend_home(
         POPULARITY: settings.w_home_popularity,
     }
     pool = blend(sources, weights, exclude=seen)
-    pool = apply_fatigue(pool, category_exposure(user_id, session_id, art), art)
+    exposure = category_exposure(user_id, session_id, art)
+    pool = apply_fatigue(pool, exposure, art)
     lam = adaptive_lambda(interaction_categories)
     items = mmr_rerank(pool, k, lam, art)
+    items = maybe_explore(
+        items, k, user_id, session_id, art, exposure,
+        interaction_categories=interaction_categories, exclude=seen, request_id=request_id,
+        interaction_count=len(interactions),
+    )
     source = _majority_source(items)
     metrics.inc_request("home", source)
-    return _to_response(items, source, art)
+    return _to_response(items, source, art, request_id)
 
 
 @app.get("/recommend/cart", response_model=RecResponse)
@@ -267,6 +321,7 @@ def recommend_cart(
     k: int = Query(6, ge=1, le=50),
 ):
     art = _art()
+    request_id = uuid.uuid4().hex
     try:
         cart_pids = {int(x) for x in product_ids.split(",") if x.strip()}
     except ValueError:
@@ -299,8 +354,15 @@ def recommend_cart(
         POPULARITY: settings.w_cart_popularity,
     }
     pool = blend(sources, weights, exclude=cart_pids)
-    pool = apply_fatigue(pool, category_exposure(user_id, session_id, art), art)
+    exposure = category_exposure(user_id, session_id, art)
+    pool = apply_fatigue(pool, exposure, art)
     items = mmr_rerank(pool, k, settings.mmr_lambda, art)
+    # Cart không fetch interactions — cùng proxy "session mới" từ exposure như PDP
+    items = maybe_explore(
+        items, k, user_id, session_id, art, exposure,
+        interaction_categories=[], exclude=cart_pids, request_id=request_id,
+        interaction_count=settings.bandit_new_session_max_interactions if exposure else 0,
+    )
     source = _majority_source(items)
     metrics.inc_request("cart", source)
-    return _to_response(items, source, art)
+    return _to_response(items, source, art, request_id)

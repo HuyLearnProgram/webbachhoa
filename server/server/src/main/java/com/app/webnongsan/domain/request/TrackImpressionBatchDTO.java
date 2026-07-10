@@ -40,5 +40,10 @@ public class TrackImpressionBatchDTO {
         @NotNull(message = "productId không được để trống")
         private Long productId;
         private int rankPosition;
+
+        // Phase 3: nguồn per-item — slot explore của bandit là BANDIT_EXPLORE trong khi
+        // cả slate mang source chủ đạo. Optional: null/blank thì dùng algorithmSource cấp slate.
+        @Size(max = 30)
+        private String algorithmSource;
     }
 }

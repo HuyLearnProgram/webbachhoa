@@ -30,5 +30,10 @@ const AdminNavigationPath = [
         value: "Đơn đặt hàng",
         path: path.ADMIN_ORDER
     },
+    {
+        id: 7,
+        value: "Gợi ý AI",
+        path: path.ADMIN_RECOMMENDATION
+    },
 ];
 export default AdminNavigationPath;

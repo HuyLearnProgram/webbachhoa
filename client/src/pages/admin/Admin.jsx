@@ -2,7 +2,7 @@ import React,{useEffect,useState} from "react";
 import { Route, Routes ,Navigate} from "react-router-dom";
 import path from "@/utils/path";
 
-import {Overview, Feedback, OrderDetail, EditCategory, EditProduct, EditUser, UserDetail, ProductDetail, Category,Order,Product,User} from './index';
+import {Overview, Feedback, OrderDetail, EditCategory, EditProduct, EditUser, UserDetail, ProductDetail, Category,Order,Product,User,RecommendationMetrics} from './index';
 import { useSelector } from "react-redux";
 import { useRef } from 'react';
 import {AddCategory,AddProduct} from "./Add";
@@ -61,6 +61,7 @@ const Admin= () =>{
                     <Route path={path.ADMIN_USER} element={<User/>}></Route>
                     <Route path={path.ADMIN_EDIT_USER} element={<EditUser/>}></Route>
                     <Route path={path.ADMIN_USER_DETAIL} element={<UserDetail/>}></Route>
+                    <Route path={path.ADMIN_RECOMMENDATION} element={<RecommendationMetrics/>}></Route>
                 </Route>
             </Routes>
         </div>
