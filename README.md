@@ -248,4 +248,5 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 ### Trang quản lý Gợi ý AI (Admin):
 ![ma_ai_recom1](./screenshots/ma_ai_recom1.png)
 ![ma_ai_recom2](./screenshots/ma_ai_recom2.png)
+![ma_ai_recom_detail](./screenshots/ma_ai_recom_detail.png)
 
