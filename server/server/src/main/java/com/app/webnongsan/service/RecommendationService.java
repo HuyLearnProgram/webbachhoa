@@ -181,6 +181,22 @@ public class RecommendationService {
         }
     }
 
+    // Phase 3 (dashboard admin): chỉnh AB_BANDIT_PCT của Python — có hiệu lực ngay VÀ được Python
+    // ghi lại vào .env của recommendation-service nên vẫn giữ nguyên qua các lần restart sau này.
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> updateAbBanditPct(int pct) {
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(this.baseUrl)
+                    .path("/internal/ab-config")
+                    .queryParam("pct", pct)
+                    .toUriString();
+            return this.metricsRestTemplate.postForObject(url, null, Map.class);
+        } catch (Exception e) {
+            log.warn("Không cập nhật được AB_BANDIT_PCT trên recommendation-service: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private User getCurrentUserOrNull() {
         String email = SecurityUtil.getCurrentUserLogin().orElse(null);
         if (email == null || email.isEmpty() || "anonymousUser".equals(email)) {

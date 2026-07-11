@@ -17,7 +17,7 @@ import {
   FaSearch
 } from "react-icons/fa";
 import { IoMenu, IoLogOutOutline, IoTrashBinOutline } from "react-icons/io5";
-import { TbInfoTriangle } from "react-icons/tb";
+import { TbInfoTriangle, TbPin, TbPinnedOff } from "react-icons/tb";
 
 const icons = {
   FaPhone,
@@ -39,6 +39,8 @@ const icons = {
   FaTimes,
   IoTrashBinOutline,
   TbInfoTriangle,
+  TbPin,
+  TbPinnedOff,
   FaInfoCircle,
   MdOutlineBlock,
   FaFilter,

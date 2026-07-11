@@ -101,6 +101,10 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v2/users/*/feedbacks").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/orders/*/confirm-refund").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/admin/**").hasRole("ADMIN")
+                        // Rule GET admin/** ở trên KHÔNG áp dụng cho POST — phải khai riêng, nếu không
+                        // endpoint này rơi xuống anyRequest().authenticated() và mọi user đăng nhập
+                        // (không chỉ ADMIN) đều gọi được (đã phát hiện khi thêm endpoint chỉnh AB_BANDIT_PCT).
+                        .requestMatchers(HttpMethod.POST, "/api/v2/admin/recommendation-metrics/ab-pct").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
 

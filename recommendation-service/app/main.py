@@ -10,6 +10,7 @@ import math
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -25,7 +26,7 @@ from app.candidates.collaborative import item_scores, user_scores
 from app.config import settings
 from app.db import fetch_df
 from app.metrics import metrics
-from app.metrics_experiment import build_report
+from app.metrics_experiment import build_report, invalidate_cache as invalidate_metrics_cache
 from app.rerank.diversity import adaptive_lambda, mmr_rerank
 from app.rerank.fatigue import apply_fatigue, category_exposure
 from app.schemas import RecItem, RecResponse
@@ -221,6 +222,46 @@ def get_experiment_metrics(days: int = Query(None, ge=1, le=180)):
 def retrain():
     art = train_all(force_cf=True)  # dev retrain luôn muốn CF tươi, bỏ qua hybrid cadence
     return {"model_version": art.model_version, "last_train_seconds": art.last_train_seconds}
+
+
+_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+
+
+def _update_env_file(updates: dict[str, str]) -> None:
+    """Upsert key=value vào .env — để giá trị đổi runtime (AB_BANDIT_PCT...) sống sót qua restart
+    uvicorn thay vì chỉ nằm trong bộ nhớ tiến trình. `.env` đã nằm trong .gitignore của
+    recommendation-service nên không lo commit nhầm số liệu chỉnh tay lúc vận hành."""
+    lines = _ENV_PATH.read_text(encoding="utf-8").splitlines() if _ENV_PATH.exists() else []
+    pending = dict(updates)
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key = stripped.split("=", 1)[0].strip()
+        if key in pending:
+            lines[i] = f"{key}={pending.pop(key)}"
+    lines.extend(f"{key}={value}" for key, value in pending.items())
+    _ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+@app.post("/internal/ab-config")
+def update_ab_config(pct: int = Query(..., ge=0, le=100)):
+    """Chỉnh AB_BANDIT_PCT từ dashboard admin "Gợi ý AI" — ghi cả vào bộ nhớ tiến trình (áp dụng
+    ngay) lẫn .env (sống sót qua restart uvicorn). Cũng lưu mốc thời gian áp dụng để dashboard biết
+    "vừa đổi gần đây, chưa đủ dữ liệu để đề xuất lại" thay vì đề xuất đổi tiếp ngay lập tức."""
+    applied_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    settings.ab_bandit_pct = pct
+    settings.ab_pct_applied_at = applied_at
+    try:
+        _update_env_file({"AB_BANDIT_PCT": str(pct), "AB_PCT_APPLIED_AT": applied_at})
+    except OSError:
+        logger.exception("Không ghi được .env — AB_BANDIT_PCT vẫn đổi tại runtime nhưng sẽ mất khi restart.")
+    invalidate_metrics_cache()  # nếu không, /metrics/experiment vẫn trả pct cũ tới khi hết cache TTL
+    return {
+        "ab_bandit_enabled": settings.ab_bandit_enabled,
+        "ab_bandit_pct": settings.ab_bandit_pct,
+        "ab_pct_applied_at": settings.ab_pct_applied_at,
+    }
 
 
 @app.get("/recommend/similar/{product_id}", response_model=RecResponse)

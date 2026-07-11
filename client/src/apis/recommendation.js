@@ -81,6 +81,16 @@ export const apiGetRecommendationMetrics = async (days = 30) =>
         params: { days },
     })
 
+// Phase 3: chỉnh tỉ lệ cohort bandit-on của recommendation-service (dashboard admin "Gợi ý AI").
+// Có hiệu lực ngay VÀ ghi lại vào .env của recommendation-service (giữ nguyên qua restart sau này)
+// — xem POST /internal/ab-config phía Python. pct trong khoảng 0-100.
+export const apiUpdateAbBanditPct = async (pct) =>
+    axiosInstance({
+        url: 'admin/recommendation-metrics/ab-pct',
+        method: 'post',
+        params: { pct },
+    })
+
 // Gọi 1 lần ngay sau khi login thành công — nối lịch sử hành vi ẩn danh vào user thật
 export const apiMergeTrackingSession = () => {
     const sessionId = getOrCreateSessionId()

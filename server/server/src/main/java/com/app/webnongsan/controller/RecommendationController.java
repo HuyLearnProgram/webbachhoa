@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -52,5 +53,23 @@ public class RecommendationController {
                     .body(Map.of("error", "recommendation-service không phản hồi"));
         }
         return ResponseEntity.ok(report);
+    }
+
+    // Phase 3: cho phép admin tăng/giảm tỉ lệ cohort bandit-on ngay từ dashboard, không cần sửa
+    // .env + restart uvicorn thủ công. Rule GET admin/** trong SecurityConfiguration không tự áp
+    // dụng cho POST — đã khai riêng 1 rule hasRole(ADMIN) cho đúng path này (xem SecurityConfiguration).
+    // Python ghi lại thay đổi vào .env của recommendation-service nên vẫn giữ nguyên qua restart sau này — xem RecommendationService.
+    @PostMapping("admin/recommendation-metrics/ab-pct")
+    @ApiMessage("Update AI recommendation A/B bandit percentage")
+    public ResponseEntity<Map<String, Object>> updateAbBanditPct(@RequestParam("pct") int pct) {
+        if (pct < 0 || pct > 100) {
+            return ResponseEntity.badRequest().body(Map.of("error", "pct phải trong khoảng 0-100"));
+        }
+        Map<String, Object> result = this.recommendationService.updateAbBanditPct(pct);
+        if (result == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "recommendation-service không phản hồi"));
+        }
+        return ResponseEntity.ok(result);
     }
 }

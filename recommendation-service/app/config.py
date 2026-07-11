@@ -109,6 +109,9 @@ class Settings(BaseSettings):
     # A/B testing: cohort bandit-on/off theo hash CRC32 identity (user_id ưu tiên, guest theo session)
     ab_bandit_enabled: bool = True
     ab_bandit_pct: int = 50  # % identity vào cohort bandit-on
+    # Mốc thời gian (ISO string) lần cuối ab_bandit_pct bị đổi qua dashboard admin — dùng để dashboard
+    # biết "vừa đổi gần đây, chưa đủ dữ liệu để đề xuất lại" (xem POST /internal/ab-config).
+    ab_pct_applied_at: str | None = None
 
     # Metrics experiment (CTR/diversity/coverage/A-B) — endpoint /metrics/experiment
     metrics_experiment_cache_ttl_s: int = 300

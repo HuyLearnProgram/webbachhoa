@@ -29,6 +29,13 @@ Dự án xây dựng một hệ thống thương mại điện tử hoàn chỉn
 -   **Quản lý người dùng:** Khóa tài khoản người dùng.
 -   **Quản lý phản hồi:** Ẩn phản hồi sản phẩm.
 
+### Gợi ý sản phẩm bằng AI (tự học liên tục):
+-   **Gợi ý cá nhân hoá** ở trang chủ, trang chi tiết sản phẩm ("sản phẩm tương tự") và giỏ hàng ("có thể bạn cũng thích") — dựa trên lịch sử xem/mua/tìm kiếm, sản phẩm hay được mua cùng nhau, xu hướng bán chạy và hành vi của những người dùng có sở thích tương tự.
+-   **Chống nhàm chán:** tự động đa dạng hoá danh mục trong mỗi lần gợi ý, tránh lặp lại mãi vài loại sản phẩm quen thuộc; đồng thời thỉnh thoảng thử gợi ý một danh mục mới để phát hiện sở thích chưa biết của khách.
+-   **Tự học liên tục:** mô hình học lại định kỳ từ dữ liệu tương tác thật, cải thiện dần theo thời gian sử dụng — không cần huấn luyện thủ công.
+-   **Luôn sẵn sàng:** nếu dịch vụ gợi ý AI gặp sự cố, hệ thống tự chuyển sang gợi ý dự phòng (sản phẩm cùng danh mục/bán chạy) — trải nghiệm người dùng không bao giờ bị gián đoạn.
+-   **Dashboard đo lường & điều khiển (Admin):** theo dõi tỉ lệ bấm/chuyển đổi theo từng nguồn gợi ý, độ đa dạng, độ phủ sản phẩm được gợi ý, so sánh hiệu quả qua thử nghiệm A/B — và điều chỉnh trực tiếp tỉ lệ thử nghiệm ngay trên dashboard.
+
 ### Kiểm thử (Testing):
 -   **White Box Testing:** Sử dụng **JUnit** trong Spring Boot để kiểm thử đơn vị (Unit Test), đảm bảo tính đúng đắn của các logic nghiệp vụ ở tầng Backend.
 -   **Black Box Testing:** Sử dụng **Selenium** để thực hiện kiểm thử tự động hóa giao diện người dùng (E2E Testing), giả lập các hành vi của người dùng trên trình duyệt.
@@ -47,6 +54,10 @@ Dự án xây dựng một hệ thống thương mại điện tử hoàn chỉn
     -   **HTTP Client:** Axios
     -   **Styling:** Tailwind CSS / Material-UI
     -   **Build Tool:** Vite / Create React App
+-   **AI Recommendation Service:**
+    -   **Framework:** Python 3.12, FastAPI, Uvicorn
+    -   **Thuật toán:** TF-IDF + Cosine Similarity (content-based), FP-Growth (association rules mua kèm), Collaborative Filtering (ALS), MMR re-ranking (đa dạng hoá), LinUCB Multi-Armed Bandit (explore-exploit)
+    -   **Scheduling:** APScheduler (huấn luyện lại định kỳ)
 -   **Cơ sở dữ liệu (Database):**
     -   MySQL 8
 -   **Containerization & Deployment:**
@@ -107,13 +118,26 @@ npm install
 ```bash
 VITE_BACKEND_URL = "http://localhost:8080/api/v2"
 VITE_BACKEND_TARGET = http://localhost:8080
-VITE_RECOMMENDED_URL = http://localhost:8000
 ```
 ### Run front end:
 ```bash
 npm run dev
 ```
 Frontend sẽ chạy tại: http://localhost:5173
+
+### 6. Cài đặt & chạy AI Recommendation Service (tuỳ chọn)
+Không bắt buộc để chạy được website — nếu bỏ qua bước này, backend tự chuyển sang gợi ý dự phòng
+(rule-based) mà không lỗi. Chạy bước này nếu muốn trải nghiệm gợi ý AI thật (cá nhân hoá, tự học).
+```bash
+cd recommendation-service
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env        # điền mật khẩu MySQL thật vào DB_URL
+venv\Scripts\python -m uvicorn app.main:app --port 8000
+```
+MySQL (`webnongsan`) phải chạy trước. Recommendation service sẽ chạy tại: http://localhost:8000
+(backend Java đọc địa chỉ này qua `RECOMMENDATION_SERVICE_URL`, mặc định đúng `http://localhost:8000`).
 
 ## Docker Setup
 ### 1.Create Docker Network:
@@ -178,34 +202,49 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 
 ### Trang giỏ hàng
 ![Cart](./screenshots/cart.png)
+![Cart Gift](./screenshots/cart_gift.png)
 
 ### Trang thanh toán
 ![Checkout](./screenshots/checkout.png)
+![Voucher](./screenshots/voucher.png)
 
 ### Trang quản lý thông tin cá nhân
 ![profile](./screenshots/profile.png)
 ![buy_history](./screenshots/buy_history.png)
+![buy_history_detail1](./screenshots/buy_history_detail1.png)
+![buy_history_detail2](./screenshots/buy_history_detail2.png)
 ![wishlist](./screenshots/wishlist.png)
 
 ### Trang tổng quan báo cáo doanh thu (Admin):
-![admin_dashboard](./screenshots/admin_dashboard.png)
+![admin_dashboard1](./screenshots/admin_dashboard1.png)
+![admin_dashboard2](./screenshots/admin_dashboard2.png)
 
 ### Trang quản lý danh mục sản phẩm (Admin):
 ![ma_cate](./screenshots/ma_cate.png)
 
 ### Trang quản lý sản phẩm (Admin):
 ![ma_pro](./screenshots/ma_pro.png)
+![ma_pro_add](./screenshots/ma_pro_add.png)
+![ma_pro_detail](./screenshots/ma_pro_detail.png)
+![ma_pro_edit](./screenshots/ma_pro_edit.png)
 
 ### Trang quản lý người dùng (Admin):
 ![ma_user](./screenshots/ma_user.png)
+![ma_user_detail](./screenshots/ma_user_detail.png)
+![ma_user_edit](./screenshots/ma_user_edit.png)
 
 ### Trang quản lý đơn hàng (Admin):
 ![ma_order](./screenshots/ma_order.png)
 ![ma_order_detail](./screenshots/ma_order_detail.png)
+![ma_order_detail1](./screenshots/ma_order_detail1.png)
+![ma_order_detail2](./screenshots/ma_order_detail2.png)
+![ma_order_detail_invoice](./screenshots/ma_order_detail_invoice.png)
 
 ### Trang quản lý feedback (Admin):
 ![ma_feedback](./screenshots/ma_feedback.png)
+![ma_feedback_detail](./screenshots/ma_feedback_detail.png)
 
-
-
+### Trang quản lý Gợi ý AI (Admin):
+![ma_ai_recom1](./screenshots/ma_ai_recom1.png)
+![ma_ai_recom2](./screenshots/ma_ai_recom2.png)
 

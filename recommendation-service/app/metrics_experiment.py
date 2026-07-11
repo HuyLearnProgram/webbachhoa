@@ -200,8 +200,16 @@ def _ab_cohorts(cutoff: datetime) -> dict:
     return {
         "ab_bandit_enabled": settings.ab_bandit_enabled,
         "ab_bandit_pct": settings.ab_bandit_pct,
+        "ab_pct_applied_at": settings.ab_pct_applied_at,
         "cohorts": cohorts,
     }
+
+
+def invalidate_cache():
+    """Gọi khi AB_BANDIT_PCT đổi tại runtime (dashboard admin) — nếu không, report vẫn trả
+    ab_bandit_pct cũ trong tối đa metrics_experiment_cache_ttl_s giây dù settings đã đổi."""
+    with _cache_lock:
+        _cache.clear()
 
 
 def build_report(days: int, art) -> dict:
