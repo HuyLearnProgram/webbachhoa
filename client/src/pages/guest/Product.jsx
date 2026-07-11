@@ -186,10 +186,6 @@ const Product = () => {
       queries.filter.push(`price >= ${priceRange[0]} and price <= ${priceRange[1]}`);
     }
 
-    if (ratings.length > 0 || priceRange.length > 0) {
-      queries.page = params.get('page') || 1;
-    }
-
     if (sortOption) {
       const [sortField, sortDirection] = sortOption.split('-');
       queries.sort = `${sortField},${sortDirection}`;
@@ -242,6 +238,7 @@ const Product = () => {
     } else {
       newParams.delete('category');
     }
+    newParams.delete('page');
     setParams(newParams);
   };
 
@@ -252,6 +249,7 @@ const Product = () => {
     } else {
       newParams.set('rating', `${getRatingThreshold(star)}-5`);
     }
+    newParams.delete('page');
     setParams(newParams);
   };
 
@@ -275,6 +273,7 @@ const Product = () => {
     } else {
       newParams.delete('promotion');
     }
+    newParams.delete('page');
     setParams(newParams);
   };
 
@@ -287,6 +286,7 @@ const Product = () => {
       newParams.set('price', tempPriceRange.join('-'));
     }
 
+    newParams.delete('page');
     setParams(newParams);
   };
 

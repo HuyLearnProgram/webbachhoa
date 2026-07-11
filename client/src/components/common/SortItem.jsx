@@ -13,6 +13,7 @@ const SortItem = ({ sortOptions, sortOption, setSortOption }) => {
       } else {
         searchParams.delete('sort');
       }
+      searchParams.delete('page');
       setSearchParams(searchParams);
     };
 
