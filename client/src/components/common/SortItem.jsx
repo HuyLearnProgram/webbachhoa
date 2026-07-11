@@ -1,7 +1,9 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-const SortItem = ({ sortOptions, sortOption, setSortOption }) => {
+// defaultLabel: nhãn của option rỗng — trang tìm kiếm truyền "Liên quan" (Smart Search xếp hạng
+// mặc định theo độ liên quan khi không chọn sort tường minh), nơi khác giữ "Chọn"
+const SortItem = ({ sortOptions, sortOption, setSortOption, defaultLabel = 'Chọn' }) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const handleSortChange = (e) => {
@@ -26,7 +28,7 @@ const SortItem = ({ sortOptions, sortOption, setSortOption }) => {
         onChange={handleSortChange}
         className="border p-1 rounded w-[200px] text-xs"
       >
-        <option value="" className='text-xs'>Chọn</option>
+        <option value="" className='text-xs'>{defaultLabel}</option>
         {sortOptions.map((option) => (
           <option key={option.value} value={option.value} className='text-xs'>
             {option.label}

@@ -14,6 +14,25 @@ export const apiGetProducts = async (params) =>
         }
     });
 
+// Smart Search (Phase B): từ khoá q tiếng Việt CÓ DẤU bắt buộc đi JSON body (bug dấu query
+// param toàn hệ thống); filter/page/size/sort chỉ chứa ASCII nên vẫn đi query param như cũ.
+// Response: { meta, result, searchMode, requestId } — meta/result cùng shape PaginationDTO.
+export const apiSmartSearch = async ({ q, sessionId, ...params }) =>
+    axiosInstance({
+        url: "/products/smart-search",
+        method: "post",
+        params,
+        data: { q, sessionId },
+        paramsSerializer: {
+            encode: (value) => value,
+            serialize: (params) => {
+                return Object.entries(params)
+                    .map(([key, value]) => `${key}=${value}`)
+                    .join('&');
+            }
+        }
+    });
+
 export const apiSearchProducts = async (params) =>
     axiosInstance({
         url: "/products/search",

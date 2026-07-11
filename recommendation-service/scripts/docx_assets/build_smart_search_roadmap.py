@@ -229,8 +229,8 @@ def build(d):
     title(d, "Tìm kiếm thông minh (Smart Search)")
     p(d, "Thiết kế hệ tìm kiếm hybrid: hiểu nhu cầu tự do bằng embedding ngữ nghĩa, "
          "kết hợp khớp tên truyền thống và xếp hạng cá nhân hoá từ hệ gợi ý AI sẵn có. "
-         "Tài liệu chốt ngày 11/07/2026. Trạng thái triển khai: Phase A ĐÃ XONG + verify "
-         "(cùng ngày — chi tiết ở đầu mục Phase A), Phase B/C chưa làm. "
+         "Tài liệu chốt ngày 11/07/2026. Trạng thái triển khai: Phase A + Phase B ĐÃ XONG + verify "
+         "(cùng ngày — chi tiết ở đầu mỗi mục phase), Phase C chưa làm. "
          "Tách riêng khỏi AI_Recommendation_Roadmap.docx (roadmap gợi ý đã hoàn tất Phase 0-3).")
 
     # ============================================================ PHẦN I
@@ -424,7 +424,21 @@ w_search_lexical=1.0 > w_search_semantic=0.8 > w_search_personal=0.5 > w_search_
               "hạ description khỏi document (chỉ tên + category) — quyết định tại bước calibrate.")
 
     # ---------------- Phase B
-    h2(d, "Phase B — Tích hợp Java + FE: relevance mặc định, cá nhân hoá thật")
+    h2(d, "Phase B — Tích hợp Java + FE: relevance mặc định, cá nhân hoá thật — ĐÃ XONG 11/07/2026")
+    p(d, "TRẠNG THÁI: đã code xong + verify đầy đủ ngày 11/07/2026. E2E qua HTTP thật (Java proxy): "
+         "semantic rescue \"đồ sấy\" total=100 nguồn SEMANTIC_HYBRID; sort giá asc đúng thứ tự trong "
+         "tập matched; query rác → NO_MATCH total=0; filter category bó hẹp → 100% kết quả đúng "
+         "category; phân trang trang 1 ∪ trang 2 không trùng id; kill-Python drill → LEXICAL_FALLBACK "
+         "trong ~30-47ms, bật lại tự hồi phục không cần restart Java. Selenium UI thật 6 kịch bản PASS "
+         "(kể cả nhãn sort mặc định \"Liên quan\" và trang danh mục thường không đổi hành vi).")
+    p(d, "2 phát hiện trong lúc verify: (1) BUG CÓ SẴN bị Smart Search làm lộ — products/max-price "
+         "trả 500 khi không có tên nào khớp LIKE (MAX(price)=NULL unbox NPE); trước đây query nhu cầu "
+         "trả 0 kết quả nên FE không bao giờ gọi max-price, giờ có kết quả semantic là dính ngay, "
+         "error state che cả trang. Đã sửa: COALESCE(MAX,0) phía Java + FE bỏ lọc max-price theo tên "
+         "khi search (bound theo category là đủ cho slider). (2) HẠN CHẾ ĐÃ BIẾT: query KHÔNG DẤU "
+         "(\"sua tuoi\") chỉ được nhánh lexical (12 kết quả — E5 không vượt gate với text không dấu), "
+         "trong khi bản có dấu (\"sữa tươi\") được semantic mở rộng (100); top-10 trùng 8/10 nên trang "
+         "đầu gần như nhau và vẫn không tệ hơn hiện tại — ứng viên tinh chỉnh Phase C.")
     p(d, "Mục tiêu: user thật gõ \"đồ ăn ngon\" ra kết quả; mặc định xếp \"Liên quan\" có cá nhân hoá; filter cứng "
          "giữ nguyên hiệu lực; sort tường minh hoạt động trong phạm vi recall mới; Python chết → search y như cũ. "
          "Tiên quyết: Phase A pass calibrate.")

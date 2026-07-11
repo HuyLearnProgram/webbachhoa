@@ -3,13 +3,16 @@ package com.app.webnongsan.controller;
 import com.app.webnongsan.domain.Product;
 import com.app.webnongsan.domain.request.BulkActiveRequestDTO;
 import com.app.webnongsan.domain.request.AddImageRequestDTO;
+import com.app.webnongsan.domain.request.SmartSearchRequestDTO;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.product.ProductImportResultDTO;
 import com.app.webnongsan.domain.response.product.RecommendationSlateDTO;
 import com.app.webnongsan.domain.response.product.ResProductDTO;
 import com.app.webnongsan.domain.response.product.SearchProductDTO;
+import com.app.webnongsan.domain.response.product.SmartSearchResultDTO;
 import com.app.webnongsan.service.ProductService;
 import com.app.webnongsan.service.RecommendationService;
+import com.app.webnongsan.service.SmartSearchService;
 import com.app.webnongsan.util.annotation.ApiMessage;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import com.turkraft.springfilter.boot.Filter;
@@ -35,6 +38,7 @@ import java.util.List;
 public class ProductController {
     private final ProductService productService;
     private final RecommendationService recommendationService;
+    private final SmartSearchService smartSearchService;
 
     @PostMapping("products")
     @ApiMessage("Create product")
@@ -104,6 +108,18 @@ public class ProductController {
     @ApiMessage("Search products")
     public ResponseEntity<PaginationDTO> search(@Filter Specification<Product> spec, Pageable pageable) {
         return ResponseEntity.ok(this.productService.search(spec, pageable));
+    }
+
+    // Smart Search Phase B: POST vì từ khoá q tiếng Việt có dấu phải đi qua JSON body (bug dấu
+    // query param toàn hệ thống); filter RSQL chỉ chứa ASCII (id/số/enum) nên vẫn bind @Filter
+    // từ query param như cũ. Python lỗi/tắt cờ → service tự fallback LIKE, không bao giờ 500 vì AI.
+    @PostMapping("products/smart-search")
+    @ApiMessage("Smart search products")
+    public ResponseEntity<SmartSearchResultDTO> smartSearch(
+            @Filter Specification<Product> spec, Pageable pageable,
+            @RequestBody SmartSearchRequestDTO body) {
+        return ResponseEntity.ok(this.smartSearchService.smartSearch(
+                body.getQ(), spec, pageable, body.getSessionId()));
     }
     @PutMapping("products/quantity/{id}")
     @ApiMessage("Update quantity product")

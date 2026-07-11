@@ -3,7 +3,9 @@ import { useSearchParams, useNavigate, createSearchParams } from 'react-router-d
 import { useSelector } from 'react-redux';
 import { Breadcrumb, ProductCard, Pagination, SortItem } from '@/components';
 import { apiGetProducts, apiGetMaxPrice } from '@/apis';
+import { apiSmartSearch } from '@/apis/product';
 import { apiTrackSearch, apiTrackSearchClick } from '@/apis/recommendation';
+import { getOrCreateSessionId } from '@/utils/sessionId';
 import Masonry from 'react-masonry-css';
 import { sortProductOption, promotionTypeCustomerOptions, PROMOTION_TYPES } from '@/utils/constants';
 import { buildProductNameFilter, stripDiacritics, renderStarFromNumber } from '@/utils/helper';
@@ -81,10 +83,12 @@ const Product = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const searchTerm = params.get('search');
+      // Smart Search: KHÔNG lọc max-price theo tên nữa — kết quả semantic không nhất thiết chứa
+      // từ khoá trong tên ("đồ sấy" ra "Mít sấy giòn"), lọc LIKE theo tên sẽ ra khoảng giá sai
+      // (thậm chí rỗng dù trang đang có kết quả). Bound theo category (nếu có) là đủ cho slider.
       const res = await apiGetMaxPrice(
         selectedCategories.length === 1 ? stripDiacritics(selectedCategories[0].name) : undefined,
-        searchTerm ? stripDiacritics(searchTerm) : searchTerm
+        undefined
       );
       if (res.statusCode === 200) {
         setMaxPrice(res.data);
@@ -117,6 +121,31 @@ const Product = () => {
     }
   };
 
+  // Smart Search (Phase B): có từ khoá → xếp hạng "Liên quan" (semantic + cá nhân hoá) qua
+  // POST products/smart-search — q có dấu đi JSON body, KHÔNG stripDiacritics. Response cùng
+  // shape meta/result nên toàn bộ render/pagination dùng lại. Endpoint mới lỗi (5xx/mạng/kill
+  // -switch) → tầng fallback FE: chạy lại đúng đường LIKE cũ, trang tìm kiếm không bao giờ vỡ.
+  const fetchSmartSearch = async (searchTerm, queries, legacyQueries) => {
+    try {
+      setIsProductLoading(true);
+      setError(null);
+      const response = await apiSmartSearch({
+        q: searchTerm,
+        sessionId: getOrCreateSessionId(),
+        ...queries,
+      });
+      if (response.statusCode === 200) {
+        setProducts(response.data);
+      } else {
+        throw new Error('Lỗi tìm kiếm thông minh');
+      }
+      setIsProductLoading(false);
+    } catch (error) {
+      console.warn('Smart search lỗi, dùng tìm kiếm thường:', error?.message);
+      await fetchProducts(legacyQueries);
+    }
+  };
+
   useEffect(() => {
     const sortValue = params.get('sort') || '';
     setSortOption(sortValue);
@@ -142,30 +171,26 @@ const Product = () => {
   };
 
   useEffect(() => {
-    let queries = {
+    const base = {
       page: params.get('page') || 1,
       size: 10,
-      filter: []
     };
 
+    // Filter cứng (không gồm tên) — Smart Search cần tập điều kiện này để Java tính allowed_ids
+    let baseFilters = [];
     let ratings = [], priceRange = [];
 
     // Khách hàng chỉ thấy sản phẩm đang bán
-    queries.filter.push(`active=true`);
+    baseFilters.push(`active=true`);
 
     if (selectedCategoryIds.length > 0) {
       const categoryClause = selectedCategoryIds.map((id) => `category.id=${id}`).join(' or ');
-      queries.filter.push(`(${categoryClause})`);
-    }
-
-    const searchTerm = params.get('search');
-    if (searchTerm) {
-      queries.filter.push(buildProductNameFilter(searchTerm));
+      baseFilters.push(`(${categoryClause})`);
     }
 
     if (selectedPromotions.length > 0) {
       const promotionClause = selectedPromotions.map((value) => `promotionType='${value}'`).join(' or ');
-      queries.filter.push(`(${promotionClause})`);
+      baseFilters.push(`(${promotionClause})`);
     }
 
     for (let [key, value] of params.entries()) {
@@ -179,24 +204,33 @@ const Product = () => {
     }
 
     if (ratings.length > 0) {
-      queries.filter.push(`rating >= ${ratings[0]} and rating <= ${ratings[1]}`);
+      baseFilters.push(`rating >= ${ratings[0]} and rating <= ${ratings[1]}`);
     }
 
     if (priceRange.length > 0) {
-      queries.filter.push(`price >= ${priceRange[0]} and price <= ${priceRange[1]}`);
+      baseFilters.push(`price >= ${priceRange[0]} and price <= ${priceRange[1]}`);
     }
 
     if (sortOption) {
       const [sortField, sortDirection] = sortOption.split('-');
-      queries.sort = `${sortField},${sortDirection}`;
+      base.sort = `${sortField},${sortDirection}`;
     }
 
-    if (queries.filter.length > 0) {
-      queries.filter = encodeURIComponent(queries.filter.join(' and '));
-    } else {
-      delete queries.filter;
+    const searchTerm = params.get('search');
+    if (searchTerm) {
+      // Đường Smart Search: filter chỉ chứa điều kiện cứng ASCII (đi query param an toàn),
+      // từ khoá nguyên bản (có dấu) đi trong body. Fallback dùng đường LIKE cũ y hệt trước đây.
+      const smartQueries = { ...base };
+      if (baseFilters.length > 0) smartQueries.filter = encodeURIComponent(baseFilters.join(' and '));
+      const legacyQueries = { ...base };
+      legacyQueries.filter = encodeURIComponent(
+        [...baseFilters, buildProductNameFilter(searchTerm)].join(' and '));
+      fetchSmartSearch(searchTerm, smartQueries, legacyQueries);
+      return;
     }
 
+    const queries = { ...base };
+    if (baseFilters.length > 0) queries.filter = encodeURIComponent(baseFilters.join(' and '));
     fetchProducts(queries);
   }, [params, sortOption, navigate]);
 
@@ -433,6 +467,7 @@ const Product = () => {
               sortOption={sortOption}
               setSortOption={setSortOption}
               sortOptions={sortProductOption}
+              defaultLabel={params.get('search') ? 'Liên quan' : 'Chọn'}
             />
           </div>
 

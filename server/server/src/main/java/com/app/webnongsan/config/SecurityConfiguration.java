@@ -84,6 +84,10 @@ public class SecurityConfiguration {
                         // Gợi ý cá nhân hoá (Home/Cart) — permitAll vì guest cũng có gợi ý (popularity);
                         // user đăng nhập vẫn được cá nhân hoá vì JWT filter chạy trước, SecurityContext có sẵn
                         .requestMatchers(HttpMethod.GET, "/api/v2/recommendations/**").permitAll()
+                        // Smart Search (Phase B) — POST vì q có dấu đi JSON body; permitAll vì guest cũng
+                        // tìm kiếm được. Khai ĐÍCH DANH path + method (không wildcard) để không mở nhầm
+                        // các POST products/* của admin bên dưới — bài học rule per-method.
+                        .requestMatchers(HttpMethod.POST, "/api/v2/products/smart-search").permitAll()
                         .requestMatchers("/favicon.ico").permitAll()
                         // filter role with spring security
                         .requestMatchers(HttpMethod.POST, "/api/v2/products").hasRole("ADMIN")

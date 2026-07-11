@@ -22,7 +22,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     // Dùng cho PromotionExpiryScheduler — lấy sản phẩm đã hết hạn khuyến mãi để tự động khôi phục
     List<Product> findByPromotionExpiresAtLessThanEqual(Instant now);
 
-    @Query("SELECT MAX(p.price) FROM Product p " +
+    // COALESCE: không có sản phẩm nào khớp → MAX trả NULL, unbox về double ném NPE → 500.
+    // Bug có sẵn nhưng chỉ lộ ra từ Smart Search (Phase B): query nhu cầu ("đồ sấy") giờ CÓ kết
+    // quả semantic nên FE mới gọi max-price với productName không khớp LIKE nào.
+    @Query("SELECT COALESCE(MAX(p.price), 0) FROM Product p " +
             "WHERE (:category IS NULL OR p.category.name = :category) " +
             "AND (:productName IS NULL OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :productName, '%')))")
     double getMaxPriceByCategoryAndProductName(@Param("category") String category,
@@ -56,6 +59,16 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             "FROM Product p JOIN p.category c " +
             "WHERE p.id IN :ids AND p.active = true AND p.quantity > 0")
     List<SearchProductDTO> findActiveDtoByIdIn(@Param("ids") List<Long> ids);
+
+    // Hydrate cho Smart Search (Phase B) — KHÔNG lọc quantity: trang tìm kiếm hôm nay vẫn hiển thị
+    // sản phẩm tạm hết hàng (khác rails gợi ý), lọc bớt ở đây sẽ tạo "lỗ" trong trang vì meta.total
+    // đã tính theo danh sách rank từ Python.
+    @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
+            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.originalPrice, p.promotionType, " +
+            "p.promoBuyQuantity, p.promoFreeQuantity, p.promoBundleQuantity, p.promoBundlePrice, p.quantity) " +
+            "FROM Product p JOIN p.category c " +
+            "WHERE p.id IN :ids AND p.active = true")
+    List<SearchProductDTO> findActiveDtoByIdInAnyStock(@Param("ids") List<Long> ids);
 
     // Fallback thuần Java cho Home/Cart khi Python service down: best-seller đang bán, còn hàng
     @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
