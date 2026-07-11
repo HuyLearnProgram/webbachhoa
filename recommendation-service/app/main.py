@@ -30,6 +30,7 @@ from app.metrics_experiment import build_report, invalidate_cache as invalidate_
 from app.rerank.diversity import adaptive_lambda, mmr_rerank
 from app.rerank.fatigue import apply_fatigue, category_exposure
 from app.schemas import RecItem, RecResponse, SearchRankRequest, SearchRankResponse
+from app.search import lexical
 from app.search.encoder import encoder
 from app.search.rank import rank_search
 from app.store import ModelArtifacts, store
@@ -423,6 +424,35 @@ def recommend_cart(
     return _to_response(items, source, art, request_id)
 
 
+# Phase C — query KHÔNG DẤU ("sua tuoi") thường không vượt gate semantic (E5 hiểu tiếng Việt
+# có dấu tốt hơn hẳn, hạn chế ghi nhận ở Phase B). Nếu cùng từ khoá này từng được người khác
+# gõ CÓ DẤU và ra kết quả, dùng lại bản có dấu phổ biến nhất cho nhánh semantic — nhánh lexical
+# không ảnh hưởng (cùng normalized form). Chỉ tra khi query thật sự không dấu (đa số request
+# có dấu không tốn thêm query DB nào).
+# LƯU Ý COLLATION (dính thật khi verify): so sánh/GROUP BY chuỗi trong MySQL là
+# accent-insensitive ('sữa tươi' = 'sua tuoi') — KHÔNG được lọc "khác bản không dấu" bằng SQL
+# thường; phải GROUP BY BINARY để tách biến thể rồi chọn bản có dấu ở phía Python.
+ACCENT_RESTORE_SQL = """
+SELECT MAX(keyword) AS keyword, COUNT(*) AS cnt FROM search_logs
+WHERE keyword_normalized = :qn AND result_count > 0
+GROUP BY BINARY keyword ORDER BY cnt DESC LIMIT 5
+"""
+
+
+def _maybe_restore_accents(query: str) -> str:
+    if lexical.has_diacritics(query):
+        return query
+    try:
+        rows = fetch_df(ACCENT_RESTORE_SQL, {"qn": lexical.normalize(query)})
+        for kw in rows["keyword"]:
+            if lexical.has_diacritics(str(kw)):
+                logger.info("search: khôi phục dấu %r -> %r từ search_logs", query, str(kw))
+                return str(kw)
+    except Exception:
+        logger.exception("search: tra bản có dấu lỗi — dùng query gốc.")
+    return query
+
+
 @app.post("/search/rank", response_model=SearchRankResponse)
 def search_rank(req: SearchRankRequest):
     """Smart Search Phase A: xếp hạng hybrid semantic ∪ lexical + cá nhân hoá + phổ biến.
@@ -450,7 +480,7 @@ def search_rank(req: SearchRankRequest):
         logger.exception("search: lấy profile lỗi — xếp hạng không cá nhân hoá request này.")
 
     items, source_label, matched = rank_search(
-        req.query, req.allowed_ids, req.lexical_ids, profile, art,
+        _maybe_restore_accents(req.query), req.allowed_ids, req.lexical_ids, profile, art,
         limit=max(1, min(req.limit, settings.search_max_ranked)),
     )
     metrics.inc_request("search", source_label)

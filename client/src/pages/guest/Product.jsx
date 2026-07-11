@@ -248,14 +248,26 @@ const Product = () => {
     if (lastLoggedSearchRef.current === searchTerm) return;
     lastLoggedSearchRef.current = searchTerm;
     searchLogIdRef.current = null;
-    apiTrackSearch(searchTerm, products?.meta?.total ?? 0).then((logId) => {
+    // Phase C: searchMode/lexicalEmpty chỉ có khi đi đường smart-search (response mang theo);
+    // đường LIKE cũ/FE fallback → null, dashboard gộp vào nhóm LEGACY_LIKE
+    apiTrackSearch(
+      searchTerm,
+      products?.meta?.total ?? 0,
+      products?.searchMode ?? null,
+      products?.lexicalEmpty ?? null,
+    ).then((logId) => {
       searchLogIdRef.current = logId;
     });
   }, [isProductLoading, error, params, products?.meta?.total]);
 
   const handleSearchResultClick = (productId) => {
     if (params.get('search') && searchLogIdRef.current) {
-      apiTrackSearchClick(searchLogIdRef.current, productId);
+      // Vị trí 1-based tính cả phân trang — đo chất lượng xếp hạng (click càng gần đầu càng tốt)
+      const index = products?.result?.findIndex?.((p) => p.id === productId) ?? -1;
+      const position = index >= 0
+        ? index + 1 + ((products?.meta?.page ?? 1) - 1) * (products?.meta?.pageSize ?? 0)
+        : null;
+      apiTrackSearchClick(searchLogIdRef.current, productId, position);
     }
   };
 

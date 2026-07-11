@@ -86,6 +86,17 @@ def test_normalize_strips_diacritics_and_case():
     assert lexical.normalize(None) == ""
 
 
+def test_has_diacritics_detects_accented_vs_plain():
+    # quyết định có tra bản có dấu từ search_logs không (Phase C)
+    assert lexical.has_diacritics("sữa tươi")
+    assert lexical.has_diacritics("đồ sấy")  # đ cũng là dấu
+    assert not lexical.has_diacritics("sua tuoi")
+    assert not lexical.has_diacritics("coca cola 330ml")
+    assert not lexical.has_diacritics("")
+    assert not lexical.has_diacritics(None)
+    assert not lexical.has_diacritics("SUA  TUOI")  # hoa + thừa khoảng trắng vẫn là không dấu
+
+
 def test_lexical_score_phrase_beats_scattered_words():
     # khớp nguyên cụm = 1.2, chỉ đủ từng từ = 1.0
     assert lexical.lexical_score("coca cola", "nuoc ngot coca cola lon 330ml") == 1.2

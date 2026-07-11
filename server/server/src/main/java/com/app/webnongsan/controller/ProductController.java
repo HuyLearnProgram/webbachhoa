@@ -10,6 +10,7 @@ import com.app.webnongsan.domain.response.product.RecommendationSlateDTO;
 import com.app.webnongsan.domain.response.product.ResProductDTO;
 import com.app.webnongsan.domain.response.product.SearchProductDTO;
 import com.app.webnongsan.domain.response.product.SmartSearchResultDTO;
+import com.app.webnongsan.service.EventTrackingService;
 import com.app.webnongsan.service.ProductService;
 import com.app.webnongsan.service.RecommendationService;
 import com.app.webnongsan.service.SmartSearchService;
@@ -39,6 +40,7 @@ public class ProductController {
     private final ProductService productService;
     private final RecommendationService recommendationService;
     private final SmartSearchService smartSearchService;
+    private final EventTrackingService eventTrackingService;
 
     @PostMapping("products")
     @ApiMessage("Create product")
@@ -108,6 +110,17 @@ public class ProductController {
     @ApiMessage("Search products")
     public ResponseEntity<PaginationDTO> search(@Filter Specification<Product> spec, Pageable pageable) {
         return ResponseEntity.ok(this.productService.search(spec, pageable));
+    }
+
+    // Smart Search Phase C: autocomplete "Mọi người cũng tìm" từ search_logs. permitAll qua rule
+    // GET products/** sẵn có. prefix do FE strip dấu TRƯỚC khi gửi (match trên keyword_normalized
+    // — né bug dấu query param bằng thiết kế); service cache 5 phút.
+    @GetMapping("products/search-suggestions")
+    @ApiMessage("Get search keyword suggestions")
+    public ResponseEntity<List<String>> searchSuggestions(
+            @RequestParam(value = "prefix") String prefix,
+            @RequestParam(value = "limit", defaultValue = "8") int limit) {
+        return ResponseEntity.ok(this.eventTrackingService.searchSuggestions(prefix, limit));
     }
 
     // Smart Search Phase B: POST vì từ khoá q tiếng Việt có dấu phải đi qua JSON body (bug dấu

@@ -18,6 +18,16 @@ export const SOURCE_LABELS = {
   RULE_BASED_FALLBACK: "Fallback rule-based — Java tự trả khi Python service lỗi/timeout",
 };
 
+// Smart Search Phase C — nhãn tiếng Việt cho search_mode trong search_logs
+export const SEARCH_MODE_LABELS = {
+  SEMANTIC_HYBRID: "Semantic (AI hiểu nhu cầu)",
+  TFIDF_HYBRID: "TF-IDF (degrade nhẹ)",
+  LEXICAL_ONLY: "Chỉ khớp tên (encoder tắt)",
+  LEXICAL_FALLBACK: "LIKE (Python lỗi, Java tự lo)",
+  NO_MATCH: "Không có kết quả",
+  LEGACY_LIKE: "Đường LIKE cũ (trước nâng cấp / FE fallback)",
+};
+
 const placementLabel = (p) => PLACEMENT_LABELS[p] || p;
 const sourceLabel = (s) => SOURCE_LABELS[s] || s;
 const pct = (v, digits = 2) => (v == null ? "—" : `${(v * 100).toFixed(digits)}%`);
@@ -76,6 +86,22 @@ const TERMS = {
   slate: {
     term: "Slate",
     def: "1 danh sách gợi ý trả về trong 1 lần (VD 12 sản phẩm ở trang chủ) — các chỉ số 'trong slate' so sánh các sản phẩm cùng 1 lần trả về này.",
+  },
+  searchMode: {
+    term: "Search mode",
+    def: "Đường xử lý mà 1 lượt tìm kiếm thực sự đi qua: SEMANTIC_HYBRID = xếp hạng AI đầy đủ (embedding + khớp tên + cá nhân hoá); TFIDF/LEXICAL_ONLY = Python tự hạ bậc; LEXICAL_FALLBACK = Python lỗi, Java trả LIKE như trước nâng cấp; NO_MATCH = không có gì khớp; LEGACY_LIKE = bản ghi không có mode (trước nâng cấp hoặc FE fallback).",
+  },
+  zeroResult: {
+    term: "Zero-result rate",
+    def: "Tỉ lệ lượt tìm trả về 0 sản phẩm. Danh sách từ khoá 0 kết quả là 'mỏ vàng' vận hành: cho biết khách đang muốn thứ cửa hàng chưa bán hoặc đặt tên chưa khớp cách khách gọi.",
+  },
+  rescue: {
+    term: "Semantic rescue",
+    def: "Lượt tìm mà LIKE theo tên KHÔNG khớp gì (trước nâng cấp sẽ trả 0 kết quả) nhưng nhánh semantic vẫn tìm ra sản phẩm phù hợp — đo trực tiếp giá trị cộng thêm của Smart Search.",
+  },
+  clickedPosition: {
+    term: "Vị trí click trung bình",
+    def: "Sản phẩm được khách click nằm ở vị trí thứ mấy trong kết quả (tính cả phân trang, 1 = đầu trang nhất). Càng nhỏ càng tốt — xếp hạng đưa đúng thứ khách cần lên đầu.",
   },
 };
 
@@ -505,6 +531,94 @@ export const buildExplanation = (key, ctx) => {
               (suggested.action !== "hold" ? ` (đề xuất: ${suggested.suggestedPct}%, hiện tại ${pctOn}%)` : "")
             : "Nếu muốn tiếp tục đánh giá bandit, bật lại qua .env rồi restart recommendation-service.",
         },
+      };
+    }
+
+    // ===== Smart Search Phase C — section "Chất lượng tìm kiếm" (nguồn: search_logs, thuần Java) =====
+
+    case "search_volume": {
+      const sr = ctx.searchReport;
+      const total = sr?.totalSearches ?? 0;
+      const zeroRate = sr?.zeroResultRate;
+      return {
+        title: "Lượt tìm kiếm & tỉ lệ 0 kết quả",
+        what: `Tổng số lượt tìm kiếm trong ${days} ngày qua và tỉ lệ lượt tìm không ra sản phẩm nào. Nguồn số liệu là bảng search_logs phía Java — vẫn sống kể cả khi recommendation-service (Python) chết.`,
+        howToRead: "Tỉ lệ 0 kết quả càng THẤP càng tốt. Sau khi bật Smart Search, kỳ vọng tỉ lệ này giảm dần vì các query theo nhu cầu ('đồ sấy'...) trước đây trả 0 giờ được semantic cứu.",
+        terms: [TERMS.zeroResult, TERMS.searchMode],
+        insight: total === 0
+          ? { status: "nodata", summary: `Chưa có lượt tìm kiếm nào trong ${days} ngày qua.`, points: [], suggestion: "Đợi có traffic tìm kiếm thật." }
+          : {
+              status: zeroRate != null && zeroRate > 0.2 ? "warn" : "good",
+              summary: `${num(total)} lượt tìm, ${pct(zeroRate, 1)} trong đó không ra kết quả nào.`,
+              points: total < 50 ? [`Cỡ mẫu còn nhỏ (${num(total)} lượt < 50) — số liệu dao động mạnh.`] : [],
+              suggestion: zeroRate != null && zeroRate > 0.2
+                ? "Tỉ lệ 0 kết quả cao — xem bảng 'Từ khoá 0 kết quả' để biết khách đang tìm gì mà không thấy."
+                : "Theo dõi xu hướng theo tuần; tăng đột biến thường do catalog thiếu hàng khách cần.",
+            },
+      };
+    }
+
+    case "search_rescue": {
+      const sr = ctx.searchReport;
+      const total = sr?.totalSearches ?? 0;
+      const rescued = sr?.semanticRescueCount ?? 0;
+      return {
+        title: "Semantic rescue — giá trị cộng thêm của Smart Search",
+        what: "Số lượt tìm mà khớp tên (LIKE) KHÔNG ra gì — tức trước nâng cấp chắc chắn trả 'Không tìm thấy sản phẩm' — nhưng nhánh semantic vẫn hiểu nhu cầu và trả được kết quả. Đây là con số trả lời trực tiếp câu hỏi 'Smart Search có đáng không?'.",
+        howToRead: "Mỗi lượt rescue là 1 khách lẽ ra đã rời đi tay trắng. Xem kèm CTR của nhóm SEMANTIC_HYBRID ở biểu đồ bên cạnh để biết kết quả cứu được có được khách bấm vào không.",
+        terms: [TERMS.rescue, TERMS.searchMode],
+        insight: total === 0
+          ? { status: "nodata", summary: "Chưa có dữ liệu.", points: [], suggestion: "Đợi có traffic tìm kiếm thật." }
+          : {
+              status: rescued > 0 ? "good" : "neutral",
+              summary: rescued > 0
+                ? `${num(rescued)} lượt tìm được semantic cứu (${pct(sr?.semanticRescueRate, 1)} tổng lượt tìm).`
+                : "Chưa ghi nhận lượt rescue nào — khách hiện chủ yếu tìm theo tên sản phẩm.",
+              points: [],
+              suggestion: "Nếu con số này luôn ~0 sau vài tuần, cân nhắc lại độ ưu tiên các tinh chỉnh semantic tiếp theo.",
+            },
+      };
+    }
+
+    case "search_mode_chart": {
+      const sr = ctx.searchReport;
+      const rows = (sr?.byMode || []).filter((m) => m.searches > 0);
+      const best = rows.filter((m) => m.ctr != null && m.searches >= 20).sort((a, b) => b.ctr - a.ctr)[0];
+      return {
+        title: "CTR tìm kiếm theo đường xử lý (search mode)",
+        what: "Tỉ lệ lượt tìm dẫn tới ít nhất 1 click sản phẩm, tách theo đường xử lý thực tế của từng lượt tìm. So sánh trực tiếp SEMANTIC_HYBRID với LEGACY_LIKE/LEXICAL_FALLBACK là phép đo A/B tự nhiên giữa search mới và cũ.",
+        howToRead: "Cột dài hơn = đường xử lý đó dẫn tới click nhiều hơn. Kèm vị trí click trung bình trong bảng dưới biểu đồ: càng nhỏ nghĩa là thứ khách cần nằm càng gần đầu danh sách.",
+        terms: [TERMS.searchMode, TERMS.ctr, TERMS.clickedPosition],
+        insight: rows.length === 0
+          ? { status: "nodata", summary: "Chưa có dữ liệu search mode (cột mới chỉ được ghi từ khi Phase C chạy).", points: [], suggestion: "Đợi thêm traffic sau khi deploy." }
+          : {
+              status: "neutral",
+              summary: best
+                ? `Đường xử lý CTR cao nhất (đủ mẫu ≥20 lượt): ${SEARCH_MODE_LABELS[best.mode] || best.mode} với ${pct(best.ctr, 1)}.`
+                : "Các nhóm đều chưa đủ mẫu (≥20 lượt) để so sánh CTR đáng tin.",
+              points: rows.map((m) =>
+                `${SEARCH_MODE_LABELS[m.mode] || m.mode}: ${num(m.searches)} lượt, CTR ${pct(m.ctr, 1)}${m.avgClickedPosition != null ? `, vị trí click TB ${m.avgClickedPosition.toFixed(1)}` : ""}`),
+              suggestion: "LEXICAL_FALLBACK chiếm tỉ trọng lớn kéo dài = Python service chết thường xuyên — kiểm tra vận hành.",
+            },
+      };
+    }
+
+    case "search_zero_table": {
+      const sr = ctx.searchReport;
+      const rows = sr?.topZeroResultKeywords || [];
+      return {
+        title: "Từ khoá tìm nhiều nhưng 0 kết quả",
+        what: "Những từ khoá khách gõ nhiều lần nhất mà hệ thống không trả được sản phẩm nào — kể cả sau khi semantic đã cố cứu. Đây là danh sách hành động cho vận hành/nhập hàng, không chỉ là số liệu kỹ thuật.",
+        howToRead: "Mỗi dòng là 1 nhu cầu thật đang bị bỏ lỡ: hoặc cửa hàng chưa bán thứ đó (cân nhắc nhập), hoặc có bán nhưng tên/mô tả sản phẩm không khớp cách khách gọi (cân nhắc đổi tên/bổ sung mô tả).",
+        terms: [TERMS.zeroResult],
+        insight: rows.length === 0
+          ? { status: "good", summary: `Không có từ khoá 0 kết quả nào lặp lại trong ${days} ngày qua.`, points: [], suggestion: "Tín hiệu tốt — semantic recall đang phủ đủ nhu cầu khách gõ." }
+          : {
+              status: "warn",
+              summary: `${rows.length} từ khoá đang bị bỏ lỡ, đứng đầu là "${rows[0].keyword}" (${num(rows[0].count)} lượt).`,
+              points: rows.slice(0, 5).map((r) => `"${r.keyword}" — ${num(r.count)} lượt tìm không ra gì`),
+              suggestion: "Lưu ý đã biết từ lúc calibrate: query về ngành hàng cửa hàng KHÔNG bán vẫn có thể vượt gate semantic và trả kết quả gần nghĩa — bảng này chỉ bắt được trường hợp gate chặn hẳn.",
+            },
       };
     }
 

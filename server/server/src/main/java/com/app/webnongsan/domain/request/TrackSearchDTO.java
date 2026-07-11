@@ -22,4 +22,14 @@ public class TrackSearchDTO {
 
     // id của SearchLog đã tạo trước đó — dùng khi cập nhật clickedProductId
     private Long searchLogId;
+
+    // ===== Smart Search Phase C — đều optional, client cũ không gửi vẫn hợp lệ =====
+    @Size(max = 30)
+    private String searchMode;
+
+    // vị trí 1-based của sản phẩm được click (tính cả phân trang) — gửi cùng lần cập nhật click
+    private Integer clickedPosition;
+
+    // true = kết quả thuần semantic (LIKE rỗng) — FE lấy từ response smart-search
+    private Boolean lexicalEmpty;
 }

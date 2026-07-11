@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { Card, Row, Col, Select, Progress, Alert, Modal, Tag, Button, Slider } from "antd";
 import { toast } from "react-toastify";
-import { apiGetRecommendationMetrics, apiUpdateAbBanditPct } from "@/apis/recommendation";
+import { apiGetRecommendationMetrics, apiGetSearchMetrics, apiUpdateAbBanditPct } from "@/apis/recommendation";
 import { BarChart, LineChart } from "@/components/admin";
 import { CATEGORICAL_COLORS } from "@/utils/chartColors";
 import icons from "@/utils/icons";
-import { buildExplanation, suggestAbPct } from "./recommendationMetricsExplain";
+import { buildExplanation, suggestAbPct, SEARCH_MODE_LABELS } from "./recommendationMetricsExplain";
 
 // Dashboard đo lường hệ thống gợi ý AI (Phase 3): CTR/CVR theo placement×nguồn thuật toán,
 // so sánh cohort A/B bandit-on/off, entropy đa dạng hoá theo tuần, catalog coverage,
@@ -47,6 +47,9 @@ const RecommendationMetrics = () => {
   const { categories } = useSelector((state) => state.app);
   const [days, setDays] = useState(30);
   const [report, setReport] = useState(null);
+  // Phase C: metrics "Chất lượng tìm kiếm" — nguồn Java thuần (search_logs), fetch RIÊNG:
+  // Python chết thì report chính lỗi nhưng section tìm kiếm vẫn phải sống
+  const [searchReport, setSearchReport] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [explainKey, setExplainKey] = useState(null);
@@ -68,8 +71,18 @@ const RecommendationMetrics = () => {
     }
   };
 
+  const fetchSearchReport = async () => {
+    try {
+      const res = await apiGetSearchMetrics(days);
+      if (res.statusCode === 200) setSearchReport(res.data);
+    } catch (e) {
+      setSearchReport(null); // section tự hiện "Chưa có dữ liệu", không chặn phần còn lại
+    }
+  };
+
   useEffect(() => {
     fetchReport();
+    fetchSearchReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
@@ -119,9 +132,14 @@ const RecommendationMetrics = () => {
   const diversity = report?.intra_list_diversity || [];
   const repeatRows = report?.repeat_no_click_by_category || [];
 
+  const searchByMode = (searchReport?.byMode || []).filter((m) => m.searches > 0);
+  const searchModeLabels = searchByMode.map((m) => SEARCH_MODE_LABELS[m.mode]?.split(" (")[0] || m.mode);
+  const topZeroKeywords = searchReport?.topZeroResultKeywords || [];
+
   const explain = explainKey
     ? buildExplanation(explainKey, {
         report, on, off, ctrDelta, coverage, entropy, diversity, repeatRows, ctrRows, categoryName, days,
+        searchReport,
       })
     : null;
   const insightTag = explain ? INSIGHT_TAGS[explain.insight?.status] || INSIGHT_TAGS.neutral : null;
@@ -202,6 +220,37 @@ const RecommendationMetrics = () => {
             label="Tỉ lệ lặp không click (%)"
             horizontal
           />
+        ) : null;
+      case "search_volume":
+        return statPreview(
+          (searchReport?.totalSearches ?? 0).toLocaleString("vi-VN"),
+          `lượt tìm kiếm · ${pct(searchReport?.zeroResultRate)} trong đó 0 kết quả`
+        );
+      case "search_rescue":
+        return statPreview(
+          (searchReport?.semanticRescueCount ?? 0).toLocaleString("vi-VN"),
+          `lượt được semantic cứu (${pct(searchReport?.semanticRescueRate)} tổng lượt tìm)`,
+          "text-green-600"
+        );
+      case "search_mode_chart":
+        return searchByMode.length ? (
+          <BarChart
+            labels={searchModeLabels}
+            data={searchByMode.map((m) => +((m.ctr ?? 0) * 100).toFixed(1))}
+            label="CTR tìm kiếm (%)"
+            horizontal
+          />
+        ) : null;
+      case "search_zero_table":
+        return topZeroKeywords.length ? (
+          <div className="py-2 px-6 max-h-64 overflow-y-auto">
+            {topZeroKeywords.map((r) => (
+              <div key={r.keyword} className="flex justify-between text-sm py-1 border-b border-gray-50">
+                <span>"{r.keyword}"</span>
+                <span className="text-gray-500">{r.count} lượt</span>
+              </div>
+            ))}
+          </div>
         ) : null;
       case "ab_config":
         return statPreview(
@@ -409,6 +458,81 @@ const RecommendationMetrics = () => {
                   </div>
                 </div>
               )}
+            </Card>
+          </Col>
+        </Row>
+
+        {/* ===== Smart Search Phase C — Chất lượng tìm kiếm (nguồn: search_logs, thuần Java) ===== */}
+        <div className="mt-8 mb-4">
+          <h2 className="text-lg font-bold">Chất lượng tìm kiếm (Smart Search)</h2>
+          <p className="text-xs text-gray-400">
+            Nguồn số liệu: search_logs phía Java — vẫn hoạt động kể cả khi recommendation-service tắt.
+            Cột search_mode chỉ được ghi từ khi Phase C chạy; bản ghi cũ gộp vào nhóm "Đường LIKE cũ".
+          </p>
+        </div>
+        <Row gutter={[16, 16]} className="mb-6">
+          <Col xs={24} sm={12} lg={6}>
+            <Card loading={loading} {...clickable("search_volume")}>
+              <h2 className="text-sm font-medium flex items-center justify-between gap-2">Lượt tìm kiếm ({days} ngày) {infoIcon}</h2>
+              <p className="text-2xl font-bold">{(searchReport?.totalSearches ?? 0).toLocaleString("vi-VN")}</p>
+              <p className="text-xs text-gray-500">{pct(searchReport?.zeroResultRate)} trong đó 0 kết quả</p>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card loading={loading} {...clickable("search_rescue")}>
+              <h2 className="text-sm font-medium flex items-center justify-between gap-2">Semantic rescue {infoIcon}</h2>
+              <p className="text-2xl font-bold text-green-600">{(searchReport?.semanticRescueCount ?? 0).toLocaleString("vi-VN")}</p>
+              <p className="text-xs text-gray-500">lượt LIKE rỗng nhưng semantic vẫn cứu được kết quả</p>
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card title="CTR tìm kiếm theo đường xử lý" loading={loading} extra={infoHint} {...clickable("search_mode_chart")}>
+              {searchByMode.length ? (
+                <BarChart
+                  labels={searchModeLabels}
+                  data={searchByMode.map((m) => +((m.ctr ?? 0) * 100).toFixed(1))}
+                  label="CTR tìm kiếm (%)"
+                  horizontal
+                />
+              ) : <p className="text-gray-400">Chưa có dữ liệu (cột search_mode ghi từ khi Phase C chạy)</p>}
+            </Card>
+          </Col>
+        </Row>
+        <Row gutter={[16, 16]} className="mb-6">
+          <Col xs={24} lg={12}>
+            <Card title="Từ khoá tìm nhiều nhưng 0 kết quả" loading={loading} extra={infoHint} {...clickable("search_zero_table")}>
+              {topZeroKeywords.length ? (
+                <div className="max-h-56 overflow-y-auto">
+                  {topZeroKeywords.map((r) => (
+                    <div key={r.keyword} className="flex justify-between text-sm py-1 border-b border-gray-50">
+                      <span>"{r.keyword}"</span>
+                      <span className="text-gray-500">{r.count} lượt</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-gray-400">Không có từ khoá 0 kết quả lặp lại — tín hiệu tốt</p>}
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card title="Chi tiết theo đường xử lý" loading={loading}>
+              {searchByMode.length ? (
+                <div className="max-h-56 overflow-y-auto">
+                  <div className="flex justify-between text-xs text-gray-400 py-1 border-b">
+                    <span className="w-1/2">Đường xử lý</span>
+                    <span className="w-1/6 text-right">Lượt</span>
+                    <span className="w-1/6 text-right">CTR</span>
+                    <span className="w-1/6 text-right">Vị trí click TB</span>
+                  </div>
+                  {searchByMode.map((m) => (
+                    <div key={m.mode} className="flex justify-between text-sm py-1 border-b border-gray-50">
+                      <span className="w-1/2">{SEARCH_MODE_LABELS[m.mode] || m.mode}</span>
+                      <span className="w-1/6 text-right">{m.searches.toLocaleString("vi-VN")}</span>
+                      <span className="w-1/6 text-right">{pct(m.ctr)}</span>
+                      <span className="w-1/6 text-right">{m.avgClickedPosition != null ? m.avgClickedPosition.toFixed(1) : "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-gray-400">Chưa có dữ liệu</p>}
             </Card>
           </Col>
         </Row>

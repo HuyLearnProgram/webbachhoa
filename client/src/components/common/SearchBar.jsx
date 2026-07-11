@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { apiSearchProducts } from "@/apis";
+import { apiGetSearchSuggestions } from "@/apis/recommendation";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import product_default from '@/assets/product_default.png';
 import { ProductMiniItem } from "@/components";
-import { convertToSlug, buildProductNameFilter } from "@/utils/helper";
+import { convertToSlug, buildProductNameFilter, stripDiacritics } from "@/utils/helper";
 import icons from "@/utils/icons";
 
 const { FaSearch } = icons;
@@ -13,6 +14,8 @@ const SearchBar = () => {
   // Khởi tạo từ URL hiện tại (?search=...) để ô tìm kiếm không bị mất giá trị khi F5 lại trang kết quả
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || "");
   const [products, setProducts] = useState(null);
+  // Phase C: "Mọi người cũng tìm" — gợi ý từ khoá từ lịch sử tìm kiếm cộng đồng (SearchLog)
+  const [suggestions, setSuggestions] = useState([]);
   const [error, setError] = useState(null);
   const [showResults, setShowResults] = useState(false);
   const navigate = useNavigate();
@@ -54,12 +57,27 @@ const SearchBar = () => {
         size: 3,
         filter: `${buildProductNameFilter(searchTerm)} and active=true`,
       };
-      const response = await apiSearchProducts(params);
+      // Gợi ý từ khoá chạy song song với autocomplete sản phẩm, dùng chung debounce;
+      // prefix strip dấu client-side (match keyword_normalized — né bug dấu query param)
+      const [response, keywords] = await Promise.all([
+        apiSearchProducts(params),
+        apiGetSearchSuggestions(stripDiacritics(searchTerm.trim()), 5),
+      ]);
       setProducts(response.data.result);
+      setSuggestions(keywords);
       setShowResults(true);
     } catch (error) {
       setError("Error fetching products");
     }
+  };
+
+  const handleSuggestionClick = (keyword) => {
+    setSearchTerm(keyword);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    navigate(`/products?search=${keyword}`);
+    setShowResults(false);
   };
 
   const handleSubmitSearch = () => {
@@ -120,6 +138,22 @@ const SearchBar = () => {
 
       {showResults && (
         <div ref={resultsRef} className="absolute top-full w-[500px] bg-white shadow-md rounded-md mt-2 z-10">
+          {suggestions.length > 0 && (
+            <div className="p-2 border-b">
+              <div className="text-[11px] uppercase text-gray-400 mb-1">Mọi người cũng tìm</div>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestions.map((kw) => (
+                  <button
+                    key={kw}
+                    onClick={() => handleSuggestionClick(kw)}
+                    className="text-xs px-2 py-0.5 bg-gray-100 rounded-full hover:bg-main hover:text-white transition"
+                  >
+                    {kw}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {error ? (
             <div className="text-red-500 p-2 text-sm">{error}</div>
           ) : products && products.length > 0 ? (

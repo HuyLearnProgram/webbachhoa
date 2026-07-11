@@ -10,15 +10,20 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.PageRequest;
+
 import java.text.Normalizer;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 // Ghi nhận hành vi người dùng (xem/tìm kiếm/giỏ hàng/impression gợi ý) làm dữ liệu nền
@@ -92,6 +97,7 @@ public class EventTrackingService {
             this.searchLogRepository.findById(dto.getSearchLogId()).ifPresent(log -> {
                 if (log.getClickedProductId() == null && dto.getClickedProductId() != null) {
                     log.setClickedProductId(dto.getClickedProductId());
+                    log.setClickedPosition(dto.getClickedPosition());
                     this.searchLogRepository.save(log);
                 }
             });
@@ -104,6 +110,8 @@ public class EventTrackingService {
         log.setKeywordNormalized(normalizeKeyword(dto.getKeyword()));
         log.setResultCount(dto.getResultCount());
         log.setClickedProductId(dto.getClickedProductId());
+        log.setSearchMode(dto.getSearchMode());
+        log.setLexicalEmpty(dto.getLexicalEmpty());
         return this.searchLogRepository.save(log).getId();
     }
 
@@ -201,6 +209,79 @@ public class EventTrackingService {
         } catch (Exception e) {
             log.warn("Conversion attribution lỗi (bỏ qua, không ảnh hưởng đơn hàng {}): {}", orderId, e.getMessage());
         }
+    }
+
+    // ===== Smart Search Phase C — metrics "Chất lượng tìm kiếm" (thuần Java từ search_logs,
+    // sống độc lập với Python: recommendation-service chết thì số liệu này vẫn phục vụ) =====
+    public Map<String, Object> searchMetrics(int days) {
+        Instant since = Instant.now().minus(days, ChronoUnit.DAYS);
+
+        long total = this.searchLogRepository.countBySearchedAtGreaterThanEqual(since);
+        long zero = this.searchLogRepository.countBySearchedAtGreaterThanEqualAndResultCount(since, 0);
+        long rescued = this.searchLogRepository.countRescuedSince(since);
+
+        List<Map<String, Object>> byMode = new ArrayList<>();
+        for (Object[] row : this.searchLogRepository.aggregateByMode(since)) {
+            long searches = ((Number) row[1]).longValue();
+            long clicks = row[2] != null ? ((Number) row[2]).longValue() : 0;
+            Map<String, Object> mode = new LinkedHashMap<>();
+            // null = search đi đường LIKE cũ (client cũ hoặc FE fallback khi endpoint mới chết)
+            mode.put("mode", row[0] != null ? row[0] : "LEGACY_LIKE");
+            mode.put("searches", searches);
+            mode.put("clicks", clicks);
+            mode.put("ctr", searches > 0 ? (double) clicks / searches : null);
+            mode.put("avgClickedPosition", row[3] != null ? ((Number) row[3]).doubleValue() : null);
+            byMode.add(mode);
+        }
+        byMode.sort((a, b) -> Long.compare((long) b.get("searches"), (long) a.get("searches")));
+
+        List<Map<String, Object>> topZero = new ArrayList<>();
+        for (Object[] row : this.searchLogRepository.topZeroResultKeywords(since, PageRequest.of(0, 10))) {
+            Map<String, Object> kw = new LinkedHashMap<>();
+            kw.put("keyword", row[1] != null ? row[1] : row[0]); // ưu tiên bản có dấu
+            kw.put("count", ((Number) row[2]).longValue());
+            topZero.add(kw);
+        }
+
+        Map<String, Object> report = new LinkedHashMap<>();
+        report.put("days", days);
+        report.put("totalSearches", total);
+        report.put("zeroResultRate", total > 0 ? (double) zero / total : null);
+        report.put("semanticRescueCount", rescued);
+        report.put("semanticRescueRate", total > 0 ? (double) rescued / total : null);
+        report.put("byMode", byMode);
+        report.put("topZeroResultKeywords", topZero);
+        return report;
+    }
+
+    // ===== Autocomplete "Mọi người cũng tìm" — cache in-memory 5 phút theo prefix chuẩn hoá
+    // (SearchLog đổi chậm, đập DB mỗi keystroke của mọi khách là lãng phí) =====
+    private static final long SUGGESTION_CACHE_TTL_MS = 5 * 60 * 1000;
+    private static final int SUGGESTION_CACHE_MAX_ENTRIES = 500;
+    private final Map<String, Object[]> suggestionCache = new ConcurrentHashMap<>(); // prefix -> [expireAtMs, List<String>]
+
+    @SuppressWarnings("unchecked")
+    public List<String> searchSuggestions(String prefix, int limit) {
+        String normalized = normalizeKeyword(prefix);
+        if (normalized == null || normalized.length() < 2) {
+            return List.of();
+        }
+        int safeLimit = Math.max(1, Math.min(limit, 10));
+        String cacheKey = normalized + "|" + safeLimit;
+        long now = System.currentTimeMillis();
+        Object[] cached = this.suggestionCache.get(cacheKey);
+        if (cached != null && (long) cached[0] > now) {
+            return (List<String>) cached[1];
+        }
+        // Escape ký tự wildcard của LIKE — prefix do người dùng gõ tự do
+        String escaped = normalized.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        List<String> suggestions = this.searchLogRepository
+                .suggestKeywords(escaped, PageRequest.of(0, safeLimit));
+        if (this.suggestionCache.size() >= SUGGESTION_CACHE_MAX_ENTRIES) {
+            this.suggestionCache.clear(); // đơn giản hoá: xoá cả cache thay vì LRU — TTL ngắn, rebuild rẻ
+        }
+        this.suggestionCache.put(cacheKey, new Object[]{now + SUGGESTION_CACHE_TTL_MS, suggestions});
+        return suggestions;
     }
 
     // Nối lịch sử hành vi ẩn danh (theo sessionId) vào user thật ngay sau khi login

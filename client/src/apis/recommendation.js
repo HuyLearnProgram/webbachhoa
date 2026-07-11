@@ -20,13 +20,15 @@ export const apiTrackProductView = (productId, source = 'DIRECT', referrerProduc
         data: { sessionId: getOrCreateSessionId(), productId, source, referrerProductId },
     }).catch(() => {})
 
-// Tạo search log, trả về id (dùng cập nhật clickedProductId sau); lỗi thì trả null
-export const apiTrackSearch = async (keyword, resultCount) => {
+// Tạo search log, trả về id (dùng cập nhật clickedProductId sau); lỗi thì trả null.
+// Phase C: gửi kèm searchMode + lexicalEmpty (từ response smart-search) — nullable,
+// đường LIKE cũ/FE fallback không có thì server chịu null.
+export const apiTrackSearch = async (keyword, resultCount, searchMode = null, lexicalEmpty = null) => {
     try {
         const res = await axiosInstance({
             url: 'events/search',
             method: 'post',
-            data: { sessionId: getOrCreateSessionId(), keyword, resultCount },
+            data: { sessionId: getOrCreateSessionId(), keyword, resultCount, searchMode, lexicalEmpty },
         })
         return res?.data ?? null
     } catch {
@@ -34,12 +36,37 @@ export const apiTrackSearch = async (keyword, resultCount) => {
     }
 }
 
-export const apiTrackSearchClick = (searchLogId, clickedProductId) =>
+// Phase C: clickedPosition = vị trí 1-based của sản phẩm được click (tính cả phân trang)
+// — đo chất lượng xếp hạng theo mode trong dashboard
+export const apiTrackSearchClick = (searchLogId, clickedProductId, clickedPosition = null) =>
     axiosInstance({
         url: 'events/search',
         method: 'post',
-        data: { sessionId: getOrCreateSessionId(), keyword: '-', searchLogId, clickedProductId },
+        data: { sessionId: getOrCreateSessionId(), keyword: '-', searchLogId, clickedProductId, clickedPosition },
     }).catch(() => {})
+
+// Phase C: autocomplete "Mọi người cũng tìm" từ SearchLog — prefix PHẢI strip dấu trước khi
+// gửi (match trên keyword_normalized, né bug dấu query param). Lỗi/rỗng → trả [] im lặng.
+export const apiGetSearchSuggestions = async (prefixNoDiacritics, limit = 8) => {
+    try {
+        const res = await axiosInstance({
+            url: 'products/search-suggestions',
+            method: 'get',
+            params: { prefix: prefixNoDiacritics, limit },
+        })
+        return Array.isArray(res?.data) ? res.data : []
+    } catch {
+        return []
+    }
+}
+
+// Phase C: metrics "Chất lượng tìm kiếm" (thuần Java từ search_logs) cho dashboard admin
+export const apiGetSearchMetrics = async (days = 30) =>
+    axiosInstance({
+        url: 'admin/search-metrics',
+        method: 'get',
+        params: { days },
+    })
 
 export const apiTrackImpressions = (requestId, placement, algorithmSource, items) =>
     axiosInstance({

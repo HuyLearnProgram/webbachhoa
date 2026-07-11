@@ -229,8 +229,9 @@ def build(d):
     title(d, "Tìm kiếm thông minh (Smart Search)")
     p(d, "Thiết kế hệ tìm kiếm hybrid: hiểu nhu cầu tự do bằng embedding ngữ nghĩa, "
          "kết hợp khớp tên truyền thống và xếp hạng cá nhân hoá từ hệ gợi ý AI sẵn có. "
-         "Tài liệu chốt ngày 11/07/2026. Trạng thái triển khai: Phase A + Phase B ĐÃ XONG + verify "
-         "(cùng ngày — chi tiết ở đầu mỗi mục phase), Phase C chưa làm. "
+         "Tài liệu chốt ngày 11/07/2026. Trạng thái triển khai: CẢ 3 PHASE A/B/C ĐÃ XONG + verify "
+         "cùng ngày (chi tiết ở đầu mỗi mục phase) — hạng mục Smart Search hoàn tất theo đúng "
+         "phạm vi thiết kế, việc còn lại là vận hành/quan sát số liệu thật. "
          "Tách riêng khỏi AI_Recommendation_Roadmap.docx (roadmap gợi ý đã hoàn tất Phase 0-3).")
 
     # ============================================================ PHẦN I
@@ -489,7 +490,26 @@ w_search_lexical=1.0 > w_search_semantic=0.8 > w_search_personal=0.5 > w_search_
     bullet(d, "Personal score decay theo giờ → thứ tự \"nhảy nhẹ\" giữa 2 lần load: chấp nhận (drift chậm).")
 
     # ---------------- Phase C
-    h2(d, "Phase C — Đo lường, gợi ý từ khoá, tinh chỉnh")
+    h2(d, "Phase C — Đo lường, gợi ý từ khoá, tinh chỉnh — ĐÃ XONG 11/07/2026")
+    p(d, "TRẠNG THÁI: đã code xong + verify đầy đủ ngày 11/07/2026 (cùng ngày với A/B). Đã build: "
+         "(1) 3 cột mới search_logs — search_mode, clicked_position, lexical_empty (tự tạo qua "
+         "ddl-auto, đều nullable nên client cũ không vỡ); (2) GET admin/search-metrics thuần Java "
+         "— CTR/vị trí click theo mode, zero-result rate + top keyword 0 kết quả, semantic-rescue "
+         "rate; (3) section \"Chất lượng tìm kiếm\" trong dashboard Gợi ý AI (2 stat + biểu đồ CTR "
+         "theo mode + bảng từ khoá 0-kq + bảng chi tiết, kèm 4 popup giải thích); (4) autocomplete "
+         "\"Mọi người cũng tìm\" trong SearchBar (chip từ khoá bản CÓ DẤU, cache Java 5 phút); "
+         "(5) LÀM LUÔN tinh chỉnh query không dấu: /search/rank tự tra bản có dấu phổ biến nhất "
+         "của cùng keyword_normalized trong search_logs cho nhánh semantic — \"sua tuoi\" từ 12 "
+         "kết quả thuần lexical lên 100 kết quả semantic như bản có dấu. Verify: HTTP 5 kịch bản "
+         "(tracking field mới vào DB, suggestions có dấu + loại keyword 0-kq, metrics admin, "
+         "401 không token, restore dấu) + Selenium 4 kịch bản (chip gợi ý điều hướng đúng, "
+         "dashboard đủ section + popup).")
+    p(d, "BÀI HỌC MỚI (dính thật khi verify): so sánh/GROUP BY chuỗi MySQL là ACCENT-INSENSITIVE "
+         "('sữa tươi' = 'sua tuoi' theo collation) — điều kiện SQL \"keyword <> keyword_normalized\" "
+         "để tìm bản có dấu luôn FALSE và query trả rỗng âm thầm. Phải GROUP BY BINARY để tách "
+         "biến thể rồi chọn bản có dấu ở phía ứng dụng. Cùng họ với bug dấu query param đã biết — "
+         "mọi logic phân biệt có-dấu/không-dấu đều KHÔNG được dựa vào so sánh chuỗi mặc định của MySQL.")
+    p(d, "Nội dung thiết kế gốc (đã triển khai đúng phạm vi, giữ lại để đối chiếu):")
     p(d, "Tiên quyết: Phase B chạy ~1–2 tuần lấy log (trên seed thì chủ động tạo traffic qua Selenium script).")
     h3(d, "C.1. Migration + đo lường (thuần Java — số liệu phải sống kể cả khi Python chết)")
     code_box(d, """ALTER TABLE search_logs ADD COLUMN search_mode VARCHAR(30) NULL;

@@ -42,6 +42,19 @@ public class SearchLog {
     // sản phẩm được click từ kết quả tìm kiếm; null = search không dẫn tới click nào (negative signal)
     private Long clickedProductId;
 
+    // ===== Smart Search Phase C — cả 3 nullable: client cũ không gửi cũng không vỡ =====
+    // SEMANTIC_HYBRID | TFIDF_HYBRID | LEXICAL_ONLY | LEXICAL_FALLBACK | NO_MATCH;
+    // null = search qua đường LIKE cũ (trước Phase B, hoặc FE fallback khi endpoint mới chết)
+    @Column(length = 30)
+    private String searchMode;
+
+    // vị trí (1-based, tính cả phân trang) của sản phẩm được click — đo chất lượng xếp hạng
+    private Integer clickedPosition;
+
+    // true = LIKE không khớp gì, kết quả hoàn toàn nhờ semantic ("rescue") — tử số của
+    // semantic-rescue rate trong dashboard
+    private Boolean lexicalEmpty;
+
     private Instant searchedAt;
 
     @PrePersist

@@ -23,6 +23,16 @@ def normalize(text: str | None) -> str:
     return _SPACE_RE.sub(" ", stripped).strip().lower()
 
 
+def has_diacritics(text: str | None) -> bool:
+    """True nếu text chứa dấu tiếng Việt (khác chính nó sau khi bỏ dấu).
+    Dùng để quyết định có cần tra bản có dấu từ search_logs cho nhánh semantic không
+    (E5 hiểu tiếng Việt có dấu tốt hơn hẳn — hạn chế ghi nhận ở Phase B)."""
+    if not text:
+        return False
+    collapsed = _SPACE_RE.sub(" ", text).strip().lower()
+    return normalize(text) != collapsed
+
+
 def lexical_score(query_norm: str, name_norm: str) -> float:
     """Điểm khớp tên trong [1.0, 1.2] cho item ĐÃ thuộc lexical_ids.
 

@@ -118,11 +118,12 @@ public class SmartSearchService {
         String requestId = response.getRequestId() != null && !response.getRequestId().isBlank()
                 ? response.getRequestId() : UUID.randomUUID().toString();
 
+        Boolean lexicalEmpty = lexicalIds.isEmpty();
         if (pageable.getSort().isSorted()) {
             // Sort tường minh (giá/rating/mới nhất...): recall thông minh + thứ tự DB-side trong tập matched
-            return sortedWithinRanked(rankedIds, pageable, response.getAlgorithmSource(), requestId);
+            return sortedWithinRanked(rankedIds, pageable, response.getAlgorithmSource(), requestId, lexicalEmpty);
         }
-        return paginateRanked(rankedIds, pageable, response.getAlgorithmSource(), requestId);
+        return paginateRanked(rankedIds, pageable, response.getAlgorithmSource(), requestId, lexicalEmpty);
     }
 
     // ------------------------------------------------------------ bước 1+2: id từ DB theo filter
@@ -175,7 +176,7 @@ public class SmartSearchService {
     // Relevance (không sort tường minh): phân trang trên ranked list, hydrate CHỈ slice trang
     // hiện tại, giữ nguyên thứ tự Python trả (pattern hydrate của RecommendationService)
     private SmartSearchResultDTO paginateRanked(List<Long> rankedIds, Pageable pageable,
-                                                String mode, String requestId) {
+                                                String mode, String requestId, Boolean lexicalEmpty) {
         int total = rankedIds.size();
         int from = (int) Math.min(pageable.getOffset(), total);
         int to = Math.min(from + pageable.getPageSize(), total);
@@ -191,13 +192,13 @@ public class SmartSearchService {
             content = pageIds.stream().map(byId::get).filter(Objects::nonNull).toList();
         }
         PaginationDTO page = this.paginationHelper.buildPaginationFromList(content, total, pageable);
-        return new SmartSearchResultDTO(page.getMeta(), page.getResult(), mode, requestId);
+        return new SmartSearchResultDTO(page.getMeta(), page.getResult(), mode, requestId, lexicalEmpty);
     }
 
     // Sort tường minh trong tập matched: WHERE id IN (rankedIds) ORDER BY <sort> — criteria
     // construct SearchProductDTO 13-arg y hệt findActiveDtoByIdIn (đừng đổi thứ tự cột)
     private SmartSearchResultDTO sortedWithinRanked(List<Long> rankedIds, Pageable pageable,
-                                                    String mode, String requestId) {
+                                                    String mode, String requestId, Boolean lexicalEmpty) {
         CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
         CriteriaQuery<SearchProductDTO> query = cb.createQuery(SearchProductDTO.class);
         Root<Product> root = query.from(Product.class);
@@ -222,7 +223,7 @@ public class SmartSearchService {
                 .setMaxResults(pageable.getPageSize())
                 .getResultList();
         PaginationDTO page = this.paginationHelper.buildPaginationFromList(content, rankedIds.size(), pageable);
-        return new SmartSearchResultDTO(page.getMeta(), page.getResult(), mode, requestId);
+        return new SmartSearchResultDTO(page.getMeta(), page.getResult(), mode, requestId, lexicalEmpty);
     }
 
     // ------------------------------------------------------------ bước 5: fallback & no-match
@@ -271,14 +272,15 @@ public class SmartSearchService {
         long total = this.entityManager.createQuery(countQuery).getSingleResult();
 
         PaginationDTO page = this.paginationHelper.buildPaginationFromList(content, total, pageable);
+        // lexicalEmpty=null: nhánh này chính LÀ lexical, không có thông tin rescue từ Python
         return new SmartSearchResultDTO(page.getMeta(), page.getResult(),
-                MODE_LEXICAL_FALLBACK, UUID.randomUUID().toString());
+                MODE_LEXICAL_FALLBACK, UUID.randomUUID().toString(), null);
     }
 
     private SmartSearchResultDTO noMatch(Pageable pageable) {
         PaginationDTO page = this.paginationHelper.buildPaginationFromList(List.of(), 0, pageable);
         return new SmartSearchResultDTO(page.getMeta(), page.getResult(),
-                MODE_NO_MATCH, UUID.randomUUID().toString());
+                MODE_NO_MATCH, UUID.randomUUID().toString(), true);
     }
 
     private User getCurrentUserOrNull() {

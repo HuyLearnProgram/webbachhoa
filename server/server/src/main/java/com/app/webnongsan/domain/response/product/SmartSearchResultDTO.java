@@ -21,4 +21,9 @@ public class SmartSearchResultDTO {
     // | LEXICAL_FALLBACK (Java tự chạy LIKE vì Python lỗi/tắt cờ) | NO_MATCH
     private String searchMode;
     private String requestId;
+
+    // Phase C: true = LIKE không khớp gì, kết quả thuần semantic ("rescue") — FE gửi kèm
+    // apiTrackSearch để dashboard tính semantic-rescue rate. null ở nhánh LEXICAL_FALLBACK
+    // (không có thông tin từ Python).
+    private Boolean lexicalEmpty;
 }

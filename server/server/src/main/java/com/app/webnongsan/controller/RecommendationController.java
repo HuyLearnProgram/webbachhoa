@@ -1,6 +1,7 @@
 package com.app.webnongsan.controller;
 
 import com.app.webnongsan.domain.response.product.RecommendationSlateDTO;
+import com.app.webnongsan.service.EventTrackingService;
 import com.app.webnongsan.service.RecommendationService;
 import com.app.webnongsan.util.annotation.ApiMessage;
 import lombok.AllArgsConstructor;
@@ -24,6 +25,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class RecommendationController {
     private final RecommendationService recommendationService;
+    private final EventTrackingService eventTrackingService;
 
     @GetMapping("recommendations/home")
     @ApiMessage("Get home recommendations")
@@ -53,6 +55,17 @@ public class RecommendationController {
                     .body(Map.of("error", "recommendation-service không phản hồi"));
         }
         return ResponseEntity.ok(report);
+    }
+
+    // Smart Search Phase C: metrics "Chất lượng tìm kiếm" cho dashboard "Gợi ý AI" — tính THUẦN
+    // Java từ search_logs (Python chết số liệu vẫn sống, khác recommendation-metrics ở trên).
+    // Path GET dưới admin/** → rule hasRole(ADMIN) sẵn có bảo vệ, không thêm rule mới.
+    @GetMapping("admin/search-metrics")
+    @ApiMessage("Get search quality metrics")
+    public ResponseEntity<Map<String, Object>> getSearchMetrics(
+            @RequestParam(value = "days", defaultValue = "30") int days) {
+        int safeDays = Math.max(1, Math.min(days, 180));
+        return ResponseEntity.ok(this.eventTrackingService.searchMetrics(safeDays));
     }
 
     // Phase 3: cho phép admin tăng/giảm tỉ lệ cohort bandit-on ngay từ dashboard, không cần sửa
