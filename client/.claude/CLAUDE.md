@@ -62,6 +62,26 @@ Thay thế hoàn toàn cho nợ cũ "`apiGetRecommendedProducts` gãy" (mục đ
 
 Ngưỡng dữ liệu cụ thể để chuyển giai đoạn (số đơn hàng/user/tuần tối thiểu) xem trong file Word ở mục "Roadmap theo mốc dữ liệu".
 
+## HẠNG MỤC MỚI (2026-07-11) — Tìm kiếm thông minh (Smart Search): ĐÃ THIẾT KẾ, CHƯA CODE
+
+Yêu cầu từ user: (1) tìm theo NHU CẦU ("đồ ăn ngon", "thực phẩm sạch", "đồ sấy") thay vì chỉ LIKE theo tên — hiện các query này trả 0 kết quả; (2) kết quả mặc định xếp theo "liên quan" kiểu Shopee — sản phẩm hợp sở thích cá nhân (tái dùng hệ gợi ý AI sẵn có) lên đầu, trong phạm vi vẫn khớp filter. User đã chốt hướng **semantic/embedding thật** (không rule-based keyword→category).
+
+**Tài liệu thiết kế đầy đủ**: `../recommendation-service/Smart_Search_Roadmap.docx` (file Word MỚI, tách riêng khỏi roadmap gợi ý đã đóng; sinh bằng `recommendation-service/scripts/docx_assets/build_smart_search_roadmap.py` — chạy `venv\Scripts\python scripts/docx_assets/build_smart_search_roadmap.py`, tái dùng bộ helper style của `rebuild_roadmap.py`, 2 sơ đồ matplotlib `img_search_pipeline.png`/`img_search_blend.png`).
+
+Tóm tắt quyết định đã chốt (chi tiết trong docx):
+- **Model**: `intfloat/multilingual-e5-small` (384d, ~120MB, có sẵn ONNX trên HF) qua `onnxruntime`+`tokenizers`; bậc thang Plan A ONNX → Plan B torch CPU → Plan C TF-IDF query-vector (backend degrade luôn tồn tại). Config `search_embedding_backend=auto` theo pattern `cf_backend`. E5 bắt buộc prefix `query: `/`passage: ` + mean-pool + l2-norm.
+- **Hybrid recall, Java làm chủ**: Java lọc filter cứng ở DB → `allowed_ids` + `lexical_ids` (LIKE), POST sang Python `/search/rank`; Python CHỈ xếp hạng trong `allowed_ids` (filter tôn trọng bằng cấu trúc); candidates = lexical ∪ semantic vượt ngưỡng. `q` có dấu CHỈ đi qua JSON body (né bug dấu query param).
+- **Blend**: `w_lex=1.0 > w_sem=0.8 > w_personal=0.5 > w_pop=0.15`; personal tái dùng NGUYÊN TRẠNG `_profile_scores()`, KHÔNG exclude seen. Gate chống query rác: `top1_gate=0.82` + `min_sim=0.78` — phải calibrate bằng script trước khi tin.
+- **Fallback 3 tầng**: Python degrade backend → Java `LEXICAL_FALLBACK` (bean 2.5s, không nới) → FE catch gọi lại endpoint cũ. Kill-switch `recommendation.search.enabled`.
+- **Phân kỳ**: Phase A (Python thuần, bắt đầu bằng **spike `scripts/check_embedding_env.py` cài thử thư viện trên Windows PASS rồi mới code** — bài học `implicit`) → Phase B (Java `SmartSearchService` + `POST products/smart-search` + FE sort "Liên quan" mặc định; rule security khai đúng POST) → Phase C (metrics search vào dashboard "Gợi ý AI" + autocomplete "Mọi người cũng tìm" từ SearchLog + migration 2 cột `search_mode`/`clicked_position`).
+
+**Tiến độ**:
+- [x] **Phase A (2026-07-11)** — Nền tảng semantic phía Python, **đã code xong + verify**: spike `scripts/check_embedding_env.py` PASS ngay lần đầu (onnxruntime 1.27 + tokenizers + hf-hub đều wheel prebuilt, model ONNX 470MB tải về `data/models/multilingual-e5-small/` — service KHÔNG tự tải lúc start, máy mới phải chạy spike script 1 lần); package mới `app/search/{encoder,lexical,embeddings,rank}.py` + endpoint `POST /search/rank` + nối vào `trainer/store/config/schemas/main` (content_based.build giờ trả thêm `vectorizer`+`df`; `ModelArtifacts` thêm `emb_matrix/name_norm/tfidf_vectorizer`); cache embedding `data/emb_cache.npz` theo md5 document (restart nạp lại ~5s, retrain chỉ encode sản phẩm đổi). Pytest mới `tests/test_search_rank.py` 15/15 (pytest vừa cài vào venv — dev tool như python-docx, không vào requirements.txt; 3 thư viện embedding THÌ CÓ vào requirements.txt). **Calibrate trên catalog thật 236 SP**: gate 0.82 chuẩn xác (nhu cầu thật 0.836–0.894 vs rác 0.785–0.809, chặn nhầm 0/15 lọt rác 0/5), nâng `search_sem_min_sim` 0.78→0.80 (vùng 0.78–0.81 là dải điểm rác); "đồ sấy" ra đúng 10/10 Trái cây sấy. E2E qua uvicorn thật: semantic rescue/gate rác/allowed_ids không rò rỉ/lexical thắng/session lạ không crash — đủ 5 kịch bản PASS, đối chiếu id trả về với DB đúng category. **2 bài học kỹ thuật ghi vào docx**: (1) passage embedding BẮT BUỘC kèm category — tên trần làm E5-small xếp sai ("Mít sấy giòn" thua "Nước rửa chén" với query "đồ sấy khô"); (2) query về ngành hàng catalog không bán ("đồ tẩy rửa" trên catalog thuần thực phẩm) vẫn vượt gate — gate không sửa được "cửa hàng không bán thứ đó".
+- [ ] **Phase B** — Java `SmartSearchService` + `POST products/smart-search` + FE sort "Liên quan" mặc định (rule security khai đúng POST — bài học per-method).
+- [ ] **Phase C** — metrics search vào dashboard "Gợi ý AI" + autocomplete "Mọi người cũng tìm" từ SearchLog + migration 2 cột `search_mode`/`clicked_position`.
+
+**Bước tiếp theo**: implement Phase B. Chưa commit gì của hạng mục này (tài liệu + toàn bộ code Phase A đều đang uncommitted).
+
 ## Tổng quan
 
 Frontend React cho website thương mại điện tử bách hóa (Vietnamese grocery e-commerce). Kiến trúc SOA/REST: frontend này giao tiếp với backend Spring Boot nằm ở `../server` qua RESTful API. Repo: https://github.com/HuyLearnProgram/webbachhoa
@@ -167,7 +187,7 @@ Tất cả các mục dưới đây coi như **đã hoàn thành và đã xác n
 7. `EditUserForm.jsx`: `initialUserData` không cập nhật sau khi lưu (đông cứng lúc mount).
 8. `OrderService.applyVoucherToOrder()` — gọi `userVoucher.getIsUsed()` trước khi check `null`, có thể NPE với voucher public chưa có `UserVoucher` riêng.
 9. `PromotionExpiryScheduler` (cron mỗi giờ) chưa test real-time, chỉ qua code review — theo dõi log/DB sau khi deploy.
-10. Bug reset trang khi đổi filter lúc đang ở trang phân trang >1 (`pages/guest/Product.jsx`) — biết từ trước, ngoài phạm vi các lần sửa gần đây.
+10. ~~Bug reset trang khi đổi filter lúc đang ở trang phân trang >1 (`pages/guest/Product.jsx`)~~ **Đã sửa (2026-07-11)**: thêm `delete('page')` vào 4 handler filter (`handleCategoryToggle`/`handleRatingSelect`/`handlePromotionToggle`/`handleApplyPriceFilter`) + `handleSortChange` trong `SortItem.jsx`; xoá luôn đoạn code chết dòng ~189-191 (gán lại `queries.page` cho chính nó, tàn dư của lần sửa sai trước). Verify Selenium: đang ở `?page=2` đổi category/sort → URL tự về trang 1. Lưu ý: `handleClearAllFilters`/`handleClearFilters` vốn đã đúng (dựng `URLSearchParams` mới từ đầu).
 11. `active=true` cho `GET /products` công khai hiện chỉ ép ở phía client — chưa xác nhận backend có mặc định chặn `active=false` cho request không xác thực hay không.
 14. Test `TC06: Branch Coverage - VNPAY Payment Path` trong `src/pages/guest/__tests__/Checkout.test.jsx` đang **fail từ trước** (phát hiện khi verify Phase 3, xác minh bằng `git stash` — fail y hệt trên code gốc chưa đụng tới, không phải do thay đổi phiên này gây ra): test kỳ vọng `apiPaymentVNPay` được gọi thiếu tham số `orderId` so với những gì `Checkout.jsx` thực sự gửi. Chưa sửa vì ngoài phạm vi phiên này.
 

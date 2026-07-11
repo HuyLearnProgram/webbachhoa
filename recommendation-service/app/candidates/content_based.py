@@ -42,10 +42,14 @@ def _price_bucket_tokens(df: pd.DataFrame) -> pd.Series:
 
 
 def build(top_k: int) -> tuple:
-    """Trả về (tfidf_matrix l2-normalized, product_ids, pid_to_idx, neighbors)."""
+    """Trả về (tfidf_matrix l2-normalized, product_ids, pid_to_idx, neighbors, vectorizer, df).
+
+    vectorizer + df thêm từ Smart Search Phase A: vectorizer cho Plan C TF-IDF query-vector
+    (trước đây bị vứt sau build), df cho embeddings.build() + name_norm (cùng 1 lần query
+    catalog, đảm bảo emb_matrix thẳng hàng với product_ids)."""
     df = fetch_df(CATALOG_SQL)
     if df.empty:
-        return None, [], {}, {}
+        return None, [], {}, {}, None, df
 
     df = df.reset_index(drop=True)
     docs = (
@@ -75,4 +79,4 @@ def build(top_k: int) -> tuple:
             (product_ids[j], float(sims[i][j])) for j in top_idx if sims[i][j] > 0
         ]
 
-    return matrix, product_ids, pid_to_idx, neighbors
+    return matrix, product_ids, pid_to_idx, neighbors, vectorizer, df

@@ -77,11 +77,32 @@ thiết ở quy mô hiện tại.
 | `GET /recommend/similar/{product_id}?session_id=&user_id=&k=12` | PDP "Sản phẩm tương tự" (content + item-CF + fatigue; cold-start → trending category) |
 | `GET /recommend/home?session_id=&user_id=&k=12` | Home — có history → profile đa tín hiệu + user-CF, guest → popularity |
 | `GET /recommend/cart?product_ids=1,2&session_id=&user_id=&k=6` | Giỏ hàng — co-purchase + content + item-CF, fallback popularity |
+| `POST /search/rank` | **Smart Search Phase A**: xếp hạng hybrid semantic ∪ lexical + cá nhân hoá + phổ biến (body JSON `{query, allowed_ids, lexical_ids, user_id, session_id, limit}` — q có dấu bắt buộc đi body) |
 | `POST /internal/retrain` | Train lại ngay, force CF tươi (dev/test) |
 
 `user_id` luôn do Java derive từ JWT — không bao giờ nhận từ client. Response chỉ chứa
 `product_id + score + source` — Java hydrate thành DTO đầy đủ từ DB
 (giá/khuyến mãi/active luôn mới nhất, giữ shape `product_name` snake_case cho ProductCard).
+
+## Smart Search (Phase A — 2026-07-11)
+
+Tìm kiếm theo nhu cầu ("đồ sấy", "đồ ăn ngon"...) bằng embedding `intfloat/multilingual-e5-small`
+qua ONNX Runtime (thiết kế đầy đủ: `Smart_Search_Roadmap.docx`). Setup 1 lần trên máy mới:
+
+```bash
+venv\Scripts\python scripts/check_embedding_env.py   # tải model ~470MB về data/models/ + sanity test
+```
+
+Service KHÔNG tự tải model lúc start (tránh treo startup vì mạng) — thiếu model thì encoder tự
+degrade (`onnx → torch → tfidf → off`, config `SEARCH_EMBEDDING_BACKEND`), search vẫn phục vụ
+lexical + personal + popularity. Embedding catalog build trong `train_all()`, cache
+`data/emb_cache.npz` theo md5 document — retrain nightly chỉ encode sản phẩm mới/sửa.
+
+**Kết quả calibrate trên catalog thật 236 sản phẩm** (`scripts/calibrate_search.py`, 2026-07-11):
+top-1 của 15 query nhu cầu thật = 0.836–0.894, của 5 query rác = 0.785–0.809 → giữ
+`SEARCH_SEM_TOP1_GATE=0.82` (chặn nhầm 0/15, lọt rác 0/5), nâng `SEARCH_SEM_MIN_SIM` 0.78→0.80
+(vùng 0.78–0.81 là dải điểm query rác). Bài học từ spike: passage embedding BẮT BUỘC kèm
+category — tên trần làm E5-small xếp sai. Catalog đổi lớn → chạy lại calibrate rồi chỉnh `.env`.
 
 ## Dữ liệu seed tạm cho Phase 2
 

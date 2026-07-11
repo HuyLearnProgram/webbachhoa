@@ -117,5 +117,24 @@ class Settings(BaseSettings):
     metrics_experiment_cache_ttl_s: int = 300
     metrics_experiment_days_default: int = 30
 
+    # ===== Smart Search (Phase A) — semantic + lexical + personal + popularity =====
+    search_embedding_backend: str = "auto"  # auto | onnx | torch | tfidf | off (pattern cf_backend)
+    search_model_dir: str = "data/models/multilingual-e5-small"
+    # Cosine E5 dồn cụm 0.7-0.95 → gate 2 tầng thay vì 1 ngưỡng đơn. ĐÃ calibrate trên
+    # catalog thật 236 sản phẩm (scripts/calibrate_search.py, 2026-07-11): top-1 query nhu cầu
+    # thật 0.836-0.894, query rác 0.785-0.809 → gate 0.82 nằm giữa khoảng tách (chặn nhầm 0/15,
+    # lọt rác 0/5); sàn 0.80 cắt "dải nhiễu" 0.78-0.81 của vùng điểm query rác.
+    search_sem_top1_gate: float = 0.82  # top-1 trong allowed < gate → semantic không có tín hiệu
+    search_sem_min_sim: float = 0.80  # sàn từng candidate lọt nhánh semantic
+    search_sem_top_k: int = 100
+    search_tfidf_min_sim: float = 0.05  # bộ ngưỡng riêng khi backend=tfidf (thang điểm khác hẳn)
+    search_max_ranked: int = 500  # trần số item trả cho Java phân trang
+    # Khớp tên chính xác phải thắng semantic; personal kéo hàng hợp gu lên đầu TRONG nhóm
+    # liên quan nhưng không lật item khớp tên; popularity chỉ là tie-breaker.
+    w_search_lexical: float = 1.0
+    w_search_semantic: float = 0.8
+    w_search_personal: float = 0.5
+    w_search_popularity: float = 0.15
+
 
 settings = Settings()

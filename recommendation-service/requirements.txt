@@ -13,3 +13,10 @@ scipy==1.15.2
 # Backend ALS tăng tốc (optional — wheel Windows/py3.12/numpy2 không đảm bảo,
 # thiếu thì collaborative.py tự fallback solver numpy, không cần cài):
 # implicit==0.7.2
+
+# Smart Search — encoder semantic (Plan A ONNX, spike check_embedding_env.py đã PASS
+# trên Windows/py3.12/numpy2 ngày 2026-07-11; model tải 1 lần bằng chính script đó).
+# Thiếu 1 trong 3 → encoder tự degrade tfidf/off, service vẫn chạy.
+onnxruntime==1.27.0
+tokenizers==0.23.1
+huggingface-hub==1.23.0

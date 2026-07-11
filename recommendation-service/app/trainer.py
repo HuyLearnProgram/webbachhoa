@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from app.candidates import co_purchase, collaborative, content_based, popularity, repurchase
 from app.config import settings
 from app.metrics import metrics
+from app.search import embeddings, lexical
 from app.store import ModelArtifacts, store
 
 logger = logging.getLogger(__name__)
@@ -15,10 +16,18 @@ logger = logging.getLogger(__name__)
 def train_all(force_cf: bool = False) -> ModelArtifacts:
     t0 = time.perf_counter()
 
-    matrix, product_ids, pid_to_idx, neighbors = content_based.build(settings.top_k_neighbors)
+    matrix, product_ids, pid_to_idx, neighbors, vectorizer, catalog_df = content_based.build(
+        settings.top_k_neighbors
+    )
     rules = co_purchase.build()
     pop, pop_by_category, pid_to_category = popularity.build()
     cf, cycle_days = _train_cf(force_cf)
+    emb_matrix = _build_embeddings(catalog_df, product_ids)
+    name_norm = (
+        {int(pid): lexical.normalize(name) for pid, name in
+         zip(catalog_df["id"], catalog_df["product_name"])}
+        if not catalog_df.empty else {}
+    )
 
     elapsed = time.perf_counter() - t0
     artifacts = ModelArtifacts(
@@ -33,6 +42,9 @@ def train_all(force_cf: bool = False) -> ModelArtifacts:
         pid_to_category=pid_to_category,
         cf=cf,
         repurchase_cycle_days=cycle_days,
+        emb_matrix=emb_matrix,
+        name_norm=name_norm,
+        tfidf_vectorizer=vectorizer,
         last_train_seconds=round(elapsed, 2),
     )
     store.swap(artifacts)
@@ -44,6 +56,21 @@ def train_all(force_cf: bool = False) -> ModelArtifacts:
         "off" if cf is None else f"{len(cf.uid_to_idx)}u/{len(cf.item_ids)}i ({cf.backend})",
     )
     return artifacts
+
+
+def _build_embeddings(catalog_df, product_ids: list[int]):
+    """Embedding catalog cho Smart Search — lỗi encode KHÔNG được giết các artifact khác
+    (giống pattern _train_cf). Carry-forward emb cũ CHỈ khi danh sách product_ids y hệt
+    (ma trận thẳng hàng theo vị trí — catalog đổi là phải build lại, cache npz lo phần rẻ)."""
+    try:
+        return embeddings.build(catalog_df)
+    except Exception:
+        logger.exception("Search embedding build lỗi — nhánh semantic tắt kỳ này.")
+        prev = store.get()
+        if prev is not None and prev.emb_matrix is not None and prev.product_ids == product_ids:
+            logger.info("Search embedding: carry-forward ma trận cũ (catalog không đổi).")
+            return prev.emb_matrix
+        return None
 
 
 def _train_cf(force_cf: bool):

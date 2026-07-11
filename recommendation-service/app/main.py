@@ -29,7 +29,9 @@ from app.metrics import metrics
 from app.metrics_experiment import build_report, invalidate_cache as invalidate_metrics_cache
 from app.rerank.diversity import adaptive_lambda, mmr_rerank
 from app.rerank.fatigue import apply_fatigue, category_exposure
-from app.schemas import RecItem, RecResponse
+from app.schemas import RecItem, RecResponse, SearchRankRequest, SearchRankResponse
+from app.search.encoder import encoder
+from app.search.rank import rank_search
 from app.store import ModelArtifacts, store
 from app.trainer import train_all
 
@@ -203,6 +205,10 @@ def health():
         "bandit_arms": linucb.n_arms(),
         "bandit_pending_decisions": bandit_state.count_pending(),
         "ab_bandit_pct": settings.ab_bandit_pct if settings.ab_bandit_enabled else 100,
+        "search_backend": encoder.backend(),
+        "emb_products_indexed": (
+            int(art.emb_matrix.shape[0]) if art is not None and art.emb_matrix is not None else 0
+        ),
     }
 
 
@@ -415,3 +421,43 @@ def recommend_cart(
     source = _majority_source(items)
     metrics.inc_request("cart", source)
     return _to_response(items, source, art, request_id)
+
+
+@app.post("/search/rank", response_model=SearchRankResponse)
+def search_rank(req: SearchRankRequest):
+    """Smart Search Phase A: xếp hạng hybrid semantic ∪ lexical + cá nhân hoá + phổ biến.
+
+    Java làm chủ filter: allowed_ids đã lọc điều kiện cứng ở DB (active/quantity/category/
+    giá/rating/khuyến mãi), lexical_ids ⊆ allowed_ids khớp LIKE tên. Python KHÔNG BAO GIỜ
+    trả id ngoài allowed_ids. Search KHÔNG exclude seen (khác recommendation — người tìm
+    muốn tìm lại cả thứ đã xem/mua) nên chỉ lấy dict điểm từ _profile_scores, bỏ seen.
+    """
+    art = _art()
+    request_id = uuid.uuid4().hex
+    if not req.query.strip() or not req.allowed_ids:
+        return SearchRankResponse(
+            request_id=request_id, algorithm_source="LEXICAL_ONLY",
+            model_version=art.model_version, matched=False, items=[],
+        )
+
+    profile: dict[int, float] = {}
+    try:
+        interactions = _fetch_interactions(req.user_id, req.session_id)
+        if interactions is not None and not interactions.empty:
+            profile, _, _ = _profile_scores(interactions, art)
+    except Exception:
+        # Cá nhân hoá là gia vị, không phải xương sống — lỗi thì search vẫn chạy
+        logger.exception("search: lấy profile lỗi — xếp hạng không cá nhân hoá request này.")
+
+    items, source_label, matched = rank_search(
+        req.query, req.allowed_ids, req.lexical_ids, profile, art,
+        limit=max(1, min(req.limit, settings.search_max_ranked)),
+    )
+    metrics.inc_request("search", source_label)
+    return SearchRankResponse(
+        request_id=request_id,
+        algorithm_source=source_label,
+        model_version=art.model_version,
+        matched=matched,
+        items=[RecItem(product_id=pid, score=round(score, 6), source=src) for pid, score, src in items],
+    )

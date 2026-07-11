@@ -25,6 +25,10 @@ class ModelArtifacts:
     # Chu kỳ mua lại ước tính mỗi sản phẩm (ngày) — dùng chung bởi collaborative.py (lúc train)
     # và main._profile_scores (lúc serve) để hãm tín hiệu mua thật ngay sau khi mua.
     repurchase_cycle_days: dict = field(default_factory=dict)
+    # Smart Search (Phase A) — None khi backend neural không khả dụng, search tự degrade.
+    emb_matrix: Any = None  # np [N, 384] float32 l2-normalized, hàng i ứng product_ids[i]
+    name_norm: dict = field(default_factory=dict)  # pid -> tên đã bỏ dấu/lowercase (lexical_score)
+    tfidf_vectorizer: Any = None  # Plan C: TF-IDF query-vector khi không có encoder neural
     # Meta
     last_train_seconds: float = 0.0
     extras: dict = field(default_factory=dict)
