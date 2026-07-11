@@ -9,24 +9,25 @@ Dự án xây dựng một hệ thống thương mại điện tử hoàn chỉn
 ## Tính Năng Nổi Bật (Features)
 
 ### Chức năng cho người dùng (Client-Side):
--   **Đăng ký / Đăng nhập:** Xác thực người dùng bằng jwt.
--   **Xem và tìm kiếm sản phẩm:** Có hỗ trợ lọc và sắp xếp sản phẩm.
--   **Xem chi tiết sản phẩm**. 
+-   **Đăng ký / Đăng nhập:** Xác thực người dùng bằng JWT.
+-   **Tìm kiếm & lọc sản phẩm nâng cao:** Lọc theo danh mục, khoảng giá, đánh giá, khuyến mãi (chọn nhiều tiêu chí cùng lúc), tìm kiếm đa từ khoá.
+-   **Xem chi tiết sản phẩm:** Kèm đánh giá/bình luận từ người mua khác.
+-   **Khuyến mãi sản phẩm đa dạng:** Giảm giá trực tiếp, mua X tặng Y, mua theo combo giá ưu đãi — tự động áp dụng và tự hết hạn theo thời gian.
 -   **Quản lý giỏ hàng:** Thêm, xóa, cập nhật số lượng, chọn sản phẩm muốn đặt hàng bằng checkbox.
--   **Đặt hàng và thanh toán:** Có tích hợp VN PAY Sandbox.
+-   **Đặt hàng và thanh toán:** Tích hợp VN PAY Sandbox, áp mã giảm giá (voucher), tự động gửi email xác nhận đơn hàng.
 -   **Trang cá nhân:**
     +    **Quản lý thông tin cá nhân**.
-    +    **Lịch sử mua hàng:** Hủy đơn hàng khi đơn hàng chưa giao.
+    +    **Lịch sử mua hàng:** Hủy đơn hàng khi chưa giao; yêu cầu trả hàng/hoàn tiền trong vòng 15 ngày kể từ lúc nhận hàng.
     +    **Danh sách sản phẩm yêu thích**.
--   **Đánh giá sản phẩm**.
--   **Upload ảnh:** Được upload lên nền tảng Cloudinary.
+-   **Đánh giá sản phẩm:** Đánh giá theo sao kèm bình luận.
+-   **Upload ảnh đại diện:** Qua Cloudinary; ảnh sản phẩm/danh mục phục vụ từ storage riêng của backend.
 
 ### Chức năng cho quản trị viên (Admin-Side):
--   **Dashboard tổng quan:** Biểu đồ thống kê doanh thu theo tháng.
--   **Quản lý danh mục sản phẩm:**.
--   **Quản lý sản phẩm:**.
--   **Quản lý đơn hàng:** cập nhật trạng thái đơn hàng, chỉnh sửa thông tin giao hàng, xuất hóa đơn.
--   **Quản lý người dùng:** Khóa tài khoản người dùng.
+-   **Dashboard tổng quan:** 7 thẻ thống kê + 7 biểu đồ (doanh thu theo chu kỳ tuần, trạng thái đơn/thanh toán, phản hồi, sản phẩm bán chạy...).
+-   **Quản lý danh mục sản phẩm:** CRUD, tìm kiếm đồng bộ theo URL.
+-   **Quản lý sản phẩm:** CRUD đầy đủ, ẩn/hiện thay vì xoá cứng, nhiều ảnh, quản lý SKU, import/export Excel, trang xem chi tiết (số liệu bán/đánh giá/tỉ lệ hoàn trả), cấu hình khuyến mãi đa loại.
+-   **Quản lý đơn hàng:** Cập nhật trạng thái đơn hàng, chỉnh sửa thông tin giao hàng, xuất hóa đơn PDF.
+-   **Quản lý người dùng:** CRUD, khoá/mở khoá tài khoản (bắt buộc chọn lý do, không xoá cứng), trang xem chi tiết người dùng, tự động gửi email khi admin chỉnh sửa hộ.
 -   **Quản lý phản hồi:** Ẩn phản hồi sản phẩm.
 
 ### Gợi ý sản phẩm bằng AI (tự học liên tục):
