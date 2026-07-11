@@ -146,8 +146,14 @@ public class SmartSearchService {
     private Specification<Product> nameLikeAllWords(String query) {
         List<String> words = List.of(query.toLowerCase().split("\\s+"));
         return (root, cq, cb) -> cb.and(words.stream()
-                .map(w -> cb.like(cb.lower(root.get("productName")), "%" + w + "%"))
+                .map(w -> cb.like(cb.lower(root.get("productName")), "%" + escapeLike(w) + "%", '\\'))
                 .toArray(Predicate[]::new));
+    }
+
+    // JPA Criteria KHÔNG tự escape ký tự đại diện của LIKE trong pattern string — từ khoá chứa
+    // '%'/'_' (VD "100% nguyên chất") sẽ bị hiểu nhầm thành wildcard, làm lexicalIds phình sai.
+    private static String escapeLike(String raw) {
+        return raw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     // ------------------------------------------------------------ bước 3: Python xếp hạng
@@ -208,7 +214,10 @@ public class SmartSearchService {
                 category.get("name"), root.get("rating"), root.get("originalPrice"),
                 root.get("promotionType"), root.get("promoBuyQuantity"), root.get("promoFreeQuantity"),
                 root.get("promoBundleQuantity"), root.get("promoBundlePrice"), root.get("quantity")));
-        query.where(root.get("id").in(rankedIds));
+        // Phải lọc active=true như findActiveDtoByIdInAnyStock (nhánh không-sort dùng) — thiếu
+        // điều kiện này thì đổi sort tường minh (giá/rating...) sẽ lộ sản phẩm đã ẩn, không nhất
+        // quán với nhánh mặc định "Liên quan" trên cùng 1 rankedIds.
+        query.where(cb.and(root.get("id").in(rankedIds), cb.isTrue(root.get("active"))));
 
         List<Order> orders = new ArrayList<>();
         for (Sort.Order sortOrder : pageable.getSort()) {

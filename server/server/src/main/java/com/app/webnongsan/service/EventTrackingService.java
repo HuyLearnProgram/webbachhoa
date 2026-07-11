@@ -58,6 +58,17 @@ public class EventTrackingService {
         this.attributionWindowDays = attributionWindowDays;
     }
 
+    // true nếu request hiện tại là chủ của searchLog: đúng user đã đăng nhập tạo ra nó, hoặc
+    // đúng session (guest chưa đăng nhập / vẫn cùng phiên trước khi merge vào user).
+    private boolean ownsSearchLog(SearchLog log, String requestSessionId) {
+        User currentUser = getCurrentUserOrNull();
+        if (currentUser != null && log.getUser() != null) {
+            return currentUser.getId() == log.getUser().getId();
+        }
+        return requestSessionId != null && !requestSessionId.isBlank()
+                && requestSessionId.equals(log.getSessionId());
+    }
+
     private User getCurrentUserOrNull() {
         String email = SecurityUtil.getCurrentUserLogin().orElse(null);
         if (email == null || email.isEmpty() || "anonymousUser".equals(email)) {
@@ -94,13 +105,18 @@ public class EventTrackingService {
     // hoặc cập nhật clickedProductId nếu có searchLogId
     public Long trackSearch(TrackSearchDTO dto) {
         if (dto.getSearchLogId() != null) {
-            this.searchLogRepository.findById(dto.getSearchLogId()).ifPresent(log -> {
-                if (log.getClickedProductId() == null && dto.getClickedProductId() != null) {
-                    log.setClickedProductId(dto.getClickedProductId());
-                    log.setClickedPosition(dto.getClickedPosition());
-                    this.searchLogRepository.save(log);
-                }
-            });
+            // Endpoint permitAll + searchLogId là số tự tăng dễ đoán → phải xác nhận đúng chủ
+            // trước khi cho update, nếu không ai cũng có thể ghi đè clickedProductId của log
+            // người khác (làm nhiễu CTR/vị trí click trong dashboard).
+            this.searchLogRepository.findById(dto.getSearchLogId())
+                    .filter(log -> ownsSearchLog(log, dto.getSessionId()))
+                    .ifPresent(log -> {
+                        if (log.getClickedProductId() == null && dto.getClickedProductId() != null) {
+                            log.setClickedProductId(dto.getClickedProductId());
+                            log.setClickedPosition(dto.getClickedPosition());
+                            this.searchLogRepository.save(log);
+                        }
+                    });
             return dto.getSearchLogId();
         }
         SearchLog log = new SearchLog();
@@ -278,7 +294,9 @@ public class EventTrackingService {
         List<String> suggestions = this.searchLogRepository
                 .suggestKeywords(escaped, PageRequest.of(0, safeLimit));
         if (this.suggestionCache.size() >= SUGGESTION_CACHE_MAX_ENTRIES) {
-            this.suggestionCache.clear(); // đơn giản hoá: xoá cả cache thay vì LRU — TTL ngắn, rebuild rẻ
+            // Chỉ dọn entry đã hết hạn — clear() toàn bộ sẽ làm mọi request đồng thời cùng miss
+            // cache và cùng đập DB một lúc (cache stampede), dù traffic thấp vẫn là anti-pattern.
+            this.suggestionCache.entrySet().removeIf(e -> (long) e.getValue()[0] <= now);
         }
         this.suggestionCache.put(cacheKey, new Object[]{now + SUGGESTION_CACHE_TTL_MS, suggestions});
         return suggestions;

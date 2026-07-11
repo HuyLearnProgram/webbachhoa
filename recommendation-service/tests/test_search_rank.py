@@ -137,7 +137,7 @@ def test_gate_blocks_semantic_when_top1_below_threshold(patch_encoder):
 
 def test_min_sim_floor_cuts_low_candidates(patch_encoder):
     art = make_art()
-    # top1=0.9 vượt gate, nhưng pid 3 (0.60) dưới sàn 0.78 → chỉ 1, 2 lọt
+    # top1=0.9 vượt gate, nhưng pid 3 (0.60) dưới sàn (search_sem_min_sim=0.80) → chỉ 1, 2 lọt
     patch_encoder("onnx", {1: 0.90, 2: 0.80, 3: 0.60}, art)
     items, _, matched = rank_search("đồ sấy", [1, 2, 3, 4, 5], [], {}, art, limit=10)
     assert matched

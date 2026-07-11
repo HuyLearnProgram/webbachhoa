@@ -71,12 +71,19 @@ const SearchBar = () => {
     }
   };
 
+  // URLSearchParams tự encode — template literal trần trước đây làm hỏng navigate khi từ khoá
+  // chứa '&'/'=' (VD "rau & củ" từ suggestion DB): '&' bị parse thành query separator, cắt mất
+  // phần sau. Áp dụng cho cả 2 điểm điều hướng bên dưới.
+  const goToSearchResults = (keyword) => {
+    navigate({ pathname: '/products', search: new URLSearchParams({ search: keyword }).toString() });
+  };
+
   const handleSuggestionClick = (keyword) => {
     setSearchTerm(keyword);
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    navigate(`/products?search=${keyword}`);
+    goToSearchResults(keyword);
     setShowResults(false);
   };
 
@@ -85,7 +92,7 @@ const SearchBar = () => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    navigate(`/products?search=${searchTerm}`);
+    goToSearchResults(searchTerm);
     setShowResults(false);
   };
 

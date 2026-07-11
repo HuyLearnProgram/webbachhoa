@@ -42,6 +42,8 @@ export const apiTrackSearchClick = (searchLogId, clickedProductId, clickedPositi
     axiosInstance({
         url: 'events/search',
         method: 'post',
+        // keyword: '-' chỉ để qua @NotBlank validation của backend — khi searchLogId có giá trị,
+        // backend cập nhật click vào log CÓ SẴN và bỏ qua keyword này, không ghi đè DB.
         data: { sessionId: getOrCreateSessionId(), keyword: '-', searchLogId, clickedProductId, clickedPosition },
     }).catch(() => {})
 
