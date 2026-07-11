@@ -1,6 +1,6 @@
 """Popularity: best-seller + trending 7/30 ngày — lưới an toàn luôn bật, không bao giờ rỗng."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
@@ -33,7 +33,8 @@ def build() -> tuple[list[tuple[int, float]], dict[int, list[tuple[int, float]]]
         return [], {}, {}
 
     def trend(days: int) -> pd.Series:
-        cutoff = datetime.now() - timedelta(days=days)
+        # order_time lưu Instant (UTC naive) — so bằng UTC, không dùng giờ local (lệch 7h ở VN)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
         df = fetch_df(TREND_SQL, {"cutoff": cutoff})
         return df.set_index("product_id")["qty"] if not df.empty else pd.Series(dtype=float)
 

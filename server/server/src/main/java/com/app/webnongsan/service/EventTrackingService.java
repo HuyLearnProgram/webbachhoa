@@ -13,9 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 // Ghi nhận hành vi người dùng (xem/tìm kiếm/giỏ hàng/impression gợi ý) làm dữ liệu nền
 // cho hệ thống gợi ý AI. Các endpoint gọi vào đây là permitAll (hoạt động cả với guest qua
@@ -118,8 +122,20 @@ public class EventTrackingService {
 
     public void trackImpressions(TrackImpressionBatchDTO dto) {
         User user = getCurrentUserOrNull();
+        // Gộp existsById + save của từng item (N+1) thành 1 findAllById + 1 saveAll —
+        // slate 12-50 sản phẩm trước đây tốn tới 100 query/lần rail vào viewport.
+        List<Long> productIds = dto.getItems().stream()
+                .map(TrackImpressionBatchDTO.Item::getProductId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Set<Long> existingIds = this.productRepository.findAllById(productIds).stream()
+                .map(Product::getId)
+                .collect(Collectors.toSet());
+
+        List<RecommendationImpression> impressions = new ArrayList<>();
         for (TrackImpressionBatchDTO.Item item : dto.getItems()) {
-            if (item.getProductId() == null || !this.productRepository.existsById(item.getProductId())) {
+            if (item.getProductId() == null || !existingIds.contains(item.getProductId())) {
                 continue;
             }
             RecommendationImpression impression = new RecommendationImpression();
@@ -134,8 +150,9 @@ public class EventTrackingService {
                             ? item.getAlgorithmSource() : dto.getAlgorithmSource());
             impression.setRankPosition(item.getRankPosition());
             impression.setRequestId(dto.getRequestId());
-            this.impressionRepository.save(impression);
+            impressions.add(impression);
         }
+        this.impressionRepository.saveAll(impressions);
     }
 
     public void trackRecommendationClick(TrackRecommendationClickDTO dto) {

@@ -60,16 +60,17 @@ def _ctr_by_placement_source(cutoff: datetime) -> list[dict]:
     return rows
 
 
-def _intra_list_diversity(art) -> list[dict]:
+def _intra_list_diversity(cutoff: datetime, art) -> list[dict]:
     """1 − mean pairwise cosine (TF-IDF, đã l2-norm → gram = cosine) mỗi slate ≥2 item,
-    trung bình theo placement. Lấy mẫu ~5000 impression gần nhất để bound chi phí."""
+    trung bình theo placement. Lấy mẫu ~5000 impression gần nhất trong khoảng days để bound chi phí."""
     df = fetch_df(
         """
         SELECT request_id, product_id, placement
         FROM recommendation_impressions
+        WHERE shown_at >= :cutoff
         ORDER BY id DESC LIMIT 5000
         """,
-        {},
+        {"cutoff": cutoff},
     )
     if df.empty or art.tfidf_matrix is None:
         return []
@@ -213,7 +214,7 @@ def build_report(days: int, art) -> dict:
     report: dict = {"days": days, "generated_at": _now().isoformat(timespec="seconds")}
     blocks = {
         "ctr_by_placement_source": lambda: _ctr_by_placement_source(cutoff),
-        "intra_list_diversity": lambda: _intra_list_diversity(art),
+        "intra_list_diversity": lambda: _intra_list_diversity(cutoff, art),
         "weekly_entropy": lambda: _weekly_entropy(cutoff),
         "catalog_coverage_30d": _catalog_coverage_30d,
         "repeat_no_click_by_category": lambda: _repeat_no_click_by_category(cutoff),

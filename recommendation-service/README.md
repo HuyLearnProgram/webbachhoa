@@ -59,6 +59,14 @@ venv\Scripts\python -m uvicorn app.main:app --port 8000
 MySQL (`webnongsan`) phải chạy trước. Java backend đọc `RECOMMENDATION_SERVICE_URL`
 (mặc định `http://localhost:8000`) — service này chết thì Home/PDP/Cart vẫn sống nhờ fallback Java.
 
+**Ràng buộc quan trọng — luôn chạy `--workers 1`** (mặc định của uvicorn, không tự thêm cờ
+`--workers N`): state của LinUCB bandit (`app/bandit/linucb.py`) là singleton in-memory, chỉ
+được flush xuống SQLite (`data/bandit.db`) khi `update()`/reward-poll chạy trong CÙNG process.
+Nhiều worker process sẽ có nhiều bản sao arm A/b độc lập, ghi đè chéo lên nhau qua SQLite
+(last-writer-wins) → bandit học chậm hơn N lần và không nhất quán. Muốn scale ngang thật sự
+cần refactor bandit đọc/ghi SQLite trực tiếp mỗi lần thay vì giữ cache in-memory — chưa cần
+thiết ở quy mô hiện tại.
+
 ## Endpoints
 
 | Endpoint | Mô tả |

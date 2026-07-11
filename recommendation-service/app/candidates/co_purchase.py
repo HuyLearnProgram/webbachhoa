@@ -20,7 +20,8 @@ BASKET_SQL = """
 SELECT od.order_id, od.product_id
 FROM order_detail od
 JOIN orders o ON o.id = od.order_id
-WHERE o.status IN (1, 2) AND o.order_time >= :cutoff
+JOIN products p ON p.id = od.product_id
+WHERE o.status IN (1, 2) AND o.order_time >= :cutoff AND p.active = 1 AND p.quantity > 0
 """
 
 

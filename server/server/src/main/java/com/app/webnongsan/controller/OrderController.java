@@ -228,7 +228,10 @@ public class OrderController {
 
             // Phase 3: đánh dấu converted cho impression gợi ý dẫn tới đơn này (reward bandit).
             // Method tự nuốt lỗi — không bao giờ phá luồng đặt hàng.
-            eventTrackingService.attributeOrderConversions(userId, sessionId, order.getId(),
+            // Dùng order.getUser().getId() (derive từ JWT trong orderService.create()), KHÔNG
+            // dùng thẳng param userId do client tự gửi — tránh client tự ý gán conversion cho
+            // impression của user khác qua việc gửi userId sai lệch với JWT của chính họ.
+            eventTrackingService.attributeOrderConversions(order.getUser().getId(), sessionId, order.getId(),
                     items.stream().map(OrderDetailDTO::getProductId).toList());
 
             // Không tự bọc RestResponse ở đây - FormatResponse (ResponseBodyAdvice toàn cục) đã tự bọc

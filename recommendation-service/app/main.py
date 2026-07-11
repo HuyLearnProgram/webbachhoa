@@ -11,6 +11,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
+import pandas as pd
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException, Query
 
@@ -41,12 +42,16 @@ COLLABORATIVE = "CF"
 
 # Preference vector đa tín hiệu (Phase 2): view + cart-add + purchase, LIMIT riêng từng loại.
 # Purchase chỉ có nghĩa khi có user_id; guest lấy view + cart-add theo session.
+# 2 query tách riêng theo user/session (không dùng OR — cùng lý do đã áp dụng ở fatigue.py:
+# OR trên user_id/session_id vô hiệu cả 2 index trên product_views/cart_events đang phình).
+# Double-count sau session-merge (dòng có cả user_id lẫn session_id khớp) chấp nhận được —
+# chỉ cộng thêm trọng số nhỏ vào preference vector, không đổi hạng nghiêm trọng.
 INTERACTIONS_SQL_USER = """
 (SELECT product_id, viewed_at AS ts, 'V' AS kind FROM product_views
- WHERE user_id = :uid OR session_id = :sid ORDER BY viewed_at DESC LIMIT :view_lim)
+ WHERE user_id = :uid ORDER BY viewed_at DESC LIMIT :view_lim)
 UNION ALL
 (SELECT product_id, occurred_at, 'C' FROM cart_events
- WHERE (user_id = :uid OR session_id = :sid) AND event_type = 'ADD'
+ WHERE user_id = :uid AND event_type = 'ADD'
  ORDER BY occurred_at DESC LIMIT :cart_lim)
 UNION ALL
 (SELECT od.product_id, o.order_time, 'P' FROM order_detail od
@@ -125,7 +130,10 @@ def _fetch_interactions(user_id: int | None, session_id: str | None):
         "purchase_lim": settings.profile_purchase_limit,
     }
     if user_id is not None:
-        return fetch_df(INTERACTIONS_SQL_USER, {"uid": user_id, "sid": session_id or "", **limits})
+        frames = [fetch_df(INTERACTIONS_SQL_USER, {"uid": user_id, **limits})]
+        if session_id:
+            frames.append(fetch_df(INTERACTIONS_SQL_SESSION, {"sid": session_id, **limits}))
+        return pd.concat(frames, ignore_index=True)
     if session_id:
         return fetch_df(INTERACTIONS_SQL_SESSION, {"sid": session_id, **limits})
     return None
