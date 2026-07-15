@@ -7,6 +7,7 @@ import com.app.webnongsan.domain.response.order.OrderBreakdownDTO;
 import com.app.webnongsan.domain.response.order.OrderDTO;
 import com.app.webnongsan.domain.response.order.OrderDetailDTO;
 import com.app.webnongsan.domain.response.order.OverviewStatsDTO;
+import com.app.webnongsan.domain.response.order.TopProductDTO;
 import com.app.webnongsan.domain.response.order.WeeklyRevenue;
 import com.app.webnongsan.domain.response.product.ProductReturnStatsDTO;
 import com.app.webnongsan.repository.ProductRepository;
@@ -288,8 +289,17 @@ public class OrderController {
 
     @GetMapping("/admin/order-status-stats")
     @ApiMessage("Get order count/revenue breakdown by status and payment status")
-    public ResponseEntity<OrderBreakdownDTO> getOrderStatusStats(){
-        return ResponseEntity.ok(this.orderService.getOrderBreakdown());
+    public ResponseEntity<OrderBreakdownDTO> getOrderStatusStats(
+            @RequestParam int month, @RequestParam int year){
+        return ResponseEntity.ok(this.orderService.getOrderBreakdown(month, year));
+    }
+
+    @GetMapping("/admin/top-products")
+    @ApiMessage("Get top selling products in a month")
+    public ResponseEntity<List<TopProductDTO>> getTopProducts(
+            @RequestParam int month, @RequestParam int year,
+            @RequestParam(defaultValue = "5") int limit){
+        return ResponseEntity.ok(this.orderService.getTopSellingProducts(month, year, limit));
     }
 
     // Hàm hỗ trợ kiểm tra chuyển trạng thái hợp lệ

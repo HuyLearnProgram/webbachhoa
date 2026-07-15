@@ -10,5 +10,6 @@ public enum AutoGrantType {
     BIRTHDAY,           // sinh nhật hằng năm
     WIN_BACK,           // không mua hàng lâu ngày
     REFERRAL_REFERRER,  // thưởng cho người giới thiệu khi bạn được giới thiệu PAID đơn đầu tiên
+    REFERRAL_REFEREE,   // thưởng cho người MỚI đăng ký bằng mã giới thiệu hợp lệ (trao ngay lúc tạo tài khoản)
     LUCKY_DRAW          // trúng giải rút thăm may mắn sau đơn hàng
 }

@@ -1,10 +1,15 @@
 import React from 'react';
+import { autoGrantTypeOptions } from '@/utils/constants';
 
 // Card hiển thị 1 voucher — dùng cho trang "Ví voucher" (member). Tách riêng để không phải lặp lại
 // UI khi cần hiển thị voucher ở nhiều nơi; modal chọn voucher trong Checkout.jsx giữ nguyên UI riêng
 // (Selenium TC06 phụ thuộc chặt vào cấu trúc/class hiện có ở đó, không đụng vào).
 const VoucherCard = ({ voucher, actionLabel, onAction, actionDisabled }) => {
     const usedUp = voucher.maxUsage != null && (voucher.usedCount || 0) >= voucher.maxUsage;
+    // autoGrantType null = voucher công khai tạo tay (không có "lý do" cụ thể, không hiện dòng này).
+    const grantReason = voucher.autoGrantType
+        ? autoGrantTypeOptions.find((o) => o.value === voucher.autoGrantType)?.label
+        : null;
 
     return (
         <div className="flex border rounded-lg overflow-hidden">
@@ -16,6 +21,9 @@ const VoucherCard = ({ voucher, actionLabel, onAction, actionDisabled }) => {
                     <span className="font-medium text-blue-600">{voucher.code}</span>
                     {voucher.isUsed && <span className="text-xs text-gray-400">Đã dùng</span>}
                 </div>
+                {grantReason && (
+                    <div className="text-xs text-green-600 font-medium">🎁 {grantReason}</div>
+                )}
                 <div className="text-sm">
                     Giảm:{' '}
                     <span className="font-medium">

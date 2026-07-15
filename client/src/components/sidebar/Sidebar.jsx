@@ -12,7 +12,7 @@ const Sidebar = () => {
     const activeCategoryId = location.pathname === '/products' ? searchParams.get('category') : null;
 
     return (
-        <div className="flex flex-col border h-[400px] overflow-y-auto">
+        <div className="flex flex-col border h-full overflow-y-auto">
             {categories?.map((e) => (
                 <NavLink
                     key={e.id}

@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useForm } from 'react-hook-form';
-import { Button, Modal, Table, Tag } from 'antd';
+import { useSelector } from 'react-redux';
+import { useNavigate, useSearchParams, createSearchParams } from 'react-router-dom';
+import { Button, Modal, Table, Tag, Input, Select, Popover } from 'antd';
 import { MdDelete, MdModeEdit } from "react-icons/md";
+import { FaFilter } from "react-icons/fa";
 import { autoGrantTypeOptions, voucherTypeOptions } from '@/utils/constants';
+import { stripDiacritics } from '@/utils/helper';
 import {
     apiGetAutoGrantRules,
     apiCreateAutoGrantRule,
@@ -18,11 +22,49 @@ const typeLabel = (value) => autoGrantTypeOptions.find((o) => o.value === value)
 // Trang cấu hình rule trao voucher tự động — 1 trang list + modal form (không tách Add/Edit riêng
 // như Voucher vì form ít trường hơn hẳn, không có code/ngày cụ thể). Xem VoucherGrantService (BE).
 const VoucherAutoGrantRule = () => {
+    const { categories } = useSelector((state) => state.app);
+    const navigate = useNavigate();
+    const [params] = useSearchParams();
     const [rules, setRules] = useState([]);
     const [loading, setLoading] = useState(false);
     const [editing, setEditing] = useState(null); // null = tạo mới, object = đang sửa
     const [showForm, setShowForm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [filterOpen, setFilterOpen] = useState(false);
+
+    // Lọc/tìm kiếm — đồng bộ qua URL param giống Product/Order/User/Voucher (buildParams, Input.Search
+    // chỉ lọc khi bấm Enter/icon tìm chứ không lọc theo từng ký tự gõ). Khác các trang đó ở chỗ lọc
+    // THUẦN CLIENT-SIDE (không gọi lại API theo filter): bảng rule là cấu hình tĩnh admin thiết lập,
+    // quy mô nhỏ (vài chục dòng), BE cũng chưa hỗ trợ @Filter/phân trang cho endpoint này — không đáng
+    // để thêm bộ máy Specification/phân trang chỉ cho 1 bảng cấu hình nhỏ.
+    const search = params.get('search');
+    const typeFilter = params.get('type');
+    const statusFilter = params.get('status'); // 'true' | 'false'
+    const categoryFilter = params.get('category'); // categoryId hoặc 'NONE' (toàn bộ đơn hàng)
+    const [searchTerm, setSearchTerm] = useState(search || '');
+
+    useEffect(() => {
+        setSearchTerm(search || '');
+    }, [search]);
+
+    const buildParams = (overrides) => {
+        const next = {};
+        if (search) next.search = search;
+        if (typeFilter) next.type = typeFilter;
+        if (statusFilter) next.status = statusFilter;
+        if (categoryFilter) next.category = categoryFilter;
+        Object.assign(next, overrides);
+        Object.keys(next).forEach((key) => {
+            if (next[key] === undefined || next[key] === '') delete next[key];
+        });
+        navigate({ search: createSearchParams(next).toString() });
+    };
+
+    const handleResetFilters = () => {
+        buildParams({ type: undefined, status: undefined, category: undefined });
+    };
+
+    const activeFilterCount = [typeFilter, statusFilter, categoryFilter].filter(Boolean).length;
 
     const {
         register,
@@ -55,6 +97,8 @@ const VoucherAutoGrantRule = () => {
             discountValue: '',
             minimumOrderAmount: '',
             maxDiscountAmount: '',
+            minProductPrice: '',
+            categoryId: '',
             validityDays: 30,
             codePrefix: '',
             isActive: true,
@@ -71,6 +115,8 @@ const VoucherAutoGrantRule = () => {
             discountValue: rule.discountValue ?? '',
             minimumOrderAmount: rule.minimumOrderAmount ?? '',
             maxDiscountAmount: rule.maxDiscountAmount ?? '',
+            minProductPrice: rule.minProductPrice ?? '',
+            categoryId: rule.applicableCategory?.id ?? '',
             validityDays: rule.validityDays ?? '',
             codePrefix: rule.codePrefix ?? '',
             isActive: rule.isActive ?? true,
@@ -90,7 +136,11 @@ const VoucherAutoGrantRule = () => {
                 ? Number(data.maxDiscountAmount) : null,
             validityDays: Number(data.validityDays),
             codePrefix: data.codePrefix?.trim().toUpperCase(),
-            minProductPrice: null,
+            // Chỉ CART_RECOVERY dùng field này để chia bậc theo giá sản phẩm bị bỏ quên (BE ràng buộc
+            // isMinProductPriceValidForType — loại khác phải null); để trống = áp dụng mọi mức giá.
+            minProductPrice: data.autoGrantType === 'CART_RECOVERY' && data.minProductPrice !== ''
+                ? Number(data.minProductPrice) : null,
+            categoryId: data.categoryId === '' ? null : Number(data.categoryId),
             isActive: !!data.isActive,
         };
         try {
@@ -107,6 +157,27 @@ const VoucherAutoGrantRule = () => {
             toast.error(error?.response?.data?.message || 'Lưu rule thất bại!', { autoClose: 2500 });
         }
     };
+
+    const filteredRules = useMemo(() => {
+        // stripDiacritics ở đây thuần để tìm không dấu vẫn khớp (lọc chạy trên mảng JS đã fetch sẵn,
+        // KHÔNG qua query backend nên không dính bug dấu tiếng Việt trong filter/@RequestParam đã ghi
+        // trong CLAUDE.md — bug đó chỉ ảnh hưởng khi gửi chuỗi có dấu lên server).
+        const term = stripDiacritics((search || '').trim().toLowerCase());
+        return rules.filter((r) => {
+            if (typeFilter && r.autoGrantType !== typeFilter) return false;
+            if (statusFilter && String(!!r.isActive) !== statusFilter) return false;
+            if (categoryFilter) {
+                const ruleCategoryId = r.applicableCategory?.id ? String(r.applicableCategory.id) : 'NONE';
+                if (ruleCategoryId !== categoryFilter) return false;
+            }
+            if (term) {
+                const matchesLabel = stripDiacritics(typeLabel(r.autoGrantType).toLowerCase()).includes(term);
+                const matchesPrefix = stripDiacritics((r.codePrefix || '').toLowerCase()).includes(term);
+                if (!matchesLabel && !matchesPrefix) return false;
+            }
+            return true;
+        });
+    }, [rules, search, typeFilter, statusFilter, categoryFilter]);
 
     const handleDelete = async (rule) => {
         try {
@@ -141,6 +212,17 @@ const VoucherAutoGrantRule = () => {
             key: 'minimumOrderAmount',
             render: (v) => (v ? `${v.toLocaleString()}đ` : '—'),
         },
+        {
+            title: 'Giá SP tối thiểu',
+            dataIndex: 'minProductPrice',
+            key: 'minProductPrice',
+            render: (v, r) => (r.autoGrantType !== 'CART_RECOVERY' ? '—' : (v ? `≥ ${v.toLocaleString()}đ` : 'Mọi mức giá')),
+        },
+        {
+            title: 'Danh mục áp dụng',
+            key: 'applicableCategory',
+            render: (_, r) => r.applicableCategory?.name || 'Toàn bộ đơn hàng',
+        },
         { title: 'Hiệu lực (ngày)', dataIndex: 'validityDays', key: 'validityDays' },
         { title: 'Tiền tố mã', dataIndex: 'codePrefix', key: 'codePrefix' },
         {
@@ -171,12 +253,84 @@ const VoucherAutoGrantRule = () => {
 
     return (
         <div className="w-full">
-            <div className="mb-4 flex justify-between items-center">
+            <div className="mb-4 flex justify-between items-center flex-wrap gap-3">
                 <h2 className="text-lg font-semibold">Quy tắc trao voucher tự động</h2>
                 <Button type="primary" onClick={openCreate}>+ Thêm rule</Button>
             </div>
 
-            <Table dataSource={rules} columns={columns} rowKey="id" loading={loading} pagination={false} />
+            <div className="mb-4 flex flex-wrap gap-3 items-center">
+                <Input.Search
+                    allowClear
+                    placeholder="Tìm theo loại trigger hoặc tiền tố mã"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onSearch={(value) => buildParams({ search: value.trim() || undefined })}
+                    style={{ width: 280 }}
+                />
+                <Popover
+                    trigger="click"
+                    open={filterOpen}
+                    onOpenChange={setFilterOpen}
+                    placement="bottomLeft"
+                    content={
+                        <div className="flex flex-col gap-3" style={{ width: 260 }}>
+                            <div>
+                                <div className="text-sm text-gray-500 mb-1">Loại trigger</div>
+                                <Select
+                                    placeholder="Lọc theo loại trigger"
+                                    options={autoGrantTypeOptions}
+                                    value={typeFilter || undefined}
+                                    onChange={(value) => buildParams({ type: value })}
+                                    allowClear
+                                    style={{ width: "100%" }}
+                                />
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-500 mb-1">Trạng thái</div>
+                                <Select
+                                    placeholder="Lọc theo trạng thái"
+                                    options={[
+                                        { value: 'true', label: 'Đang hoạt động' },
+                                        { value: 'false', label: 'Đã tắt' },
+                                    ]}
+                                    value={statusFilter || undefined}
+                                    onChange={(value) => buildParams({ status: value })}
+                                    allowClear
+                                    style={{ width: "100%" }}
+                                />
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-500 mb-1">Danh mục áp dụng</div>
+                                <Select
+                                    placeholder="Lọc theo danh mục"
+                                    options={[
+                                        { value: 'NONE', label: 'Toàn bộ đơn hàng' },
+                                        ...(categories?.map((c) => ({ value: String(c.id), label: c.name })) || []),
+                                    ]}
+                                    value={categoryFilter || undefined}
+                                    onChange={(value) => buildParams({ category: value })}
+                                    allowClear
+                                    style={{ width: "100%" }}
+                                />
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t">
+                                <Button size="small" onClick={handleResetFilters}>
+                                    Chọn lại
+                                </Button>
+                                <Button size="small" type="primary" onClick={() => setFilterOpen(false)}>
+                                    Áp dụng{filteredRules ? ` (Có ${filteredRules.length} rule)` : ""}
+                                </Button>
+                            </div>
+                        </div>
+                    }
+                >
+                    <Button icon={<FaFilter />}>
+                        Bộ lọc{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                    </Button>
+                </Popover>
+            </div>
+
+            <Table dataSource={filteredRules} columns={columns} rowKey="id" loading={loading} pagination={false} />
 
             <Modal
                 title={editing ? 'Sửa rule' : 'Thêm rule mới'}
@@ -249,6 +403,28 @@ const VoucherAutoGrantRule = () => {
                             validate={{ min: { value: 0, message: 'Không được âm' } }}
                         />
 
+                        {autoGrantType === 'CART_RECOVERY' && (
+                            <InputFormAdmin
+                                className="border p-2 w-full"
+                                type="number"
+                                label="Giá sản phẩm tối thiểu (đ) — để trống = áp dụng mọi mức giá"
+                                register={register}
+                                errors={errors}
+                                id="minProductPrice"
+                                validate={{ min: { value: 0, message: 'Không được âm' } }}
+                            />
+                        )}
+
+                        <div className="flex flex-col h-[78px] gap-2">
+                            <label>Áp dụng cho danh mục — để trống nếu áp dụng toàn bộ đơn hàng</label>
+                            <select className="border p-2 w-full rounded-lg" {...register('categoryId')}>
+                                <option value="">Toàn bộ đơn hàng</option>
+                                {categories?.map((cate) => (
+                                    <option key={cate.id} value={cate.id}>{cate.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
                         <InputFormAdmin
                             className="border p-2 w-full"
                             type="number"
@@ -273,6 +449,15 @@ const VoucherAutoGrantRule = () => {
                             <label htmlFor="isActive">Đang hoạt động</label>
                         </div>
                     </div>
+
+                    {autoGrantType === 'CART_RECOVERY' && (
+                        <p className="text-xs text-gray-500 bg-gray-50 border rounded p-2">
+                            Lưu ý: loại này không tạo mã voucher — giảm giá áp thẳng vào giá hiển thị trong
+                            giỏ hàng của đúng người bỏ quên sản phẩm, tự hết hạn 22h00 cùng ngày được cấp.
+                            2 trường "Số ngày hiệu lực" và "Tiền tố mã" chỉ cần điền cho hợp lệ, không có
+                            tác dụng thực tế với loại này.
+                        </p>
+                    )}
 
                     <div className="flex justify-end gap-2 pt-2">
                         <Button onClick={() => setShowForm(false)}>Huỷ</Button>

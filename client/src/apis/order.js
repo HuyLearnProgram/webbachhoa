@@ -64,9 +64,22 @@ export const apiGetSummary = async () =>
         url: `admin/summary`,
     })
 
-export const apiGetOrderStatusStats = async () =>
+export const apiGetOrderStatusStats = async (month, year) =>
     axiosInstance({
         url: `admin/order-status-stats`,
+        params: { month, year }
+    })
+
+export const apiGetTopProducts = async (month, year, limit = 5) =>
+    axiosInstance({
+        url: `admin/top-products`,
+        params: { month, year, limit }
+    })
+
+export const apiGetRatingDistribution = async (month, year) =>
+    axiosInstance({
+        url: `admin/feedback-rating-distribution`,
+        params: { month, year }
     })
 
 // apiGetMyVouchers đã chuyển sang apis/voucher.js (domain voucher tách riêng)

@@ -67,7 +67,13 @@ public class VoucherService {
     public PaginationDTO getVouchersOfCurrentUser(Pageable pageable) throws ResourceInvalidException {
         User user = getCurrentUserOrThrow();
 
-        Page<UserVoucher> userVoucherPage = userVoucherRepository.findActiveUserVouchers(user.getId(), pageable);
+        // Mặc định "nhận gần nhất lên đầu" nếu client không tự chỉ định sort — tôn trọng sort của
+        // client nếu có (VD trang admin cần sort khác thì không bị ép).
+        Pageable effectivePageable = pageable.getSort().isSorted()
+                ? pageable
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "assignedAt"));
+
+        Page<UserVoucher> userVoucherPage = userVoucherRepository.findActiveUserVouchers(user.getId(), Instant.now(), effectivePageable);
 
         Page<VoucherDTO> dtoPage = userVoucherPage.map(uv -> {
             Voucher v = uv.getVoucher();
@@ -86,11 +92,21 @@ public class VoucherService {
                     uv.getIsUsed(),
                     uv.getAssignedAt(),
                     v.getApplicableCategory() != null ? v.getApplicableCategory().getId() : null,
-                    v.getApplicableCategory() != null ? v.getApplicableCategory().getName() : null
+                    v.getApplicableCategory() != null ? v.getApplicableCategory().getName() : null,
+                    v.getAutoGrantType() != null ? v.getAutoGrantType().name() : null
             );
         });
 
         return paginationHelper.fetchAllEntities(dtoPage);
+    }
+
+    /**
+     * Tổng số tiền user hiện tại đã tiết kiệm được nhờ dùng voucher (chỉ tính đơn PAID) — hiện ở
+     * trang "Ví voucher" khách hàng.
+     */
+    public double getMySavings() throws ResourceInvalidException {
+        User user = getCurrentUserOrThrow();
+        return orderRepository.sumVoucherSavingsByUser(user.getId());
     }
 
     /**

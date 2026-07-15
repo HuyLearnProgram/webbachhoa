@@ -41,6 +41,18 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
     long countByPaymentStatus(String paymentStatus);
 
+    // Bản có lọc theo tháng/năm của 4 method trên — dùng cho Overview admin (biểu đồ "Đơn hàng theo
+    // trạng thái"/"Giá trị đơn hàng theo tình trạng thanh toán" khi chọn tháng/năm cụ thể).
+    @Query("SELECT COALESCE(SUM(o.total_price), 0) FROM Order o WHERE o.status = :status AND o.orderTime >= :start AND o.orderTime < :end")
+    double sumTotalPriceByStatusAndMonth(@Param("status") int status, @Param("start") java.time.Instant start, @Param("end") java.time.Instant end);
+
+    long countByStatusAndOrderTimeBetween(int status, java.time.Instant start, java.time.Instant end);
+
+    @Query("SELECT COALESCE(SUM(o.total_price), 0) FROM Order o WHERE o.paymentStatus = :paymentStatus AND o.orderTime >= :start AND o.orderTime < :end")
+    double sumTotalPriceByPaymentStatusAndMonth(@Param("paymentStatus") String paymentStatus, @Param("start") java.time.Instant start, @Param("end") java.time.Instant end);
+
+    long countByPaymentStatusAndOrderTimeBetween(String paymentStatus, java.time.Instant start, java.time.Instant end);
+
     long countByUser_Id(Long userId);
 
     // Đếm số đơn PAID của 1 user — dùng cho hệ trao voucher tự động (FIRST_ORDER/MILESTONE), khác
@@ -65,5 +77,10 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
     // Dùng để chặn hard-delete voucher đã từng được dùng trong đơn hàng thật
     boolean existsByVoucher_Id(Long voucherId);
+
+    // Tổng tiền đã tiết kiệm nhờ voucher của 1 user (chỉ tính đơn PAID, khớp phạm vi "Tổng chi tiêu")
+    // — hiện ở trang "Ví voucher" khách hàng lẫn popup chi tiết chi tiêu admin.
+    @Query("SELECT COALESCE(SUM(o.voucherDiscountAmount), 0) FROM Order o WHERE o.user.id = :userId AND o.paymentStatus = 'PAID'")
+    double sumVoucherSavingsByUser(@Param("userId") Long userId);
 }
 

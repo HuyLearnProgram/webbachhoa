@@ -66,6 +66,7 @@ function UserDetail() {
   const [showLockModal, setShowLockModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState(null);
   const [customReason, setCustomReason] = useState("");
+  const [showSpendingModal, setShowSpendingModal] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -103,6 +104,20 @@ function UserDetail() {
     orders
       .filter((o) => o.paymentStatus === "PAID")
       .reduce((sum, o) => sum + (o.total_price || 0), 0)
+  );
+  // Tiền hoàn: đơn đã chuyển hẳn sang REFUNDED (khác totalSpent — REFUNDED không còn tính vào "đã thanh
+  // toán thành công" ở trên, nên 2 số này không trùng nhau, không phải trừ đi trừ lại).
+  const totalRefunded = Math.round(
+    orders
+      .filter((o) => o.paymentStatus === "REFUNDED")
+      .reduce((sum, o) => sum + (o.total_price || 0), 0)
+  );
+  // Tiết kiệm từ voucher: chỉ tính trên đơn PAID (khớp phạm vi với totalSpent) — voucherDiscountAmount
+  // là snapshot số tiền THỰC TẾ đã giảm tại thời điểm đặt hàng.
+  const totalVoucherSaved = Math.round(
+    orders
+      .filter((o) => o.paymentStatus === "PAID")
+      .reduce((sum, o) => sum + (o.voucherDiscountAmount || 0), 0)
   );
   const totalFeedbacks = feedbacks.length;
   const avgRating = totalFeedbacks > 0
@@ -295,7 +310,12 @@ function UserDetail() {
         <div className="bg-white shadow rounded-lg p-4 text-center">
           <div className="text-2xl font-semibold text-main">{totalSpent.toLocaleString("vi-VN")} đ</div>
           <div className="text-gray-500 text-sm">Tổng chi tiêu</div>
-          <div className="text-gray-400 text-xs">(chỉ tính đơn đã thanh toán thành công)</div>
+          <div
+            className="text-blue-500 text-xs cursor-pointer hover:underline"
+            onClick={() => setShowSpendingModal(true)}
+          >
+            Xem chi tiết
+          </div>
         </div>
         <div className="bg-white shadow rounded-lg p-4 text-center">
           <div className="text-2xl font-semibold text-main">{totalFeedbacks}</div>
@@ -433,6 +453,31 @@ function UserDetail() {
             onChange={(e) => setCustomReason(e.target.value)}
           />
         )}
+      </Modal>
+
+      <Modal
+        title={`Chi tiết chi tiêu — ${user.name || ""}`}
+        open={showSpendingModal}
+        onCancel={() => setShowSpendingModal(false)}
+        footer={[
+          <Button key="close" onClick={() => setShowSpendingModal(false)}>Đóng</Button>,
+        ]}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Tiền hoàn (hoàn tiền)</span>
+            <span className="text-red-500 font-medium">-{totalRefunded.toLocaleString("vi-VN")} đ</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Tiết kiệm từ voucher</span>
+            <span className="text-green-600 font-medium">-{totalVoucherSaved.toLocaleString("vi-VN")} đ</span>
+          </div>
+          <div className="flex justify-between items-center pt-3 border-t">
+            <span className="font-semibold">Tổng chi tiêu</span>
+            <span className="text-main font-bold text-lg">{totalSpent.toLocaleString("vi-VN")} đ</span>
+          </div>
+          <div className="text-gray-400 text-xs">(chỉ tính đơn đã thanh toán thành công)</div>
+        </div>
       </Modal>
     </div>
   );

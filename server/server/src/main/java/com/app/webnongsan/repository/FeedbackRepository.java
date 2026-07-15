@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 
 @Repository
@@ -35,6 +36,12 @@ public interface FeedbackRepository extends JpaRepository<Feedback,Long>, JpaSpe
 
     @Query("SELECT f.ratingStar, COUNT(f) FROM Feedback f GROUP BY f.ratingStar")
     List<Object[]> countGroupByRatingStar();
+
+    // Bản lọc theo tháng/năm của query trên — dùng cho biểu đồ "Phân bố đánh giá theo sao" ở Overview
+    // admin khi chọn tháng cụ thể, TÁCH RIÊNG khỏi countGroupByRatingStar() (2 stat card "Đánh giá
+    // trung bình"/"Đánh giá đang bị ẩn" vẫn giữ nguyên số liệu toàn thời gian, không bị ảnh hưởng).
+    @Query("SELECT f.ratingStar, COUNT(f) FROM Feedback f WHERE f.timestamp >= :start AND f.timestamp < :end GROUP BY f.ratingStar")
+    List<Object[]> countGroupByRatingStarAndMonth(@Param("start") Instant start, @Param("end") Instant end);
 
     long countByStatus(int status);
 

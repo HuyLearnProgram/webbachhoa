@@ -63,6 +63,18 @@ public class UserService {
             log.warn("Không trao được voucher WELCOME cho user={}: {}", created.getId(), e.getMessage());
         }
 
+        // Thưởng người ĐƯỢC giới thiệu (REFERRAL_REFEREE) — chỉ trao khi referredBy đã được
+        // AuthController.register() validate là mã giới thiệu THẬT SỰ tồn tại (không phải chuỗi rác
+        // client gửi lên) trước khi set vào user. Khác REFERRAL_REFERRER (chỉ thưởng người giới thiệu
+        // SAU KHI referee PAID đơn đầu) — cái này trao NGAY lúc tạo tài khoản.
+        if (created.getReferredBy() != null && !created.getReferredBy().isBlank()) {
+            try {
+                voucherGrantService.grantIfEligible(created, AutoGrantType.REFERRAL_REFEREE, "");
+            } catch (Exception e) {
+                log.warn("Không trao được voucher REFERRAL_REFEREE cho user={}: {}", created.getId(), e.getMessage());
+            }
+        }
+
         return created;
     }
 

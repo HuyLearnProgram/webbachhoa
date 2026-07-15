@@ -66,6 +66,12 @@ public class Voucher {
     @JoinColumn(name = "applicable_category_id")
     private Category applicableCategory;
 
+    // null = voucher tạo tay qua trang admin (isPublic=true, chiến dịch công khai). Khác null = do
+    // VoucherGrantService tự sinh theo 1 rule cụ thể — cho user/admin biết voucher này "vì sao mà có"
+    // (VD "Thưởng người giới thiệu bạn bè") thay vì chỉ thấy mã trông ngẫu nhiên trong ví/danh sách.
+    @Enumerated(EnumType.STRING)
+    private AutoGrantType autoGrantType;
+
     private Instant startDate;
 
     @Future(message = "Thời gian kết thúc phải ở tương lai")

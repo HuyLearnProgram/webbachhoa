@@ -127,10 +127,13 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.DELETE, "/api/v2/vouchers/remove").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v2/vouchers/assign").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v2/vouchers/preview").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/v2/vouchers/active", "/api/v2/vouchers/my").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v2/vouchers/active", "/api/v2/vouchers/my", "/api/v2/vouchers/my-savings").authenticated()
                         // Banner Flash Sale trang chủ — permitAll vì guest (chưa đăng nhập) cũng cần thấy,
                         // phải khai TRƯỚC rule GET vouchers/* hasRole(ADMIN) bên dưới (AntPathMatcher khớp cả 2).
                         .requestMatchers(HttpMethod.GET, "/api/v2/vouchers/flash-sale").permitAll()
+                        // Số tiền tối đa hiện trên trang đăng ký (chưa đăng nhập) để khuyến khích nhập mã
+                        // giới thiệu — cùng lý do phải permitAll + khai TRƯỚC rule ADMIN bên dưới.
+                        .requestMatchers(HttpMethod.GET, "/api/v2/vouchers/referral-max-reward").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v2/vouchers").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v2/vouchers/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/vouchers", "/api/v2/vouchers/*").hasRole("ADMIN")

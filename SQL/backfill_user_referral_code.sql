@@ -1,0 +1,65 @@
+-- Backfill referral_code cho user cũ tạo trước khi tính năng referral (Phase 6) ra đời.
+-- ddl-auto=update chỉ set default Java-side cho INSERT mới, không backfill NULL cho dòng cũ
+-- (đúng gotcha đã ghi trong CLAUDE.md) -- toàn bộ user hiện có (60 dòng) đều NULL trước
+-- khi chạy script này, khiến tính năng referral không ai dùng được (không có mã để chia sẻ).
+-- Mã sinh cùng thuật toán UserService.generateUniqueReferralCode() (bảng chữ 32 ký tự bỏ 0/O/1/I).
+UPDATE users SET referral_code='FHW2EV' WHERE id=2 AND referral_code IS NULL;
+UPDATE users SET referral_code='5JAW5D' WHERE id=3 AND referral_code IS NULL;
+UPDATE users SET referral_code='A9CZ65' WHERE id=4 AND referral_code IS NULL;
+UPDATE users SET referral_code='UHBK5L' WHERE id=5 AND referral_code IS NULL;
+UPDATE users SET referral_code='XR7CJW' WHERE id=6 AND referral_code IS NULL;
+UPDATE users SET referral_code='G2F9D9' WHERE id=7 AND referral_code IS NULL;
+UPDATE users SET referral_code='5LHS37' WHERE id=13 AND referral_code IS NULL;
+UPDATE users SET referral_code='6XGPU8' WHERE id=14 AND referral_code IS NULL;
+UPDATE users SET referral_code='ZYMYZ7' WHERE id=15 AND referral_code IS NULL;
+UPDATE users SET referral_code='BXHNJD' WHERE id=16 AND referral_code IS NULL;
+UPDATE users SET referral_code='KPGRT4' WHERE id=17 AND referral_code IS NULL;
+UPDATE users SET referral_code='RDER37' WHERE id=18 AND referral_code IS NULL;
+UPDATE users SET referral_code='Y7RPGE' WHERE id=19 AND referral_code IS NULL;
+UPDATE users SET referral_code='KBND9Q' WHERE id=20 AND referral_code IS NULL;
+UPDATE users SET referral_code='X4UPDL' WHERE id=21 AND referral_code IS NULL;
+UPDATE users SET referral_code='BSEJWP' WHERE id=22 AND referral_code IS NULL;
+UPDATE users SET referral_code='P6JVNG' WHERE id=23 AND referral_code IS NULL;
+UPDATE users SET referral_code='U88H4Y' WHERE id=24 AND referral_code IS NULL;
+UPDATE users SET referral_code='967F6L' WHERE id=25 AND referral_code IS NULL;
+UPDATE users SET referral_code='WLXZNU' WHERE id=26 AND referral_code IS NULL;
+UPDATE users SET referral_code='XRSQW9' WHERE id=29 AND referral_code IS NULL;
+UPDATE users SET referral_code='S3X6PQ' WHERE id=30 AND referral_code IS NULL;
+UPDATE users SET referral_code='4L25DR' WHERE id=31 AND referral_code IS NULL;
+UPDATE users SET referral_code='6QSUNX' WHERE id=32 AND referral_code IS NULL;
+UPDATE users SET referral_code='3R6CPA' WHERE id=33 AND referral_code IS NULL;
+UPDATE users SET referral_code='7XMDXF' WHERE id=34 AND referral_code IS NULL;
+UPDATE users SET referral_code='N5UWDK' WHERE id=35 AND referral_code IS NULL;
+UPDATE users SET referral_code='WWULHU' WHERE id=36 AND referral_code IS NULL;
+UPDATE users SET referral_code='T8PCXS' WHERE id=37 AND referral_code IS NULL;
+UPDATE users SET referral_code='DFBU3U' WHERE id=38 AND referral_code IS NULL;
+UPDATE users SET referral_code='JKWQBA' WHERE id=39 AND referral_code IS NULL;
+UPDATE users SET referral_code='U48DPF' WHERE id=40 AND referral_code IS NULL;
+UPDATE users SET referral_code='Z4F6KW' WHERE id=41 AND referral_code IS NULL;
+UPDATE users SET referral_code='RACGN7' WHERE id=42 AND referral_code IS NULL;
+UPDATE users SET referral_code='5HFUZQ' WHERE id=43 AND referral_code IS NULL;
+UPDATE users SET referral_code='V7VRQX' WHERE id=44 AND referral_code IS NULL;
+UPDATE users SET referral_code='RA2UCG' WHERE id=45 AND referral_code IS NULL;
+UPDATE users SET referral_code='8Z688L' WHERE id=46 AND referral_code IS NULL;
+UPDATE users SET referral_code='ZKTDSG' WHERE id=47 AND referral_code IS NULL;
+UPDATE users SET referral_code='AFX2P9' WHERE id=48 AND referral_code IS NULL;
+UPDATE users SET referral_code='TEHZHD' WHERE id=49 AND referral_code IS NULL;
+UPDATE users SET referral_code='AB44NT' WHERE id=50 AND referral_code IS NULL;
+UPDATE users SET referral_code='SZMVAC' WHERE id=51 AND referral_code IS NULL;
+UPDATE users SET referral_code='7GRP99' WHERE id=52 AND referral_code IS NULL;
+UPDATE users SET referral_code='J9N24U' WHERE id=53 AND referral_code IS NULL;
+UPDATE users SET referral_code='YDA8YM' WHERE id=54 AND referral_code IS NULL;
+UPDATE users SET referral_code='HHUSCB' WHERE id=55 AND referral_code IS NULL;
+UPDATE users SET referral_code='52H399' WHERE id=56 AND referral_code IS NULL;
+UPDATE users SET referral_code='TPQWSH' WHERE id=57 AND referral_code IS NULL;
+UPDATE users SET referral_code='BBBXTQ' WHERE id=58 AND referral_code IS NULL;
+UPDATE users SET referral_code='YG4G3L' WHERE id=59 AND referral_code IS NULL;
+UPDATE users SET referral_code='T9J5SU' WHERE id=60 AND referral_code IS NULL;
+UPDATE users SET referral_code='HPYVHN' WHERE id=61 AND referral_code IS NULL;
+UPDATE users SET referral_code='NHECAY' WHERE id=62 AND referral_code IS NULL;
+UPDATE users SET referral_code='AA673C' WHERE id=63 AND referral_code IS NULL;
+UPDATE users SET referral_code='SJ4QEB' WHERE id=64 AND referral_code IS NULL;
+UPDATE users SET referral_code='HQENMP' WHERE id=65 AND referral_code IS NULL;
+UPDATE users SET referral_code='NCEDL9' WHERE id=66 AND referral_code IS NULL;
+UPDATE users SET referral_code='FRAARU' WHERE id=67 AND referral_code IS NULL;
+UPDATE users SET referral_code='RX4VPM' WHERE id=68 AND referral_code IS NULL;

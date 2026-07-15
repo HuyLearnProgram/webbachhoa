@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 
 // Trung tâm của hệ "trao voucher tự động" — mọi trigger (welcome/first-order/milestone/
@@ -80,14 +81,19 @@ public class VoucherGrantService {
     }
 
     /**
-     * Trao voucher theo loại đơn giản (WELCOME/FIRST_ORDER/CART_RECOVERY/BIRTHDAY/WIN_BACK/
-     * REFERRAL_REFERRER) — tìm đúng 1 rule active của loại này. periodKey truyền "" nếu loại đó
-     * chỉ trao 1 lần trong đời (KHÔNG truyền null — xem lý do ở VoucherGrantLog).
+     * Trao voucher theo loại đơn giản (WELCOME/FIRST_ORDER/BIRTHDAY/WIN_BACK/REFERRAL_REFERRER/
+     * REFERRAL_REFEREE) — trao TẤT CẢ rule active cùng loại (VD REFERRAL_REFEREE có 10 rule theo
+     * 10 danh mục khác nhau -> user nhận đủ cả 10 voucher trong 1 lần, KHÔNG chọn ngẫu nhiên 1 trong
+     * số đó — quyết định trực tiếp của user, xem CLAUDE.md). Mỗi rule ghi 1 dòng VoucherGrantLog
+     * RIÊNG (periodKey nối thêm id rule) để vẫn chống trao trùng ĐÚNG RULE đó cho cùng 1 sự kiện,
+     * trong khi các rule khác cùng sự kiện vẫn trao được bình thường (khác điều kiện unique). periodKey
+     * gốc truyền "" nếu loại đó chỉ trao 1 lần trong đời (KHÔNG truyền null — xem lý do ở VoucherGrantLog).
      */
     public void grantIfEligible(User user, AutoGrantType type, String periodKey) {
-        Optional<VoucherAutoGrantRule> ruleOpt = ruleRepository.findFirstByAutoGrantTypeAndIsActiveTrue(type);
-        if (ruleOpt.isEmpty()) return; // Admin chưa cấu hình rule này — im lặng bỏ qua, không phải lỗi
-        grant(user, ruleOpt.get(), type, periodKey);
+        List<VoucherAutoGrantRule> rules = ruleRepository.findAllByAutoGrantTypeAndIsActiveTrue(type);
+        for (VoucherAutoGrantRule rule : rules) {
+            grant(user, rule, type, periodKey + ":" + rule.getId());
+        }
     }
 
     /**
@@ -128,6 +134,8 @@ public class VoucherGrantService {
         voucher.setDiscountValue(rule.getDiscountValue());
         voucher.setMinimumOrderAmount(rule.getMinimumOrderAmount());
         voucher.setMaxDiscountAmount(rule.getMaxDiscountAmount());
+        voucher.setApplicableCategory(rule.getApplicableCategory());
+        voucher.setAutoGrantType(type);
         voucher.setMaxUsage(1);
         voucher.setUsedCount(0);
         voucher.setIsActive(true);
@@ -167,6 +175,7 @@ public class VoucherGrantService {
             case BIRTHDAY -> "Chúc mừng sinh nhật! Bách Hóa gửi tặng bạn một voucher đặc biệt.";
             case WIN_BACK -> "Đã lâu không thấy bạn ghé thăm — đây là voucher chào đón bạn quay lại.";
             case REFERRAL_REFERRER -> "Cảm ơn bạn đã giới thiệu bạn bè đến với Bách Hóa! Đây là quà cảm ơn dành cho bạn.";
+            case REFERRAL_REFEREE -> "Chào mừng bạn đến với Bách Hóa qua lời giới thiệu của bạn bè! Đây là voucher dành riêng cho bạn.";
             case LUCKY_DRAW -> "Chúc mừng bạn đã trúng thưởng từ vòng quay may mắn!";
         };
     }

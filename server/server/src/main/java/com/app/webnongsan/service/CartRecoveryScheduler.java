@@ -4,11 +4,14 @@ import com.app.webnongsan.domain.CartId;
 import com.app.webnongsan.domain.CartRecoveryDiscount;
 import com.app.webnongsan.domain.Product;
 import com.app.webnongsan.domain.User;
+import com.app.webnongsan.domain.Voucher;
+import com.app.webnongsan.domain.VoucherAutoGrantRule;
 import com.app.webnongsan.repository.CartEventRepository;
 import com.app.webnongsan.repository.CartRecoveryDiscountRepository;
 import com.app.webnongsan.repository.CartRepository;
 import com.app.webnongsan.repository.ProductRepository;
 import com.app.webnongsan.repository.UserRepository;
+import com.app.webnongsan.repository.VoucherAutoGrantRuleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,10 +28,18 @@ import java.util.List;
 // Khôi phục giỏ hàng bị bỏ quên — sản phẩm CHƯA có khuyến mãi nào (promotionType=NONE) bị 1 user bất
 // kỳ bỏ quên trong giỏ >= staleThresholdHours (mặc định 48h) -> cấp 1 Flash Sale CÁ NHÂN
 // (CartRecoveryDiscount) CHỈ cho đúng user đó — KHÔNG đụng Product.discountPrice (không còn công khai
-// cho mọi khách như trước). Mức giảm chia bậc theo giá sản phẩm (5%/tối đa 15k nếu <150k, 10%/tối đa
-// 30k nếu >=150k). Hết hạn 22h00 CÙNG NGÀY được cấp, và chỉ THỰC SỰ có hiệu lực trong khung giờ Flash
-// Sale (xem PromotionService.isWithinFlashSaleWindow) — xem chi tiết luồng đọc giá ở
+// cho mọi khách như trước). Mức giảm/ngưỡng giá đọc từ bảng voucher_auto_grant_rules (loại
+// CART_RECOVERY, xem VoucherAutoGrantRuleRepository.findMatchingCartRecoveryRules) — admin sửa qua
+// trang "Quy tắc trao voucher tự động" không cần sửa code/restart; KHÔNG có rule active nào ->
+// coi như tính năng đang tắt cho sản phẩm đó (kill-switch tự nhiên, không cần cờ riêng). Hết hạn
+// 22h00 CÙNG NGÀY được cấp, và chỉ THỰC SỰ có hiệu lực trong khung giờ Flash Sale (xem
+// PromotionService.isWithinFlashSaleWindow) — xem chi tiết luồng đọc giá ở
 // PromotionService.getActivePersonalDiscount()/CartService.enrichPersonalDiscount().
+//
+// Lưu ý: rule CART_RECOVERY KHÔNG tạo Voucher/UserVoucher (khác 6 loại trigger còn lại dùng
+// VoucherGrantService) — output là CartRecoveryDiscount, áp thẳng vào giá hiển thị trong giỏ, không
+// có mã để nhập. Do đó codePrefix/validityDays/minimumOrderAmount trên rule bị bỏ qua, chỉ
+// discountType/discountValue/maxDiscountAmount/minProductPrice có tác dụng.
 @Component
 public class CartRecoveryScheduler {
     private static final Logger log = LoggerFactory.getLogger(CartRecoveryScheduler.class);
@@ -38,39 +49,27 @@ public class CartRecoveryScheduler {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final CartRecoveryDiscountRepository cartRecoveryDiscountRepository;
+    private final VoucherAutoGrantRuleRepository voucherAutoGrantRuleRepository;
     private final EmailService emailService;
 
     private final long staleThresholdHours;
-    private final double priceTierThreshold;
-    private final double discountPercentLow;
-    private final double discountPercentHigh;
-    private final double maxDiscountAmountLow;
-    private final double maxDiscountAmountHigh;
 
     public CartRecoveryScheduler(CartEventRepository cartEventRepository,
                                   CartRepository cartRepository,
                                   ProductRepository productRepository,
                                   UserRepository userRepository,
                                   CartRecoveryDiscountRepository cartRecoveryDiscountRepository,
+                                  VoucherAutoGrantRuleRepository voucherAutoGrantRuleRepository,
                                   EmailService emailService,
-                                  @Value("${cart-recovery.stale-threshold-hours:48}") long staleThresholdHours,
-                                  @Value("${cart-recovery.price-tier-threshold:150000}") double priceTierThreshold,
-                                  @Value("${cart-recovery.discount-percent-low:5}") double discountPercentLow,
-                                  @Value("${cart-recovery.discount-percent-high:10}") double discountPercentHigh,
-                                  @Value("${cart-recovery.max-discount-amount-low:15000}") double maxDiscountAmountLow,
-                                  @Value("${cart-recovery.max-discount-amount-high:30000}") double maxDiscountAmountHigh) {
+                                  @Value("${cart-recovery.stale-threshold-hours:48}") long staleThresholdHours) {
         this.cartEventRepository = cartEventRepository;
         this.cartRepository = cartRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
         this.cartRecoveryDiscountRepository = cartRecoveryDiscountRepository;
+        this.voucherAutoGrantRuleRepository = voucherAutoGrantRuleRepository;
         this.emailService = emailService;
         this.staleThresholdHours = staleThresholdHours;
-        this.priceTierThreshold = priceTierThreshold;
-        this.discountPercentLow = discountPercentLow;
-        this.discountPercentHigh = discountPercentHigh;
-        this.maxDiscountAmountLow = maxDiscountAmountLow;
-        this.maxDiscountAmountHigh = maxDiscountAmountHigh;
     }
 
     // @Transactional bắt buộc cho deleteExpiredBefore (@Modifying DELETE) — pattern chung của dự án
@@ -117,13 +116,23 @@ public class CartRecoveryScheduler {
                 // cấp lại, không phải lỗi nghiêm trọng).
                 if (cartRecoveryDiscountRepository.existsByUser_IdAndProduct_IdAndExpiresAtAfter(userId, productId, now)) continue;
 
+                // Không có rule CART_RECOVERY active nào khớp giá sản phẩm -> coi như tính năng đang tắt
+                // (admin deactivate hết rule = kill-switch, không cần cờ bật/tắt riêng).
+                List<VoucherAutoGrantRule> matches = voucherAutoGrantRuleRepository.findMatchingCartRecoveryRules(product.getPrice());
+                if (matches.isEmpty()) continue;
+                VoucherAutoGrantRule rule = matches.get(0);
+                if (rule.getDiscountType() != Voucher.VoucherType.PERCENT) {
+                    log.warn("Cart Recovery: rule id={} kiểu FIXED không được hỗ trợ (CartRecoveryDiscount chỉ nhận %), bỏ qua", rule.getId());
+                    continue;
+                }
+
                 User user = userRepository.findById(userId).orElse(null);
                 if (user == null) continue;
 
-                boolean lowTier = product.getPrice() < priceTierThreshold;
-                double percent = lowTier ? discountPercentLow : discountPercentHigh;
-                double maxAmount = lowTier ? maxDiscountAmountLow : maxDiscountAmountHigh;
-                double discountAmount = Math.min(product.getPrice() * percent / 100.0, maxAmount);
+                double percent = rule.getDiscountValue();
+                Double maxAmount = rule.getMaxDiscountAmount(); // null = không giới hạn trần
+                double rawDiscount = product.getPrice() * percent / 100.0;
+                double discountAmount = maxAmount != null ? Math.min(rawDiscount, maxAmount) : rawDiscount;
                 double discountedPrice = product.getPrice() - discountAmount;
 
                 CartRecoveryDiscount discount = new CartRecoveryDiscount();
@@ -142,8 +151,8 @@ public class CartRecoveryScheduler {
                     log.warn("Cart Recovery: lỗi gửi email thông báo user={}: {}", userId, e.getMessage());
                 }
 
-                log.info("Cart Recovery: cấp Flash Sale cá nhân user={} product={} ({}%, tối đa {}đ, hết hạn {}) do bị bỏ quên trong giỏ >= {}h",
-                        userId, productId, percent, maxAmount, expiresAt, staleThresholdHours);
+                log.info("Cart Recovery: cấp Flash Sale cá nhân user={} product={} (rule id={}, {}%, tối đa {}, hết hạn {}) do bị bỏ quên trong giỏ >= {}h",
+                        userId, productId, rule.getId(), percent, maxAmount, expiresAt, staleThresholdHours);
             } catch (Exception e) {
                 log.warn("Cart Recovery: lỗi xử lý user={} product={}: {}", userId, productId, e.getMessage());
             }

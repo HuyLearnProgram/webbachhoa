@@ -22,6 +22,13 @@ export const apiGetMyVouchers = async (params) =>
         params,
     });
 
+// Tổng tiền đã tiết kiệm nhờ voucher (chỉ tính đơn PAID) — hiện ở trang "Ví voucher"
+export const apiGetMyVoucherSavings = async () =>
+    axiosInstance({
+        url: 'vouchers/my-savings',
+        method: 'get',
+    });
+
 // Preview/validate voucher trước khi đặt hàng — dùng chung cho cả 2 luồng chọn-từ-danh-sách
 // (voucherId) và nhập-tay (code), thuần đọc, không mutate state ở BE.
 export const apiPreviewVoucher = async ({ voucherId, code, orderTotal, items }) =>
@@ -29,6 +36,14 @@ export const apiPreviewVoucher = async ({ voucherId, code, orderTotal, items }) 
         url: 'vouchers/preview',
         method: 'post',
         data: { voucherId, code, orderTotal, items },
+    });
+
+// Số tiền tối đa hiện trên trang đăng ký để khuyến khích nhập mã giới thiệu — tính động từ rule
+// WELCOME + REFERRAL_REFEREE đang active phía BE (KHÔNG hardcode ở FE, tránh lệch khi admin sửa rule).
+export const apiGetReferralMaxReward = async () =>
+    axiosInstance({
+        url: 'vouchers/referral-max-reward',
+        method: 'get',
     });
 
 export const apiAssignVoucher = async (id) =>

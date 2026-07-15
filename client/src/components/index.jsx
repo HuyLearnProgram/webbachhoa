@@ -1,6 +1,5 @@
 export { default as Header } from "./headers/Header";
 export { default as Footer } from "./footer/Footer";
-export { default as Navigation } from "./navigation/Navigation";
 export { default as Sidebar } from "./sidebar/Sidebar";
 export { default as FeatureProduct } from "./products/FeatureProduct";
 export { default as HotDeals } from "./products/HotDeals";

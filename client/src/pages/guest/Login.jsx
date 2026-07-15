@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { InputField, Button, ForgotPassword } from "@/components";
 import Swal from 'sweetalert2';
-import { apiLogin, apiRegister, apiLoginGoogle } from "@/apis";
+import { apiLogin, apiRegister, apiLoginGoogle, apiGetReferralMaxReward } from "@/apis";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import path from "@/utils/path";
 import { login } from '@/store/user/userSlice';
@@ -27,6 +27,16 @@ const Login = () => {
   const [isForgotPass, setIsForgotPass] = useState(false);
   const { register: formRegister, handleSubmit, formState: { errors } } = useForm();
   const [loading, setLoading] = useState(false);
+  const [referralMaxReward, setReferralMaxReward] = useState(0);
+
+  // Số tiền tối đa hiện trên dòng khuyến khích nhập mã giới thiệu — tính động từ BE (rule WELCOME +
+  // REFERRAL_REFEREE đang active), không hardcode để tránh lệch khi admin sửa giá trị voucher sau này.
+  useEffect(() => {
+    (async () => {
+      const res = await apiGetReferralMaxReward();
+      if (typeof res?.data === 'number') setReferralMaxReward(res.data);
+    })();
+  }, []);
 
   // Referral (Phase 6) — đọc mã giới thiệu từ link chia sẻ (?ref=<mã>) để tự điền sẵn lúc đăng ký
   useEffect(() => {
@@ -114,17 +124,6 @@ const Login = () => {
               disabled={loading}
             />
           )}
-          {isRegister && (
-            <InputField
-              value={payload.referralCode}
-              setValue={setPayload}
-              nameKey="referralCode"
-              register={formRegister}
-              errors={errors}
-              validationRules={{}}
-              disabled={loading}
-            />
-          )}
           <InputField
             value={payload.email}
             setValue={setPayload}
@@ -160,6 +159,25 @@ const Login = () => {
             }}
             disabled={loading}
           />
+          {isRegister && (
+            <div>
+              <InputField
+                value={payload.referralCode}
+                setValue={setPayload}
+                nameKey="referralCode"
+                label="Mã giới thiệu (nếu có)"
+                register={formRegister}
+                errors={errors}
+                validationRules={{}}
+                disabled={loading}
+              />
+              {referralMaxReward > 0 && (
+                <p className="text-xs text-main -mt-1 mb-2">
+                  🎁 Nhập mã giới thiệu hợp lệ để nhận ngay đến {referralMaxReward.toLocaleString('vi-VN')}đ tiền voucher!
+                </p>
+              )}
+            </div>
+          )}
           <Button
             fw={true}
             handleOnClick={handleSubmit(onSubmit)}

@@ -14,11 +14,15 @@ Dự án xây dựng một hệ thống thương mại điện tử hoàn chỉn
 -   **Xem chi tiết sản phẩm:** Kèm đánh giá/bình luận từ người mua khác.
 -   **Khuyến mãi sản phẩm đa dạng:** Giảm giá trực tiếp, mua X tặng Y, mua theo combo giá ưu đãi — tự động áp dụng và tự hết hạn theo thời gian.
 -   **Quản lý giỏ hàng:** Thêm, xóa, cập nhật số lượng, chọn sản phẩm muốn đặt hàng bằng checkbox.
--   **Đặt hàng và thanh toán:** Tích hợp VN PAY Sandbox, áp mã giảm giá (voucher), tự động gửi email xác nhận đơn hàng.
+-   **Đặt hàng và thanh toán:** Tích hợp VN PAY Sandbox, nhập/chọn mã giảm giá (voucher) có xem trước số tiền được giảm trước khi đặt, tự động gửi email xác nhận đơn hàng.
+-   **Flash Sale trang chủ:** Sản phẩm đang giảm giá hiển thị theo 2 khung giờ cố định trong ngày kèm đếm ngược, có trang xem toàn bộ sản phẩm Flash Sale.
 -   **Trang cá nhân:**
     +    **Quản lý thông tin cá nhân**.
     +    **Lịch sử mua hàng:** Hủy đơn hàng khi chưa giao; yêu cầu trả hàng/hoàn tiền trong vòng 15 ngày kể từ lúc nhận hàng.
     +    **Danh sách sản phẩm yêu thích**.
+    +    **Ví voucher:** Xem voucher đã được tặng, lưu thêm voucher công khai đang chạy.
+    +    **Giới thiệu bạn bè:** Mỗi người có 1 mã giới thiệu riêng; cả người giới thiệu lẫn người được giới thiệu đều nhận voucher khi đăng ký/mua hàng thành công.
+-   **Ưu đãi tự động & rút thăm may mắn:** Voucher được tự động tặng vào ví theo hành vi mua sắm (chào mừng thành viên mới, đơn hàng đầu tiên, mốc số đơn, sinh nhật, lâu ngày không quay lại, giỏ hàng bị bỏ quên — giảm giá cá nhân có hạn trong ngày), kèm email thông báo; có lượt rút thăm trúng thưởng sau mỗi đơn hàng.
 -   **Đánh giá sản phẩm:** Đánh giá theo sao kèm bình luận.
 -   **Upload ảnh đại diện:** Qua Cloudinary; ảnh sản phẩm/danh mục phục vụ từ storage riêng của backend.
 
@@ -28,6 +32,9 @@ Dự án xây dựng một hệ thống thương mại điện tử hoàn chỉn
 -   **Quản lý sản phẩm:** CRUD đầy đủ, ẩn/hiện thay vì xoá cứng, nhiều ảnh, quản lý SKU, import/export Excel, trang xem chi tiết (số liệu bán/đánh giá/tỉ lệ hoàn trả), cấu hình khuyến mãi đa loại.
 -   **Quản lý đơn hàng:** Cập nhật trạng thái đơn hàng, chỉnh sửa thông tin giao hàng, xuất hóa đơn PDF.
 -   **Quản lý người dùng:** CRUD, khoá/mở khoá tài khoản (bắt buộc chọn lý do, không xoá cứng), trang xem chi tiết người dùng, tự động gửi email khi admin chỉnh sửa hộ.
+-   **Quản lý mã giảm giá (Voucher):** CRUD, áp dụng toàn đơn hoặc riêng theo danh mục sản phẩm, đánh dấu hiển thị Flash Sale.
+-   **Quy tắc trao voucher tự động:** Cấu hình điều kiện/giá trị giảm cho từng loại (chào mừng, đơn hàng đầu tiên, mốc số đơn, sinh nhật, khách lâu không quay lại, giỏ hàng bị bỏ quên, giới thiệu bạn bè...), tìm kiếm/lọc theo loại và danh mục áp dụng.
+-   **Rút thăm may mắn:** Quản lý chiến dịch và danh sách giải thưởng.
 -   **Quản lý phản hồi:** Ẩn phản hồi sản phẩm.
 
 ### Gợi ý sản phẩm bằng AI (tự học liên tục):
@@ -198,8 +205,9 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 ![Forgot Password](./screenshots/forgotPass.png)
 
 ### Trang chủ
-![Trang chủ 1](./screenshots/home1.png)
-![Trang chủ 2](./screenshots/home2.png)
+![Trang chủ - Flash Sale](./screenshots/home1.png)
+![Trang chủ - Gợi ý dành cho bạn](./screenshots/home2.png)
+![Trang chủ - Khuyến mãi & bán chạy](./screenshots/home3.png)
 ![Quick View Product](./screenshots/quick_product.png)
 
 ### Trang tìm kiếm và lọc sản phẩm
@@ -215,7 +223,8 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 
 ### Trang thanh toán
 ![Checkout](./screenshots/checkout.png)
-![Voucher](./screenshots/voucher.png)
+![Chọn mã giảm giá](./screenshots/voucher1.png)
+![Đơn hàng đã áp voucher](./screenshots/voucher2.png)
 
 ### Trang quản lý thông tin cá nhân
 ![profile](./screenshots/profile.png)
@@ -223,6 +232,9 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 ![buy_history_detail1](./screenshots/buy_history_detail1.png)
 ![buy_history_detail2](./screenshots/buy_history_detail2.png)
 ![wishlist](./screenshots/wishlist.png)
+![Sản phẩm đã xem](./screenshots/product_viewed.png)
+![Ví voucher](./screenshots/voucher_wallet.png)
+![Giới thiệu bạn bè](./screenshots/friend_introduce.png)
 
 ### Trang tổng quan báo cáo doanh thu (Admin):
 ![admin_dashboard1](./screenshots/admin_dashboard1.png)
@@ -240,6 +252,7 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 ### Trang quản lý người dùng (Admin):
 ![ma_user](./screenshots/ma_user.png)
 ![ma_user_detail](./screenshots/ma_user_detail.png)
+![ma_user_detail - Chi tiết chi tiêu](./screenshots/ma_user_detail2.png)
 ![ma_user_edit](./screenshots/ma_user_edit.png)
 
 ### Trang quản lý đơn hàng (Admin):
@@ -248,12 +261,28 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 ![ma_order_detail2](./screenshots/ma_order_detail2.png)
 ![ma_order_detail_invoice](./screenshots/ma_order_detail_invoice.png)
 
+### Trang quản lý mã giảm giá - Voucher (Admin):
+![ma_voucher](./screenshots/ma_voucher.png)
+![ma_voucher_add](./screenshots/ma_voucher_add.png)
+![ma_voucher_edit](./screenshots/ma_voucher_edit.png)
+
+### Trang quản lý quy tắc trao voucher tự động (Admin):
+![ma_voucher_rule](./screenshots/ma_voucher_rule.png)
+![ma_voucher_rule_add](./screenshots/ma_voucher_rule_add.png)
+![ma_voucher_rule_edit](./screenshots/ma_voucher_rule_edit.png)
+
+### Trang quản lý rút thăm may mắn (Admin):
+![ma_lucky_draw](./screenshots/ma_lucky_draw.png)
+![ma_lucky_draw_add](./screenshots/ma_lucky_draw_add.png)
+![ma_lucky_draw_edit](./screenshots/ma_lucky_draw_edit.png)
+
 ### Trang quản lý feedback (Admin):
 ![ma_feedback](./screenshots/ma_feedback.png)
 ![ma_feedback_detail](./screenshots/ma_feedback_detail.png)
 
-### Trang quản lý Gợi ý AI (Admin):
+### Trang quản lý Gợi ý AI & Tìm kiếm thông minh (Admin):
 ![ma_ai_recom1](./screenshots/ma_ai_recom1.png)
 ![ma_ai_recom2](./screenshots/ma_ai_recom2.png)
+![ma_ai_recom3 - Chất lượng tìm kiếm](./screenshots/ma_ai_recom3.png)
 ![ma_ai_recom_detail](./screenshots/ma_ai_recom_detail.png)
 

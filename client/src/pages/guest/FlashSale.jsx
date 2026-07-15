@@ -19,7 +19,10 @@ const FlashSale = () => {
 
     const handleSelectWindow = (w) => {
         setSelectedWindow(w);
-        if (w) setSearchParams({ window: String(w) });
+        // replace: true — tránh phình history stack khi đổi tab nhiều lần (mỗi lần đổi tab không cần
+        // tạo 1 entry back-button riêng); cũng là lớp phòng vệ thứ 2 nếu FlashSaleWindowTabs lỡ gọi
+        // lại onSelectWindow không cần thiết trong tương lai.
+        if (w) setSearchParams({ window: String(w) }, { replace: true });
     };
 
     useEffect(() => {

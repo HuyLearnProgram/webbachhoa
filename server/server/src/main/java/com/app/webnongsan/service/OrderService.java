@@ -8,6 +8,7 @@ import com.app.webnongsan.domain.response.order.OrderDetailDTO;
 import com.app.webnongsan.domain.response.order.OverviewStatsDTO;
 import com.app.webnongsan.domain.response.order.PaymentStatusCountDTO;
 import com.app.webnongsan.domain.response.order.StatusCountDTO;
+import com.app.webnongsan.domain.response.order.TopProductDTO;
 import com.app.webnongsan.domain.response.order.WeeklyRevenue;
 import com.app.webnongsan.domain.response.product.ProductReturnStatsDTO;
 import com.app.webnongsan.repository.*;
@@ -29,6 +30,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -398,21 +401,49 @@ public class OrderService {
     private static final String[] PAYMENT_STATUSES =
             {"UNPAID", "PENDING_PAYMENT", "PAID", "PAYMENT_FAILED", "REFUND_PENDING", "REFUNDED"};
 
-    public OrderBreakdownDTO getOrderBreakdown() {
+    // Khoảng [đầu tháng, đầu tháng sau) theo giờ hệ thống — dùng chung cho mọi biểu đồ Overview lọc
+    // theo tháng/năm (order-status-stats, top-products, feedback-rating-distribution).
+    private Instant[] monthRange(int month, int year) {
+        YearMonth ym = YearMonth.of(year, month);
+        Instant start = ym.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant end = ym.plusMonths(1).atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        return new Instant[]{start, end};
+    }
+
+    public OrderBreakdownDTO getOrderBreakdown(int month, int year) {
+        Instant[] range = monthRange(month, year);
+        Instant start = range[0];
+        Instant end = range[1];
+
         List<StatusCountDTO> byStatus = new ArrayList<>();
         for (int status : ORDER_STATUSES) {
-            long count = orderRepository.countByStatus(status);
-            double revenue = orderRepository.sumTotalPriceByStatus(status);
+            long count = orderRepository.countByStatusAndOrderTimeBetween(status, start, end);
+            double revenue = orderRepository.sumTotalPriceByStatusAndMonth(status, start, end);
             byStatus.add(new StatusCountDTO(status, count, revenue));
         }
 
         List<PaymentStatusCountDTO> byPaymentStatus = new ArrayList<>();
         for (String paymentStatus : PAYMENT_STATUSES) {
-            long count = orderRepository.countByPaymentStatus(paymentStatus);
-            double revenue = orderRepository.sumTotalPriceByPaymentStatus(paymentStatus);
+            long count = orderRepository.countByPaymentStatusAndOrderTimeBetween(paymentStatus, start, end);
+            double revenue = orderRepository.sumTotalPriceByPaymentStatusAndMonth(paymentStatus, start, end);
             byPaymentStatus.add(new PaymentStatusCountDTO(paymentStatus, count, revenue));
         }
 
         return new OrderBreakdownDTO(byStatus, byPaymentStatus);
+    }
+
+    /**
+     * Top N sản phẩm bán chạy trong 1 tháng (theo số lượng bán, chỉ tính đơn PAID) — dùng cho biểu đồ
+     * "Top 5 sản phẩm bán chạy" ở Overview admin, thay cho Product.sold (cột cộng dồn toàn thời gian).
+     */
+    public List<TopProductDTO> getTopSellingProducts(int month, int year, int limit) {
+        Instant[] range = monthRange(month, year);
+        List<Object[]> rows = orderDetailRepository.findTopSellingProductsByMonth(
+                range[0], range[1], PageRequest.of(0, limit));
+        List<TopProductDTO> result = new ArrayList<>();
+        for (Object[] row : rows) {
+            result.add(new TopProductDTO((Long) row[0], (String) row[1], (Long) row[2]));
+        }
+        return result;
     }
 }

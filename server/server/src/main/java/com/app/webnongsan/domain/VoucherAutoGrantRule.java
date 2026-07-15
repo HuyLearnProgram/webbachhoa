@@ -58,6 +58,13 @@ public class VoucherAutoGrantRule {
     @PositiveOrZero(message = "Giá sản phẩm tối thiểu không được âm")
     private Double minProductPrice;
 
+    // null = voucher tạo ra áp dụng toàn đơn (hành vi gốc). Khác null = chỉ áp dụng cho sản phẩm
+    // thuộc đúng danh mục này — copy nguyên sang Voucher.applicableCategory khi VoucherGrantService
+    // tạo voucher thật, cùng semantics/validate với voucher tạo tay (VoucherValidationService).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "applicable_category_id")
+    private Category applicableCategory;
+
     private Boolean isActive = true;
 
     private Instant createdAt;

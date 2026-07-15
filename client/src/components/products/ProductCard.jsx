@@ -21,7 +21,7 @@ const { FaCartShopping, FaHeart, FaEye } = icons;
 // position effect + hiện tượng "row skipping" trên lưới ảnh) — 'primary' cho ô đầu tiên (sản phẩm
 // điểm cao nhất), 'secondary' cho ô đầu hàng 2 và ô cuối cùng (chống bỏ hàng, tăng ghi nhớ điểm kết).
 // Không dùng badge/màu loè loẹt — chỉ scale/viền nhẹ để không "cướp" hết chú ý khỏi các sản phẩm khác.
-const ProductCard = ({ productData, navigate, dispatch, viewSource, referrerProductId, onBeforeNavigate, emphasisTier }) => {
+const ProductCard = ({ productData, navigate, dispatch, viewSource, referrerProductId, onBeforeNavigate, emphasisTier, compact }) => {
   const [showOption, setShowOption] = useState(false);
   const { isLoggedIn } = useSelector(state => state.user)
 
@@ -103,7 +103,7 @@ const ProductCard = ({ productData, navigate, dispatch, viewSource, referrerProd
           e.stopPropagation();
           setShowOption(false);
         }}
-        className={`w-full ${emphasisClass} p-[15px] flex flex-col items-center transition-transform duration-200`}
+        className={`w-full ${emphasisClass} ${compact ? 'p-[10px]' : 'p-[15px]'} flex flex-col items-center transition-transform duration-200`}
       >
         <div className="w-full relative flex items-center justify-center">
           {showOption && (
@@ -153,12 +153,12 @@ const ProductCard = ({ productData, navigate, dispatch, viewSource, referrerProd
                   : product_default
               }
               alt=""
-              className="object-cover w-full h-40"
+              className={`object-cover w-full ${compact ? 'h-28' : 'h-40'}`}
             />
           </div>
         </div>
 
-        <div className="flex flex-col gap-1 mt-[15px] items-start w-full">
+        <div className={`flex flex-col gap-1 ${compact ? 'mt-2' : 'mt-[15px]'} items-start w-full`}>
           <span className="line-clamp-1">{productData?.product_name}</span>
           <span className="flex">
             {renderStarFromNumber(productData?.rating)}

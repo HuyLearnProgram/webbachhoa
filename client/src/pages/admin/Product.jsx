@@ -51,6 +51,7 @@ const Product = () => {
   const status = params.get("status"); // 'active' | 'hidden'
   const lowStock = params.get("lowStock"); // '1'
   const promotionType = params.get("promotionType");
+  const flashSaleOnly = params.get("flashSaleOnly"); // '1'
 
   useEffect(() => {
     setSearchTerm(search || "");
@@ -64,6 +65,7 @@ const Product = () => {
     if (status === "hidden") filters.push(`active=false`);
     if (lowStock === "1") filters.push(`quantity<=${LOW_STOCK_THRESHOLD}`);
     if (promotionType) filters.push(`promotionType='${promotionType}'`);
+    if (flashSaleOnly === "1") filters.push(`isFlashSale=true`);
 
     const queries = { page: currentPage, size: PRODUCT_PER_PAGE, filter: filters };
     if (sort) {
@@ -81,7 +83,7 @@ const Product = () => {
 
   useEffect(() => {
     fetchProducts(getQueries());
-  }, [currentPage, search, category, sort, status, lowStock, promotionType]);
+  }, [currentPage, search, category, sort, status, lowStock, promotionType, flashSaleOnly]);
 
   const buildParams = (overrides) => {
     const next = {};
@@ -91,6 +93,7 @@ const Product = () => {
     if (status) next.status = status;
     if (lowStock) next.lowStock = lowStock;
     if (promotionType) next.promotionType = promotionType;
+    if (flashSaleOnly) next.flashSaleOnly = flashSaleOnly;
     Object.assign(next, overrides);
     Object.keys(next).forEach((key) => {
       if (next[key] === undefined || next[key] === "") delete next[key];
@@ -128,6 +131,11 @@ const Product = () => {
     buildParams({ promotionType: value, page: 1 });
   };
 
+  const handleFlashSaleOnlyChange = (e) => {
+    setCurrentPage(1);
+    buildParams({ flashSaleOnly: e.target.checked ? "1" : undefined, page: 1 });
+  };
+
   const handleResetFilters = () => {
     setCurrentPage(1);
     buildParams({
@@ -136,12 +144,17 @@ const Product = () => {
       sort: undefined,
       lowStock: undefined,
       promotionType: undefined,
+      flashSaleOnly: undefined,
       page: 1,
     });
   };
 
-  const activeFilterCount = [category, status, sort, lowStock === "1" ? "1" : undefined, promotionType]
-    .filter(Boolean).length;
+  const activeFilterCount = [
+    category, status, sort,
+    lowStock === "1" ? "1" : undefined,
+    promotionType,
+    flashSaleOnly === "1" ? "1" : undefined,
+  ].filter(Boolean).length;
 
   const handleToggleActiveProcess = (product) => {
     setToggleProduct(product);
@@ -456,6 +469,9 @@ const Product = () => {
               </div>
               <Checkbox checked={lowStock === "1"} onChange={handleLowStockChange}>
                 Sắp hết hàng (≤{LOW_STOCK_THRESHOLD})
+              </Checkbox>
+              <Checkbox checked={flashSaleOnly === "1"} onChange={handleFlashSaleOnlyChange}>
+                Chỉ hiện Flash Sale
               </Checkbox>
               <div className="flex justify-between items-center pt-2 border-t">
                 <Button size="small" onClick={handleResetFilters}>

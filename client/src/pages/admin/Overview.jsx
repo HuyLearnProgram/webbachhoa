@@ -6,6 +6,8 @@ import {
   apiGetMonthlyRevenue,
   apiGetOrderStatusStats,
   apiGetFeedbackStats,
+  apiGetTopProducts,
+  apiGetRatingDistribution,
   apiGetProducts,
 } from "@/apis";
 import { RevenueChart, BarChart, DoughnutChart } from "@/components/admin";
@@ -26,15 +28,18 @@ const Overview = () => {
   const currentMonth = currentDate.getMonth() + 1;
   const lastYear = currentDate.getFullYear() - 1;
 
-  // Thiết lập tháng mặc định là tháng trước và năm mặc định là năm hiện tại
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth > 1 ? currentMonth - 1 : 12);
+  // Mặc định luôn là tháng/năm hiện tại khi mới vào trang
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [stats, setStats] = useState({ totalProfit: 0, totalUsers: 0, totalProducts: 0, totalOrders: 0 });
   const [chartData, setChartData] = useState([]);
   const [orderBreakdown, setOrderBreakdown] = useState({ byStatus: [], byPaymentStatus: [] });
   const [feedbackStats, setFeedbackStats] = useState({
-    avgRating: 0, totalFeedbacks: 0, hiddenCount: 0, ratingDistribution: [],
+    avgRating: 0, totalFeedbacks: 0, hiddenCount: 0,
   });
+  // Tách riêng khỏi feedbackStats.ratingDistribution cũ (all-time) — giờ theo tháng/năm chọn, phục vụ
+  // riêng biểu đồ "Phân bố đánh giá theo sao"; 2 stat card avgRating/hiddenCount vẫn all-time.
+  const [ratingDistribution, setRatingDistribution] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [categoryDistribution, setCategoryDistribution] = useState([]);
@@ -61,9 +66,19 @@ const Overview = () => {
     if (res.statusCode === 200) setChartData(res.data);
   };
 
-  const fetchOrderBreakdown = async () => {
-    const res = await apiGetOrderStatusStats();
+  const fetchOrderBreakdown = async (month, year) => {
+    const res = await apiGetOrderStatusStats(month, year);
     if (res.statusCode === 200) setOrderBreakdown(res.data);
+  };
+
+  const fetchTopProducts = async (month, year) => {
+    const res = await apiGetTopProducts(month, year, 5);
+    if (res.statusCode === 200) setTopProducts(res.data || []);
+  };
+
+  const fetchRatingDistribution = async (month, year) => {
+    const res = await apiGetRatingDistribution(month, year);
+    if (res.statusCode === 200) setRatingDistribution(res.data || []);
   };
 
   const fetchFeedbackStats = async () => {
@@ -72,11 +87,7 @@ const Overview = () => {
   };
 
   const fetchProductStats = async () => {
-    const [topRes, lowStockRes] = await Promise.all([
-      apiGetProducts({ sort: 'sold,desc', size: 5 }),
-      apiGetProducts({ filter: `quantity<=${LOW_STOCK_THRESHOLD}`, size: 1 }),
-    ]);
-    setTopProducts(topRes?.data?.result || []);
+    const lowStockRes = await apiGetProducts({ filter: `quantity<=${LOW_STOCK_THRESHOLD}`, size: 1 });
     setLowStockCount(lowStockRes?.data?.meta?.total || 0);
 
     const categoryCounts = await Promise.all(
@@ -97,7 +108,6 @@ const Overview = () => {
   const handleMonthChange = (event) => {
     const month = parseInt(event.target.value, 10);
     setSelectedMonth(month);
-    fetchOverviewOrder(month);
   };
 
   const handleYearChange = (event) => {
@@ -105,7 +115,7 @@ const Overview = () => {
     setSelectedYear(year);
     // Reset month selection if year is changed
     if (year === currentDate.getFullYear()) {
-      setSelectedMonth(currentMonth > 1 ? currentMonth - 1 : 12);
+      setSelectedMonth(currentMonth);
     } else {
       setSelectedMonth(12); // Reset về tháng 12 cho năm trước
     }
@@ -113,13 +123,17 @@ const Overview = () => {
 
   useEffect(() => {
     fetchSummary();
-    fetchOrderBreakdown();
     fetchFeedbackStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Dùng CHUNG 1 bộ chọn tháng/năm cho 5 biểu đồ: doanh thu, đơn theo trạng thái, thanh toán,
+  // top sản phẩm bán chạy, phân bố đánh giá — đổi tháng/năm sẽ refetch cả 5 cùng lúc.
   useEffect(() => {
     fetchOverviewOrder(selectedMonth);
+    fetchOrderBreakdown(selectedMonth, selectedYear);
+    fetchTopProducts(selectedMonth, selectedYear);
+    fetchRatingDistribution(selectedMonth, selectedYear);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth, selectedYear]);
 
@@ -142,11 +156,11 @@ const Overview = () => {
 
   const ratingChartLabels = RATING_STARS.map((s) => `${s} sao`);
   const ratingChartData = RATING_STARS.map(
-    (s) => feedbackStats.ratingDistribution.find((r) => r.ratingStar === s)?.count || 0
+    (s) => ratingDistribution.find((r) => r.ratingStar === s)?.count || 0
   );
 
-  const topProductLabels = topProducts.map((p) => p.product_name);
-  const topProductData = topProducts.map((p) => p.sold);
+  const topProductLabels = topProducts.map((p) => p.productName);
+  const topProductData = topProducts.map((p) => p.totalSold);
 
   const categoryChartLabels = categoryDistribution.map((c) => c.name);
   const categoryChartData = categoryDistribution.map((c) => c.count);
@@ -154,16 +168,72 @@ const Overview = () => {
   const promotionChartLabels = promotionDistribution.map((p) => p.label);
   const promotionChartData = promotionDistribution.map((p) => p.count);
 
+  // 3 thẻ dưới đây đổi từ "toàn thời gian" sang "theo tháng/năm đang chọn" — tận dụng thẳng dữ liệu
+  // đã fetch cho orderBreakdown/ratingDistribution (cùng nguồn với 3 biểu đồ bên dưới), không cần gọi
+  // thêm API nào. Tiêu đề thẻ luôn ghi rõ "(Tháng M/YYYY)" để admin không nhầm là số liệu toàn thời gian.
+  const monthlyProfit = orderBreakdown.byPaymentStatus.find((p) => p.paymentStatus === 'PAID')?.revenue || 0;
+  const monthlyOrderCount = orderBreakdown.byStatus.reduce((sum, s) => sum + (s.count || 0), 0);
+  const monthlyRatingCount = ratingDistribution.reduce((sum, r) => sum + (r.count || 0), 0);
+  const monthlyAvgRating = monthlyRatingCount > 0
+    ? ratingDistribution.reduce((sum, r) => sum + r.ratingStar * r.count, 0) / monthlyRatingCount
+    : 0;
+  const monthLabel = `Tháng ${selectedMonth}/${selectedYear}`;
+
   return (
     <div className="w-full">
       <div className="flex-1 p-6 bg-white">
         <h1 className="text-2xl font-bold mb-4">Overview</h1>
 
+        <div className="flex items-end gap-8 mb-6 bg-gray-50 border rounded-lg p-4">
+          <div>
+            <div className="text-sm font-medium mb-2">
+              Xem theo tháng (áp dụng cho: doanh thu, đơn theo trạng thái, thanh toán, top sản phẩm, đánh giá)
+            </div>
+            <div className="flex gap-4">
+              <div>
+                <label htmlFor="yearSelect" className="block text-xs text-gray-500 mb-1">
+                  Chọn năm
+                </label>
+                <select
+                  id="yearSelect"
+                  value={selectedYear}
+                  onChange={handleYearChange}
+                  className="border w-[105px] rounded p-2 text-sm"
+                >
+                  <option value={lastYear}>{lastYear}</option>
+                  <option value={currentDate.getFullYear()}>{currentDate.getFullYear()}</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="monthSelect" className="block text-xs text-gray-500 mb-1">
+                  Chọn tháng
+                </label>
+                <select
+                  id="monthSelect"
+                  value={selectedMonth}
+                  onChange={handleMonthChange}
+                  className="border w-[105px] rounded p-2 text-sm"
+                >
+                  {months
+                    .filter((month) =>
+                      (selectedYear === currentDate.getFullYear() ? month.value <= currentMonth : true)
+                    )
+                    .map((month) => (
+                      <option key={month.value} value={month.value}>
+                        {month.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <Row gutter={[16, 16]} className="mb-6">
           <Col xs={24} sm={12} lg={6}>
             <Card>
-              <h2 className="text-sm font-medium">Tổng lợi nhuận</h2>
-              <p className="text-2xl font-bold">{stats.totalProfit.toLocaleString("vi-VN")} đ</p>
+              <h2 className="text-sm font-medium">Tổng lợi nhuận <span className="text-gray-400 font-normal">({monthLabel})</span></h2>
+              <p className="text-2xl font-bold">{monthlyProfit.toLocaleString("vi-VN")} đ</p>
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -180,8 +250,8 @@ const Overview = () => {
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
-              <h2 className="text-sm font-medium">Đơn hàng</h2>
-              <p className="text-2xl font-bold">{stats.totalOrders}</p>
+              <h2 className="text-sm font-medium">Đơn hàng <span className="text-gray-400 font-normal">({monthLabel})</span></h2>
+              <p className="text-2xl font-bold">{monthlyOrderCount}</p>
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -192,8 +262,8 @@ const Overview = () => {
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
-              <h2 className="text-sm font-medium">Đánh giá trung bình</h2>
-              <p className="text-2xl font-bold">{feedbackStats.avgRating.toFixed(1)} / 5</p>
+              <h2 className="text-sm font-medium">Đánh giá trung bình <span className="text-gray-400 font-normal">({monthLabel})</span></h2>
+              <p className="text-2xl font-bold">{monthlyAvgRating.toFixed(1)} / 5</p>
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -207,43 +277,6 @@ const Overview = () => {
         <Row gutter={[16, 16]}>
           <Col xs={24} lg={12}>
             <Card title="Biểu đồ doanh thu theo tuần trong tháng">
-              <div className="flex mb-4">
-                <div className="mb-4">
-                  <label htmlFor="yearSelect" className="block text-sm font-medium mb-2">
-                    Chọn năm
-                  </label>
-                  <select
-                    id="yearSelect"
-                    value={selectedYear}
-                    onChange={handleYearChange}
-                    className="border w-[105px] rounded p-2 text-sm"
-                  >
-                    <option value={lastYear}>{lastYear}</option>
-                    <option value={currentDate.getFullYear()}>{currentDate.getFullYear()}</option>
-                  </select>
-                </div>
-                <div className="mb-4 ml-20">
-                  <label htmlFor="monthSelect" className="block text-sm font-medium mb-2">
-                    Chọn tháng
-                  </label>
-                  <select
-                    id="monthSelect"
-                    value={selectedMonth}
-                    onChange={handleMonthChange}
-                    className="border w-[105px] rounded p-2 text-sm"
-                  >
-                    {months
-                      .filter((month) =>
-                        (selectedYear === currentDate.getFullYear() ? month.value <= currentMonth : true)
-                      )
-                      .map((month) => (
-                        <option key={month.value} value={month.value}>
-                          {month.label}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
               <RevenueChart data={chartData} />
             </Card>
           </Col>

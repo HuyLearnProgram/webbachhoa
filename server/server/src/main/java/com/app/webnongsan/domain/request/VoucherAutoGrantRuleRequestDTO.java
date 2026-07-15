@@ -39,5 +39,9 @@ public class VoucherAutoGrantRuleRequestDTO {
     @PositiveOrZero(message = "Giá sản phẩm tối thiểu không được âm")
     private Double minProductPrice;
 
+    // null = voucher tạo ra áp dụng toàn đơn. Khác null = chỉ áp dụng cho sản phẩm thuộc đúng danh
+    // mục này — xem VoucherAutoGrantRule.applicableCategory.
+    private Long categoryId;
+
     private Boolean isActive;
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { apiGetFlashSaleWindows } from '@/apis';
 import icons from '@/utils/icons';
 
@@ -76,10 +76,20 @@ const FlashSaleWindowTabs = ({ onSelectWindow, initialWindow }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tabs, windowsConfig]);
 
+    // "Latest ref" pattern: effect chỉ phụ thuộc selectedWindow, KHÔNG phụ thuộc identity của
+    // onSelectWindow — nếu component cha truyền 1 hàm inline không bọc useCallback (identity đổi mỗi
+    // render), phụ thuộc trực tiếp vào nó sẽ khiến effect fire lại ở MỌI lần render cha, không chỉ khi
+    // selectedWindow thực sự đổi. Từng gây vòng lặp vô hạn ở trang /flash-sale: effect gọi lại
+    // onSelectWindow -> cha setSearchParams (push history) -> cha re-render -> callback mới -> effect
+    // fire lại... không tự dừng, làm đơ cả trang lẫn các trang điều hướng tới sau đó.
+    const onSelectWindowRef = useRef(onSelectWindow);
+    useEffect(() => {
+        onSelectWindowRef.current = onSelectWindow;
+    });
     useEffect(() => {
         if (selectedWindow === undefined) return; // chưa xác định xong, đừng báo cho parent vội
-        onSelectWindow?.(selectedWindow);
-    }, [selectedWindow, onSelectWindow]);
+        onSelectWindowRef.current?.(selectedWindow);
+    }, [selectedWindow]);
 
     if (tabs.length === 0) return null;
 

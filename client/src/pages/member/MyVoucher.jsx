@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { Pagination, VoucherCard } from '@/components';
-import { apiGetMyVouchers, apiGetActiveVouchers, apiAssignVoucher } from '@/apis';
+import { apiGetMyVouchers, apiGetActiveVouchers, apiAssignVoucher, apiGetMyVoucherSavings } from '@/apis';
 
 const PAGE_SIZE = 6;
 
@@ -13,6 +13,7 @@ const MyVoucher = () => {
     const [page, setPage] = useState(1);
     const [availableVouchers, setAvailableVouchers] = useState([]);
     const [assigningId, setAssigningId] = useState(null);
+    const [totalSavings, setTotalSavings] = useState(0);
 
     const fetchMyVouchers = async (p = 1) => {
         try {
@@ -20,6 +21,15 @@ const MyVoucher = () => {
             setMyVouchers(res?.data);
         } catch (err) {
             console.error('Lỗi khi lấy voucher của tôi:', err);
+        }
+    };
+
+    const fetchMySavings = async () => {
+        try {
+            const res = await apiGetMyVoucherSavings();
+            setTotalSavings(res?.data || 0);
+        } catch (err) {
+            console.error('Lỗi khi lấy tổng tiết kiệm voucher:', err);
         }
     };
 
@@ -35,6 +45,7 @@ const MyVoucher = () => {
     useEffect(() => {
         if (isLoggedIn && current) {
             fetchMyVouchers(page);
+            fetchMySavings();
         }
     }, [isLoggedIn, page]);
 
@@ -69,6 +80,12 @@ const MyVoucher = () => {
     return (
         <div className="w-full relative px-4">
             <header className="text-xl font-semibold py-4 mb-5">Ví voucher</header>
+
+            {totalSavings > 0 && (
+                <div className="w-4/5 mx-auto mb-4 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-sm font-medium">
+                    💰 Bạn đã tiết kiệm {totalSavings.toLocaleString('vi-VN')}đ nhờ dùng voucher
+                </div>
+            )}
 
             <div className="w-4/5 mx-auto flex gap-2 mb-6">
                 <button

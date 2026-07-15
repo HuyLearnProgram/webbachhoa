@@ -4,18 +4,6 @@ import { AiOutlineInfo } from "react-icons/ai";
 import { FaHome, FaUserFriends } from "react-icons/fa";
 import {FaHeart, FaRegEye } from "react-icons/fa6";
 import { MdHistory, MdLocalOffer } from "react-icons/md";
-export const navigation = [
-  {
-    id: 1,
-    value: "Trang chủ",
-    path: `/${path.HOME}`,
-  },
-  {
-    id: 2,
-    value: "Sản phẩm",
-    path: `/${path.PRODUCTS_BASE}`,
-  },
-];
 const { FaTruck, GiReturnArrow, SiAdguard, FaPhone } = icons
 
 export const productExtraInfo = [{
@@ -78,7 +66,9 @@ export const sortProductOption = [
   { value: 'rating-asc', label: 'Rating thấp' },
   { value: 'rating-desc', label: 'Rating cao' },
   { value: 'sold-desc', label: 'Bán chạy' },
-  { value: 'createdAt-desc', label: 'Mới nhất' }
+  { value: 'createdAt-desc', label: 'Mới nhất' },
+  { value: 'quantity-asc', label: 'Tồn kho thấp đến cao' },
+  { value: 'quantity-desc', label: 'Tồn kho cao đến thấp' }
 ];
 
 // Loại khuyến mãi trên sản phẩm — dùng chung ở admin (filter/form) và src/utils/promotion.js
@@ -115,9 +105,11 @@ export const autoGrantTypeOptions = [
   { value: "WELCOME", label: "Chào mừng thành viên mới" },
   { value: "FIRST_ORDER", label: "Đơn hàng PAID đầu tiên" },
   { value: "MILESTONE", label: "Mốc số đơn PAID" },
+  { value: "CART_RECOVERY", label: "Giỏ hàng bị bỏ quên (Flash Sale cá nhân)" },
   { value: "BIRTHDAY", label: "Sinh nhật" },
   { value: "WIN_BACK", label: "Không mua hàng lâu ngày (Win-back)" },
   { value: "REFERRAL_REFERRER", label: "Thưởng người giới thiệu bạn bè" },
+  { value: "REFERRAL_REFEREE", label: "Thưởng người được giới thiệu (lúc đăng ký)" },
   { value: "LUCKY_DRAW", label: "Rút thăm may mắn" },
 ];
 

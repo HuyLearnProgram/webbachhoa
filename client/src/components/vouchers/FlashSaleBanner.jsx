@@ -42,9 +42,9 @@ const FlashSaleBanner = () => {
 
             {products.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                         {products.slice(0, MAX_SHOWN).map((p) => (
-                            <ProductCard key={p.id} productData={mapFlashSaleProductForCard(p)} viewSource="HOME_FEED" />
+                            <ProductCard key={p.id} productData={mapFlashSaleProductForCard(p)} viewSource="HOME_FEED" compact />
                         ))}
                     </div>
                     <Link

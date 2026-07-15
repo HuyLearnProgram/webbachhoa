@@ -214,4 +214,20 @@ public class FeedbackService {
 
         return new FeedbackStatsDTO(avgRating != null ? avgRating : 0, totalFeedbacks, hiddenCount, ratingDistribution);
     }
+
+    /**
+     * Phân bố đánh giá theo sao trong 1 tháng — dùng riêng cho biểu đồ "Phân bố đánh giá theo sao" ở
+     * Overview admin khi lọc theo tháng/năm, tách khỏi getFeedbackStats() (2 stat card vẫn all-time).
+     */
+    public List<RatingCountDTO> getRatingDistributionByMonth(int month, int year) {
+        java.time.YearMonth ym = java.time.YearMonth.of(year, month);
+        java.time.Instant start = ym.atDay(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+        java.time.Instant end = ym.plusMonths(1).atDay(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+
+        List<RatingCountDTO> ratingDistribution = new ArrayList<>();
+        for (Object[] row : feedbackRepository.countGroupByRatingStarAndMonth(start, end)) {
+            ratingDistribution.add(new RatingCountDTO((Integer) row[0], (Long) row[1]));
+        }
+        return ratingDistribution;
+    }
 }

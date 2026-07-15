@@ -1,31 +1,59 @@
 import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { apiAdminGetVouchers, apiAdminDeleteVoucher, apiAdminUpdateVoucher } from "@/apis";
 import { useSearchParams, useNavigate, createSearchParams } from 'react-router-dom';
-import { Button, Modal, Table, Input, Tag } from 'antd';
+import { Button, Modal, Table, Input, Tag, Select, Popover } from 'antd';
 import { AddScreenButton } from '@/components/admin';
 import { MdDelete, MdModeEdit } from "react-icons/md";
+import { FaFilter } from "react-icons/fa";
+import { autoGrantTypeOptions } from '@/utils/constants';
 
 const VOUCHER_PER_PAGE = 8;
 
+const voucherStatusOptions = [
+    { label: 'Đang hoạt động', value: 'true' },
+    { label: 'Đã tắt', value: 'false' },
+];
+
+const voucherTypeOptions = [
+    { label: 'Phần trăm', value: 'PERCENT' },
+    { label: 'Cố định', value: 'FIXED' },
+];
+
 const Voucher = () => {
     const navigate = useNavigate();
+    const { categories } = useSelector((state) => state.app);
     const [params] = useSearchParams();
     const [currentPage, setCurrentPage] = useState(Number(params.get('page')) || 1);
     const [vouchers, setVouchers] = useState(null);
     const [searchTerm, setSearchTerm] = useState(params.get('search') || '');
     const [deleteTarget, setDeleteTarget] = useState(null); // { id, code }
     const [confirmDeactivate, setConfirmDeactivate] = useState(null); // voucher cần hỏi lại deactivate
+    const [filterOpen, setFilterOpen] = useState(false);
 
     const search = params.get('search');
+    const isActive = params.get('isActive'); // 'true' | 'false'
+    const type = params.get('type'); // 'PERCENT' | 'FIXED'
+    const categoryId = params.get('categoryId');
 
     useEffect(() => {
         setSearchTerm(search || '');
     }, [search]);
 
+    const getFilters = () => {
+        const filters = [];
+        if (search) filters.push(`code~'${search}'`);
+        if (isActive) filters.push(`isActive=${isActive}`);
+        if (type) filters.push(`type='${type}'`);
+        if (categoryId) filters.push(`applicableCategory.id='${categoryId}'`);
+        return filters;
+    };
+
     const fetchVouchers = async (page) => {
-        const filterString = search ? `code~'${search}'` : undefined;
+        const filters = getFilters();
+        const filterString = filters.length ? filters.join(' and ') : undefined;
         const response = await apiAdminGetVouchers({ page, size: VOUCHER_PER_PAGE, filter: filterString });
         setVouchers(response);
     };
@@ -33,11 +61,14 @@ const Voucher = () => {
     useEffect(() => {
         fetchVouchers(currentPage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, search]);
+    }, [currentPage, search, isActive, type, categoryId]);
 
     const buildParams = (overrides) => {
         const next = {};
         if (search) next.search = search;
+        if (isActive) next.isActive = isActive;
+        if (type) next.type = type;
+        if (categoryId) next.categoryId = categoryId;
         Object.assign(next, overrides);
         Object.keys(next).forEach((key) => {
             if (next[key] === undefined || next[key] === '') delete next[key];
@@ -49,6 +80,30 @@ const Voucher = () => {
         setCurrentPage(page);
         buildParams({ page });
     };
+
+    const handleStatusFilterChange = (value) => {
+        setCurrentPage(1);
+        buildParams({ isActive: value, page: 1 });
+    };
+
+    const handleTypeFilterChange = (value) => {
+        setCurrentPage(1);
+        buildParams({ type: value, page: 1 });
+    };
+
+    const handleCategoryFilterChange = (value) => {
+        setCurrentPage(1);
+        buildParams({ categoryId: value, page: 1 });
+    };
+
+    const handleResetFilters = () => {
+        setCurrentPage(1);
+        buildParams({ isActive: undefined, type: undefined, categoryId: undefined, page: 1 });
+    };
+
+    const categoryOptions = categories?.map((c) => ({ label: c.name, value: String(c.id) })) || [];
+
+    const activeFilterCount = [isActive, type, categoryId].filter(Boolean).length;
 
     const handleDelete = async (voucher) => {
         try {
@@ -124,6 +179,13 @@ const Voucher = () => {
                 : 'Toàn bộ đơn hàng',
         },
         {
+            title: 'Nguồn tạo',
+            key: 'autoGrantType',
+            render: (_, record) => record.autoGrantType
+                ? <Tag color="purple">{autoGrantTypeOptions.find((o) => o.value === record.autoGrantType)?.label || record.autoGrantType}</Tag>
+                : <Tag color="default">Tạo tay</Tag>,
+        },
+        {
             title: 'Đã dùng / Tối đa',
             key: 'usage',
             render: (_, record) => `${record.usedCount || 0} / ${record.maxUsage != null ? record.maxUsage : '∞'}`,
@@ -170,6 +232,61 @@ const Voucher = () => {
                     }}
                     style={{ width: 300 }}
                 />
+                <Popover
+                    trigger="click"
+                    open={filterOpen}
+                    onOpenChange={setFilterOpen}
+                    placement="bottomLeft"
+                    content={
+                        <div className="flex flex-col gap-3" style={{ width: 260 }}>
+                            <div>
+                                <div className="text-sm text-gray-500 mb-1">Trạng thái</div>
+                                <Select
+                                    placeholder="Lọc theo trạng thái"
+                                    options={voucherStatusOptions}
+                                    value={isActive || undefined}
+                                    onChange={handleStatusFilterChange}
+                                    allowClear
+                                    style={{ width: "100%" }}
+                                />
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-500 mb-1">Loại giảm giá</div>
+                                <Select
+                                    placeholder="Lọc theo loại"
+                                    options={voucherTypeOptions}
+                                    value={type || undefined}
+                                    onChange={handleTypeFilterChange}
+                                    allowClear
+                                    style={{ width: "100%" }}
+                                />
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-500 mb-1">Danh mục áp dụng</div>
+                                <Select
+                                    placeholder="Lọc theo danh mục"
+                                    options={categoryOptions}
+                                    value={categoryId || undefined}
+                                    onChange={handleCategoryFilterChange}
+                                    allowClear
+                                    style={{ width: "100%" }}
+                                />
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t">
+                                <Button size="small" onClick={handleResetFilters}>
+                                    Chọn lại
+                                </Button>
+                                <Button size="small" type="primary" onClick={() => setFilterOpen(false)}>
+                                    Áp dụng{vouchers?.data?.meta?.total !== undefined ? ` (Có ${vouchers.data.meta.total} voucher)` : ""}
+                                </Button>
+                            </div>
+                        </div>
+                    }
+                >
+                    <Button icon={<FaFilter />}>
+                        Bộ lọc{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                    </Button>
+                </Popover>
             </div>
 
             <Table

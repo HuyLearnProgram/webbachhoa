@@ -118,7 +118,10 @@ public class PromotionService {
         return cartRecoveryDiscountRepository
                 .findFirstByUser_IdAndProduct_IdAndExpiresAtAfterOrderByExpiresAtDesc(userId, productId, now)
                 .map(d -> {
-                    double discountAmount = Math.min(currentPrice * d.getDiscountPercent() / 100.0, d.getMaxDiscountAmount());
+                    double raw = currentPrice * d.getDiscountPercent() / 100.0;
+                    // maxDiscountAmount null = không giới hạn trần (khớp semantics field cùng tên trên
+                    // VoucherAutoGrantRule — "để trống nếu không giới hạn").
+                    double discountAmount = d.getMaxDiscountAmount() != null ? Math.min(raw, d.getMaxDiscountAmount()) : raw;
                     return new PersonalDiscount(currentPrice - discountAmount, d.getExpiresAt());
                 });
     }

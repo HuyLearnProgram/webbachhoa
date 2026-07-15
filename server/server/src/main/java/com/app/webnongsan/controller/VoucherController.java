@@ -6,6 +6,7 @@ import com.app.webnongsan.domain.request.VoucherPreviewRequestDTO;
 import com.app.webnongsan.domain.request.VoucherRequestDTO;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.voucher.VoucherPreviewResponseDTO;
+import com.app.webnongsan.service.VoucherAutoGrantRuleService;
 import com.app.webnongsan.service.VoucherService;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import com.turkraft.springfilter.boot.Filter;
@@ -24,6 +25,7 @@ import java.util.List;
 public class VoucherController {
 
     private final VoucherService voucherService;
+    private final VoucherAutoGrantRuleService voucherAutoGrantRuleService;
 
     /**
      * Lấy tất cả voucher đang hoạt động
@@ -32,6 +34,17 @@ public class VoucherController {
     @ApiMessage("Get all active vouchers")
     public ResponseEntity<List<Voucher>> getActiveVouchers() {
         return ResponseEntity.ok(voucherService.getAllActiveVouchers());
+    }
+
+    /**
+     * Số tiền tối đa 1 tài khoản mới thực sự nhận được nếu đăng ký kèm mã giới thiệu hợp lệ
+     * (WELCOME + 1 REFERRAL_REFEREE ngẫu nhiên, lấy trần cao nhất) — permitAll vì hiện ngay trên
+     * trang đăng ký, trước khi user có tài khoản. Xem VoucherAutoGrantRuleService.getReferralMaxRewardAmount().
+     */
+    @GetMapping("/referral-max-reward")
+    @ApiMessage("Get max referral reward amount for the register page")
+    public ResponseEntity<Double> getReferralMaxRewardAmount() {
+        return ResponseEntity.ok(voucherAutoGrantRuleService.getReferralMaxRewardAmount());
     }
 
     /**
@@ -50,6 +63,15 @@ public class VoucherController {
     @ApiMessage("Get current user's vouchers")
     public ResponseEntity<PaginationDTO> getMyVouchers(Pageable pageable) throws ResourceInvalidException {
         return ResponseEntity.ok(voucherService.getVouchersOfCurrentUser(pageable));
+    }
+
+    /**
+     * Tổng tiền user hiện tại đã tiết kiệm được nhờ voucher — hiện ở trang "Ví voucher".
+     */
+    @GetMapping("/my-savings")
+    @ApiMessage("Get current user's total voucher savings")
+    public ResponseEntity<Double> getMySavings() throws ResourceInvalidException {
+        return ResponseEntity.ok(voucherService.getMySavings());
     }
 
     /**

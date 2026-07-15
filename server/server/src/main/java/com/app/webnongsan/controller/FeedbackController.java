@@ -6,6 +6,7 @@ import com.app.webnongsan.domain.User;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.feedback.FeedbackDTO;
 import com.app.webnongsan.domain.response.feedback.FeedbackStatsDTO;
+import com.app.webnongsan.domain.response.feedback.RatingCountDTO;
 import com.app.webnongsan.repository.FeedbackRepository;
 import com.app.webnongsan.repository.ProductRepository;
 import com.app.webnongsan.repository.UserRepository;
@@ -88,5 +89,12 @@ public class FeedbackController {
     @ApiMessage("Get global feedback/rating stats for admin dashboard")
     public ResponseEntity<FeedbackStatsDTO> getFeedbackStats() {
         return ResponseEntity.ok(this.feedbackService.getFeedbackStats());
+    }
+
+    @GetMapping("admin/feedback-rating-distribution")
+    @ApiMessage("Get rating distribution in a month for admin dashboard")
+    public ResponseEntity<List<RatingCountDTO>> getRatingDistribution(
+            @RequestParam int month, @RequestParam int year) {
+        return ResponseEntity.ok(this.feedbackService.getRatingDistributionByMonth(month, year));
     }
 }

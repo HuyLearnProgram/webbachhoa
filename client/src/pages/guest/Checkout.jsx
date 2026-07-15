@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import payment from '@/assets/payment/payment.svg';
 import { apiCreateOrder, apiDeleteCart, apiGetSelectedCart, apiPaymentVNPay, apiSendEmail, getUserById, apiUpdateProduct, apiGetMyVouchers, apiPreviewVoucher, apiSpinLuckyDraw } from "@/apis";
@@ -28,6 +28,10 @@ const Checkout = () => {
     const [selectedVoucher, setSelectedVoucher] = useState(null);
     const [manualVoucherCode, setManualVoucherCode] = useState('');
     const [voucherLoading, setVoucherLoading] = useState(false);
+    // Giảm dự kiến tính trước cho TỪNG voucher trong popup (key = voucher.id) — luôn lấy từ server
+    // (POST vouchers/preview) để khỏi tự tính lại PERCENT/FIXED/category-scope ở FE.
+    const [voucherPreviews, setVoucherPreviews] = useState({});
+    const [voucherPreviewsLoading, setVoucherPreviewsLoading] = useState(false);
 
     const location = useLocation();
     const { selectedItems } = location.state || {};
@@ -59,15 +63,18 @@ const Checkout = () => {
         }
     };
 
+    // Dùng chung cho mọi lần gọi vouchers/preview (chọn 1 mã lẫn tính trước cho cả danh sách trong popup).
+    const buildPreviewItems = () => (cart || []).map((el) => ({
+        productId: el.id,
+        lineTotal: calculateLineTotal(el, el.quantity).total,
+    }));
+
     // Hợp nhất 2 luồng (chọn từ danh sách + nhập tay) qua 1 hàm duy nhất gọi server validate —
     // BE là nguồn sự thật duy nhất (check hạn dùng/đã dùng/hết lượt), FE không tự tính toán trước.
     const previewAndApplyVoucher = async ({ voucherId, code }) => {
         setVoucherLoading(true);
         try {
-            const items = (cart || []).map((el) => ({
-                productId: el.id,
-                lineTotal: calculateLineTotal(el, el.quantity).total,
-            }));
+            const items = buildPreviewItems();
             const res = await apiPreviewVoucher({ voucherId, code, orderTotal: getCartTotal(), items });
             if (res?.statusCode === 200 && res?.data) {
                 setSelectedVoucher(res.data);
@@ -257,6 +264,72 @@ const Checkout = () => {
     const getDiscountAmount = () => {
         return selectedVoucher ? selectedVoucher.discountAmount : 0;
     };
+
+    // Tính trước "giảm dự kiến" cho TỪNG voucher trong popup khi vừa mở, để người dùng thấy ngay mã
+    // nào lợi nhất mà không phải bấm OK thử từng mã. Gọi song song vouchers/preview cho mỗi voucher
+    // (BE vẫn là nguồn tính duy nhất — kể cả voucher theo danh mục mà FE không tự tính đúng được).
+    useEffect(() => {
+        if (!showVoucherModal || userVouchers.length === 0) {
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            setVoucherPreviewsLoading(true);
+            const items = buildPreviewItems();
+            const orderTotal = getCartTotal();
+            const results = await Promise.allSettled(
+                userVouchers.map((v) => apiPreviewVoucher({ voucherId: v.id, orderTotal, items }))
+            );
+            if (cancelled) return;
+            const map = {};
+            results.forEach((r, idx) => {
+                const voucherId = userVouchers[idx].id;
+                if (r.status === 'fulfilled' && r.value?.statusCode === 200 && r.value?.data) {
+                    map[voucherId] = {
+                        discountAmount: r.value.data.discountAmount || 0,
+                        totalAfterDiscount: r.value.data.totalAfterDiscount,
+                        ineligible: false,
+                    };
+                } else {
+                    const reason = r.status === 'fulfilled' ? r.value?.message : null;
+                    map[voucherId] = { discountAmount: 0, ineligible: true, reason: reason || 'Không đủ điều kiện sử dụng' };
+                }
+            });
+            setVoucherPreviews(map);
+            setVoucherPreviewsLoading(false);
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showVoucherModal, userVouchers]);
+
+    // Voucher hợp lệ (giảm được) sắp xếp giảm dần theo số tiền giảm dự kiến lên đầu, voucher không
+    // đủ điều kiện xuống cuối — mã giảm nhiều nhất được đánh dấu "Tốt nhất".
+    const sortedVouchers = useMemo(() => {
+        const arr = [...userVouchers];
+        arr.sort((a, b) => {
+            const pa = voucherPreviews[a.id];
+            const pb = voucherPreviews[b.id];
+            const aIneligible = !pa || pa.ineligible;
+            const bIneligible = !pb || pb.ineligible;
+            if (aIneligible !== bIneligible) return aIneligible ? 1 : -1;
+            if (aIneligible && bIneligible) return 0;
+            return (pb.discountAmount || 0) - (pa.discountAmount || 0);
+        });
+        return arr;
+    }, [userVouchers, voucherPreviews]);
+
+    const bestVoucherId = useMemo(() => {
+        let best = null;
+        let bestAmount = 0;
+        userVouchers.forEach((v) => {
+            const p = voucherPreviews[v.id];
+            if (p && !p.ineligible && p.discountAmount > bestAmount) {
+                bestAmount = p.discountAmount;
+                best = v.id;
+            }
+        });
+        return best;
+    }, [userVouchers, voucherPreviews]);
 
     // Lấy dữ liệu người dùng
     useEffect(() => {
@@ -461,8 +534,14 @@ const Checkout = () => {
             }
 
             {showVoucherModal && (
-            <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex justify-center items-center">
-                <div className="bg-white rounded-md w-[600px] max-h-[80vh] overflow-y-auto shadow-lg">
+            <div
+                className="fixed inset-0 z-50 bg-black bg-opacity-40 flex justify-center items-center"
+                onClick={() => setShowVoucherModal(false)}
+            >
+                <div
+                    className="bg-white rounded-md w-[600px] max-h-[80vh] overflow-y-auto shadow-lg"
+                    onClick={(e) => e.stopPropagation()}
+                >
                 {/* Header */}
                 <div className="border-b p-4">
                     <h2 className="text-xl font-semibold">Chọn mã giảm giá</h2>
@@ -470,14 +549,14 @@ const Checkout = () => {
 
                 {/* Body */}
                 <div className="p-4 space-y-4">
-                    {userVouchers.map((voucher) => {
+                    {voucherPreviewsLoading && Object.keys(voucherPreviews).length === 0 && (
+                        <div className="text-center text-sm text-gray-500 py-4">Đang tính ưu đãi tốt nhất...</div>
+                    )}
+                    {sortedVouchers.map((voucher) => {
                     const isSelected = tempSelectedVoucher?.id === voucher.id;
-                    const cartTotal = getCartTotal();
-                    // maxUsage null = không giới hạn — trước đây so sánh trực tiếp với null làm
-                    // voucher không giới hạn bị hiểu nhầm là "đã dùng hết" (usedCount >= null coi
-                    // null như 0 trong JS, luôn true với usedCount dương).
-                    const usedUp = voucher.maxUsage != null && voucher.usedCount >= voucher.maxUsage;
-                    const notEligible = (cartTotal < (voucher.minimumOrderAmount || 0)) || usedUp;
+                    const preview = voucherPreviews[voucher.id];
+                    const notEligible = !preview || preview.ineligible;
+                    const isBest = !notEligible && voucher.id === bestVoucherId;
 
                     return (
                         <div
@@ -487,10 +566,15 @@ const Checkout = () => {
                             setTempSelectedVoucher(isSelected ? null : voucher);
                             }
                         }}
-                        className={`flex border rounded-lg cursor-pointer transition hover:shadow-sm ${
+                        className={`relative flex border rounded-lg cursor-pointer transition hover:shadow-sm ${
                             isSelected ? "ring-2 ring-green-500" : ""
-                        } ${notEligible ? "opacity-50 cursor-not-allowed" : ""}`}
+                        } ${isBest ? "ring-2 ring-orange-400" : ""} ${notEligible ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
+                        {isBest && (
+                            <div className="absolute -top-2 left-3 bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+                                🏆 Tốt nhất
+                            </div>
+                        )}
                         <div className="bg-cyan-400 text-white flex items-center justify-center px-4 min-w-[100px] text-sm font-bold uppercase">
                             {voucher.type === "PERCENT" ? "SALE" : "GIẢM"}
                         </div>
@@ -511,6 +595,11 @@ const Checkout = () => {
                                 : `${voucher.discountValue.toLocaleString()}đ`}
                             </span>
                             </div>
+                            {!notEligible && (
+                            <div className="text-sm font-medium text-green-600">
+                                Giảm dự kiến: {preview.discountAmount.toLocaleString()}đ
+                            </div>
+                            )}
                             <div className="text-sm text-gray-600">
                             Đơn tối thiểu: {voucher.minimumOrderAmount?.toLocaleString()}đ
                             </div>
@@ -522,9 +611,9 @@ const Checkout = () => {
                                 Chỉ áp dụng: {voucher.categoryName}
                             </div>
                             )}
-                            {notEligible && (
+                            {notEligible && preview && (
                             <div className="text-sm text-red-500 font-medium">
-                                {usedUp ? "Đã dùng hết" : "Không đủ điều kiện sử dụng"}
+                                {preview.reason}
                             </div>
                             )}
                         </div>

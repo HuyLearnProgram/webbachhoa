@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,7 +29,13 @@ public interface UserVoucherRepository extends JpaRepository<UserVoucher, Long> 
 
     // Hoặc phân trang nếu cần
     Page<UserVoucher> findByUserId(Long userId, Pageable pageable);
-    @Query("SELECT uv FROM UserVoucher uv WHERE uv.user.id = :userId AND (uv.isUsed = false OR uv.isUsed IS NULL)")
-    Page<UserVoucher> findActiveUserVouchers(@Param("userId") Long userId, Pageable pageable);
+    // Chỉ trả voucher user CÒN DÙNG ĐƯỢC: chưa dùng riêng (isUsed) + voucher gốc vẫn active/còn hạn/còn
+    // lượt toàn cục — trước đây chỉ lọc isUsed nên voucher hết hạn/hết lượt vẫn lọt vào ví + popup
+    // chọn voucher ở Checkout (2 nơi cùng đọc endpoint này).
+    @Query("SELECT uv FROM UserVoucher uv WHERE uv.user.id = :userId " +
+            "AND (uv.isUsed = false OR uv.isUsed IS NULL) " +
+            "AND uv.voucher.isActive = true AND :now BETWEEN uv.voucher.startDate AND uv.voucher.endDate " +
+            "AND (uv.voucher.maxUsage IS NULL OR uv.voucher.usedCount < uv.voucher.maxUsage)")
+    Page<UserVoucher> findActiveUserVouchers(@Param("userId") Long userId, @Param("now") Instant now, Pageable pageable);
 
 }
