@@ -124,6 +124,22 @@ export const apiGetMaxPrice = async (category, productName) =>
         params: { category, productName },
     });
 
+// Sản phẩm thuộc khung giờ Flash Sale (window: 1 hoặc 2) — không lọc theo giờ hiện tại, FE tự quyết
+// định hiển thị "Đang diễn ra"/"Sắp diễn ra" dựa vào apiGetFlashSaleWindows()
+export const apiGetFlashSaleProducts = async (window) =>
+    axiosInstance({
+        url: `/products/flash-sale`,
+        method: "get",
+        params: { window },
+    });
+
+// Cấu hình giờ bắt đầu/kết thúc của 2 khung Flash Sale (khớp application.properties phía backend)
+export const apiGetFlashSaleWindows = async () =>
+    axiosInstance({
+        url: `/products/flash-sale-windows`,
+        method: "get",
+    });
+
 export const apiCreateProduct = async(product)=>{
     const res = await axiosInstance({
         url : `/products`,

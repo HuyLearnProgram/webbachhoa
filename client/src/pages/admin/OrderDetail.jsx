@@ -359,9 +359,7 @@ function OrderDetail() {
                 </Table.Summary.Cell>
                 <Table.Summary.Cell>
                   <Text type="danger">
-                    {orderInformation.data.voucherType === "PERCENT"
-                      ? `- ${(totalMoney * orderInformation.data.voucherDiscountValue / 100).toLocaleString("vi-VN")} đ`
-                      : `- ${orderInformation.data.voucherDiscountValue?.toLocaleString("vi-VN")} đ`}
+                    - {(orderInformation.data.voucherDiscountAmount || 0).toLocaleString("vi-VN")} đ
                   </Text>
                 </Table.Summary.Cell>
               </Table.Summary.Row>
@@ -549,9 +547,7 @@ function OrderDetail() {
           {orderInformation?.data?.voucherCode && (
             <p style={{ color: "red" }}>
               <strong>Giảm giá ({orderInformation?.data?.voucherCode}):</strong>{" "}
-              {orderInformation?.data?.voucherType === "PERCENT"
-                ? `- ${(totalMoney * orderInformation?.data?.voucherDiscountValue / 100).toLocaleString("vi-VN")} đ`
-                : `- ${orderInformation?.data?.voucherDiscountValue?.toLocaleString("vi-VN")} đ`}
+              - {(orderInformation?.data?.voucherDiscountAmount || 0).toLocaleString("vi-VN")} đ
             </p>
           )}
           <p style={{ fontSize: "18px", fontWeight: "bold" }}>

@@ -16,7 +16,7 @@ public class ResProductDTO {
 
     private double price;
 
-    private Double originalPrice;
+    private Double discountPrice;
 
     private String promotionType;
 

@@ -1,10 +1,12 @@
-import { apiDeleteCart, apiSendEmail, apiUpdateProduct } from '@/apis';
+import { apiDeleteCart, apiSendEmail, apiUpdateProduct, apiSpinLuckyDraw } from '@/apis';
 import path from '@/utils/path';
 import React, { useEffect, useState } from 'react';
 import { FaCheckCircle } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
 import { getCurrentUser } from '@/store/user/asyncActions';
+import { showModal } from '@/store/app/appSlice';
+import { LuckyDrawResultModal } from '@/components';
 
 const PaymentSuccess = () => {
     const { current } = useSelector(state => state.user)
@@ -60,6 +62,23 @@ const PaymentSuccess = () => {
         }
         handleEmail();
     },[paymentInfo])
+    useEffect(() => {
+        // Rút thăm may mắn (Phase 7) — trigger ngay sau khi đơn hàng thành công, không chờ PAID
+        // (đơn hàng đã thể hiện ý định mua). Lỗi (VD không có chiến dịch nào đang chạy) bỏ qua im lặng,
+        // không phải sự cố ảnh hưởng luồng thanh toán chính.
+        const handleLuckyDraw = async () => {
+            if (!paymentInfo?.orderId) return;
+            try {
+                const res = await apiSpinLuckyDraw(paymentInfo.orderId);
+                if (res?.data) {
+                    dispatch(showModal({ isShowModal: true, modalChildren: <LuckyDrawResultModal result={res.data} /> }));
+                }
+            } catch (error) {
+                // Không có chiến dịch đang chạy / đơn chưa đạt tối thiểu... — im lặng bỏ qua
+            }
+        };
+        handleLuckyDraw();
+    }, [paymentInfo])
     return (
         
         <div className="flex items-center justify-center mt-8">

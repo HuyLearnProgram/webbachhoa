@@ -54,7 +54,7 @@ public class ProductService {
 
     private static final String[] IMPORT_HEADERS = {
             "SKU (để trống nếu tạo mới)", "Tên sản phẩm*", "Phân loại*", "Giá bán*",
-            "Giá gốc (khuyến mãi, để trống nếu không có)", "Số lượng*", "Đơn vị", "Mô tả", "Đang bán (TRUE/FALSE)"
+            "Giá giảm (khuyến mãi, để trống nếu không có)", "Số lượng*", "Đơn vị", "Mô tả", "Đang bán (TRUE/FALSE)"
     };
 
     public boolean checkValidCategoryId(long categoryId) {
@@ -78,8 +78,8 @@ public class ProductService {
         String type = p.getPromotionType() == null ? "NONE" : p.getPromotionType();
         switch (type) {
             case "PRICE_DISCOUNT":
-                if (p.getOriginalPrice() == null || p.getOriginalPrice() <= p.getPrice()) {
-                    return "Giá gốc phải lớn hơn giá bán (chỉ điền giá gốc khi có khuyến mãi)";
+                if (p.getDiscountPrice() == null || p.getDiscountPrice() >= p.getPrice()) {
+                    return "Giá giảm phải nhỏ hơn giá bán (chỉ điền giá giảm khi có khuyến mãi)";
                 }
                 break;
             case "BUY_X_GET_Y":
@@ -109,7 +109,7 @@ public class ProductService {
         String type = p.getPromotionType() == null ? "NONE" : p.getPromotionType();
         p.setPromotionType(type);
         if (!"PRICE_DISCOUNT".equals(type)) {
-            p.setOriginalPrice(null);
+            p.setDiscountPrice(null);
         }
         if (!"BUY_X_GET_Y".equals(type)) {
             p.setPromoBuyQuantity(null);
@@ -129,6 +129,10 @@ public class ProductService {
         } else {
             p.setPromotionExpiresAt(Instant.now().plus(p.getPromotionDurationDays(), ChronoUnit.DAYS));
         }
+        boolean isFlashSale = !"NONE".equals(p.getPromotionType()) && Boolean.TRUE.equals(p.getIsFlashSale());
+        p.setIsFlashSale(isFlashSale);
+        p.setFlashSaleWindow1(isFlashSale && !Boolean.FALSE.equals(p.getFlashSaleWindow1()));
+        p.setFlashSaleWindow2(isFlashSale && !Boolean.FALSE.equals(p.getFlashSaleWindow2()));
     }
 
     public boolean checkValidProductId(long id) {
@@ -146,7 +150,8 @@ public class ProductService {
     public Product deductStock(long id, int paidQuantity) throws ResourceInvalidException {
         Product p = this.findById(id);
         if (p == null) throw new ResourceInvalidException("Product id = " + id + " không tồn tại");
-        int freeUnits = this.promotionService.calculateLineTotal(p, paidQuantity).getFreeUnits();
+        // userId=null: chỉ cần freeUnits (BUY_X_GET_Y) để trừ kho, không liên quan tới giá/Flash Sale cá nhân.
+        int freeUnits = this.promotionService.calculateLineTotal(p, paidQuantity, null).getFreeUnits();
         if (paidQuantity + freeUnits > p.getQuantity()) {
             throw new ResourceInvalidException("Product id = " + p.getId() + " không đủ số lượng tồn kho");
         }
@@ -212,7 +217,7 @@ public class ProductService {
         res.setSku(p.getSku());
         res.setCategory(p.getCategory().getName());
         res.setPrice(p.getPrice());
-        res.setOriginalPrice(p.getOriginalPrice());
+        res.setDiscountPrice(p.getDiscountPrice());
         res.setPromotionType(p.getPromotionType());
         res.setPromoBuyQuantity(p.getPromoBuyQuantity());
         res.setPromoFreeQuantity(p.getPromoFreeQuantity());
@@ -243,11 +248,17 @@ public class ProductService {
             this.normalizePromotionFields(p);
             boolean promotionTypeChanged = !Objects.equals(curr.getPromotionType(), p.getPromotionType());
             curr.setPromotionType(p.getPromotionType());
-            curr.setOriginalPrice(p.getOriginalPrice());
+            curr.setDiscountPrice(p.getDiscountPrice());
             curr.setPromoBuyQuantity(p.getPromoBuyQuantity());
             curr.setPromoFreeQuantity(p.getPromoFreeQuantity());
             curr.setPromoBundleQuantity(p.getPromoBundleQuantity());
             curr.setPromoBundlePrice(p.getPromoBundlePrice());
+            boolean isFlashSale = !"NONE".equals(p.getPromotionType()) && Boolean.TRUE.equals(p.getIsFlashSale());
+            curr.setIsFlashSale(isFlashSale);
+            // Mặc định cả 2 khung (true) nếu client không gửi rõ — khớp DEFAULT 1 ở DB, tránh 1 sản
+            // phẩm Flash Sale vô tình 0 khung nào (không hiện ở đâu) chỉ vì thiếu field trong payload.
+            curr.setFlashSaleWindow1(isFlashSale && !Boolean.FALSE.equals(p.getFlashSaleWindow1()));
+            curr.setFlashSaleWindow2(isFlashSale && !Boolean.FALSE.equals(p.getFlashSaleWindow2()));
             if (p.getPromotionDurationDays() != null) {
                 curr.setPromotionExpiresAt("NONE".equals(p.getPromotionType()) ? null
                         : Instant.now().plus(p.getPromotionDurationDays(), ChronoUnit.DAYS));
@@ -270,6 +281,25 @@ public class ProductService {
         }
         assert curr != null;
         return this.productRepository.save(curr);
+    }
+
+    /**
+     * Sản phẩm thuộc ĐÚNG khung giờ Flash Sale được yêu cầu (1 hoặc 2) — trả về TOÀN BỘ sản phẩm đã
+     * bật khung đó, KHÔNG lọc theo giờ hiện tại (khác hẳn hành vi cũ) vì FE giờ có UI tab "Đang diễn
+     * ra"/"Sắp diễn ra" tự quyết định hiển thị theo giờ client, kể cả preview tab "sắp diễn ra" khi
+     * khung đó chưa bắt đầu. Việc giá có thực sự giảm hay không (đúng lúc đang trong khung) vẫn do
+     * PromotionService.getEffectiveUnitPrice() quyết định độc lập lúc tính tiền — tách biệt hoàn toàn
+     * "sản phẩm nào thuộc khung nào" (danh sách) khỏi "giá có hiệu lực ngay bây giờ không" (tính tiền).
+     */
+    public List<Product> getFlashSaleProducts(int window) {
+        return this.productRepository.findFlashSaleProducts(Instant.now()).stream()
+                .filter(p -> window == 1 ? !Boolean.FALSE.equals(p.getFlashSaleWindow1())
+                        : !Boolean.FALSE.equals(p.getFlashSaleWindow2()))
+                .toList();
+    }
+
+    public java.util.Map<String, String> getFlashSaleWindowsConfig() {
+        return this.promotionService.getFlashSaleWindowsConfig();
     }
 
     public double getMaxPrice(String category, String productName) throws ResourceInvalidException {
@@ -300,7 +330,7 @@ public class ProductService {
                 productRoot.get("price"),
                 productRoot.get("imageUrl"),
                 categoryJoin.get("name"),
-                productRoot.get("originalPrice"),
+                productRoot.get("discountPrice"),
                 productRoot.get("promotionType"),
                 productRoot.get("promoBuyQuantity"),
                 productRoot.get("promoFreeQuantity"),
@@ -389,8 +419,8 @@ public class ProductService {
                 row.createCell(1).setCellValue(p.getProductName());
                 row.createCell(2).setCellValue(p.getCategory() != null ? p.getCategory().getName() : "");
                 row.createCell(3).setCellValue(p.getPrice());
-                if (p.getOriginalPrice() != null) {
-                    row.createCell(4).setCellValue(p.getOriginalPrice());
+                if (p.getDiscountPrice() != null) {
+                    row.createCell(4).setCellValue(p.getDiscountPrice());
                 }
                 row.createCell(5).setCellValue(p.getQuantity());
                 row.createCell(6).setCellValue(p.getUnit() == null ? "" : p.getUnit());
@@ -452,7 +482,7 @@ public class ProductService {
         String productName = getCellString(row, 1, dataFormatter);
         String categoryName = getCellString(row, 2, dataFormatter);
         Double price = getCellDouble(row, 3, dataFormatter);
-        Double originalPrice = getCellDouble(row, 4, dataFormatter);
+        Double discountPrice = getCellDouble(row, 4, dataFormatter);
         Integer quantity = getCellInt(row, 5, dataFormatter);
         String unit = getCellString(row, 6, dataFormatter);
         String description = getCellString(row, 7, dataFormatter);
@@ -493,10 +523,10 @@ public class ProductService {
         product.setDescription(description);
         product.setActive(activeRaw == null || !(activeRaw.equalsIgnoreCase("false") || activeRaw.equals("0")));
 
-        // Excel import chỉ biết cơ chế giảm giá đơn giản (originalPrice) — không có cột cho Mua X tặng Y/Mua N giá cố định,
-        // nên import sẽ reset khuyến mãi về PRICE_DISCOUNT (nếu có originalPrice) hoặc NONE, không giữ lại các loại khác đã cấu hình qua UI
-        product.setPromotionType(originalPrice != null ? "PRICE_DISCOUNT" : "NONE");
-        product.setOriginalPrice(originalPrice);
+        // Excel import chỉ biết cơ chế giảm giá đơn giản (discountPrice) — không có cột cho Mua X tặng Y/Mua N giá cố định,
+        // nên import sẽ reset khuyến mãi về PRICE_DISCOUNT (nếu có discountPrice) hoặc NONE, không giữ lại các loại khác đã cấu hình qua UI
+        product.setPromotionType(discountPrice != null ? "PRICE_DISCOUNT" : "NONE");
+        product.setDiscountPrice(discountPrice);
         product.setPromoBuyQuantity(null);
         product.setPromoFreeQuantity(null);
         product.setPromoBundleQuantity(null);

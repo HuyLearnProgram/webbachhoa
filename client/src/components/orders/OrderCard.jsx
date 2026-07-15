@@ -62,15 +62,12 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
     const getTotalPrice = () =>
         data?.reduce((total, item) => total + getLineTotal(item), 0);
 
-    // Tính tổng tiền sau khi áp dụng voucher (nếu có)
+    // Tính tổng tiền sau khi áp dụng voucher (nếu có) — đọc thẳng voucherDiscountAmount đã lưu
+    // tại thời điểm đặt hàng (snapshot), không tự tính lại PERCENT/FIXED ở FE nữa.
     const getDiscountedTotal = () => {
         const total = getTotalPrice();
         if (data[0]?.voucherCode) {
-        if (data[0]?.voucherType === "PERCENT") {
-            return total * (1 - data[0]?.voucherDiscountValue / 100);
-        } else {
-            return Math.max(0, total - data[0]?.voucherDiscountValue); // tránh âm tiền
-        }
+            return Math.max(0, total - (data[0]?.voucherDiscountAmount || 0));
         }
         return total;
     };
@@ -128,11 +125,9 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
                 {/* THÔNG TIN VOUCHER */}
                 {data[0]?.voucherCode && (
                 <div className="flex justify-between items-center mt-2 font-medium text-green-700">
-                    <span>Giảm giá:</span>
+                    <span>Giảm giá ({data[0]?.voucherCode}):</span>
                     <span className="font-semibold">
-                    {data[0]?.voucherType === "PERCENT"
-                        ? `-${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(getTotalPrice()*data[0].voucherDiscountValue / 100)}`
-                        : `-${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(data[0]?.voucherDiscountValue)}`}
+                        -{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(data[0]?.voucherDiscountAmount || 0)}
                     </span>
                 </div>
                 )}

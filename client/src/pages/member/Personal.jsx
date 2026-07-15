@@ -36,6 +36,7 @@ const Personal = () => {
                 avatarUrl: user?.avatarUrl,
                 phone: user?.phone,
                 address: user?.address,
+                birthday: user?.birthday || '',
             });
             setAvatar(user.avatarUrl);
         }
@@ -139,6 +140,13 @@ const Personal = () => {
                             message: 'Số điện thoại không hợp lệ',
                         },
                     }}
+                />
+                <InputForm
+                    label='Ngày sinh (tuỳ chọn — dùng để nhận voucher sinh nhật)'
+                    type='date'
+                    register={register}
+                    errors={errors}
+                    id='birthday'
                 />
 
                 <div className="flex items-center gap-2">

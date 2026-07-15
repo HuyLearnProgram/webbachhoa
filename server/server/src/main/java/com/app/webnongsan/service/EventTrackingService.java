@@ -2,7 +2,10 @@ package com.app.webnongsan.service;
 
 import com.app.webnongsan.domain.*;
 import com.app.webnongsan.domain.request.*;
+import com.app.webnongsan.domain.response.PaginationDTO;
+import com.app.webnongsan.domain.response.product.SearchProductDTO;
 import com.app.webnongsan.repository.*;
+import com.app.webnongsan.util.PaginationHelper;
 import com.app.webnongsan.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.text.Normalizer;
 import java.time.Instant;
@@ -24,6 +29,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 // Ghi nhận hành vi người dùng (xem/tìm kiếm/giỏ hàng/impression gợi ý) làm dữ liệu nền
@@ -40,6 +46,7 @@ public class EventTrackingService {
     private final CartEventRepository cartEventRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final PaginationHelper paginationHelper;
     private final long attributionWindowDays;
 
     public EventTrackingService(ProductViewRepository productViewRepository,
@@ -48,6 +55,7 @@ public class EventTrackingService {
                                 CartEventRepository cartEventRepository,
                                 ProductRepository productRepository,
                                 UserRepository userRepository,
+                                PaginationHelper paginationHelper,
                                 @Value("${recommendation.attribution-window-days:7}") long attributionWindowDays) {
         this.productViewRepository = productViewRepository;
         this.searchLogRepository = searchLogRepository;
@@ -55,6 +63,7 @@ public class EventTrackingService {
         this.cartEventRepository = cartEventRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
+        this.paginationHelper = paginationHelper;
         this.attributionWindowDays = attributionWindowDays;
     }
 
@@ -99,6 +108,29 @@ public class EventTrackingService {
         view.setSource(dto.getSource());
         view.setReferrerProductId(dto.getReferrerProductId());
         this.productViewRepository.save(view);
+    }
+
+    // Trang "Sản phẩm đã xem" (member) — đọc lại ProductView của user hiện tại, gom theo sản
+    // phẩm + sắp xếp theo lần xem gần nhất (ở tầng repository), rồi hydrate giá/khuyến mãi/tồn
+    // kho mới nhất từ DB (không tin dữ liệu cũ tại thời điểm xem). Guest (chưa đăng nhập) không
+    // có lịch sử theo user (chỉ có theo sessionId) → trả danh sách rỗng, không lỗi.
+    public PaginationDTO getRecentlyViewedByCurrentUser(Pageable pageable) {
+        User user = getCurrentUserOrNull();
+        if (user == null) {
+            return this.paginationHelper.buildPaginationFromList(List.of(), 0, pageable);
+        }
+        Page<Long> idPage = this.productViewRepository.findDistinctProductIdsByUserId(user.getId(), pageable);
+        List<SearchProductDTO> items;
+        if (idPage.getContent().isEmpty()) {
+            items = List.of();
+        } else {
+            // IN () rỗng ném lỗi JPQL — luôn guard trước khi gọi (bài học từ SmartSearchService)
+            Map<Long, SearchProductDTO> byId = this.productRepository
+                    .findActiveDtoByIdInAnyStock(idPage.getContent()).stream()
+                    .collect(Collectors.toMap(SearchProductDTO::getId, Function.identity()));
+            items = idPage.getContent().stream().map(byId::get).filter(Objects::nonNull).toList();
+        }
+        return this.paginationHelper.buildPaginationFromList(items, idPage.getTotalElements(), pageable);
     }
 
     // Tạo mới SearchLog (trả về id để frontend cập nhật clickedProductId sau),

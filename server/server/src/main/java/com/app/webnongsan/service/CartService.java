@@ -63,7 +63,7 @@ public class CartService {
                 throw new ResourceInvalidException("Số lượng sản phẩm không hợp lệ");
             }
             // Tồn kho phải đủ cho cả số lượng trả tiền LẪN quà tặng đi kèm (BUY_X_GET_Y) — cả 2 lấy chung 1 kho
-            int freeUnits = this.promotionService.calculateLineTotal(p, newQuantity).getFreeUnits();
+            int freeUnits = this.promotionService.calculateLineTotal(p, newQuantity, u.getId()).getFreeUnits();
             if (newQuantity + freeUnits > p.getQuantity()) {
                 throw new ResourceInvalidException("Số lượng hàng trong kho không đủ");
             }
@@ -74,7 +74,7 @@ public class CartService {
             return saved;
         } else {
             // Thêm mới vào giỏ — trước đây hoàn toàn không có bước kiểm tra tồn kho nào ở nhánh này
-            int freeUnits = this.promotionService.calculateLineTotal(p, cart.getQuantity()).getFreeUnits();
+            int freeUnits = this.promotionService.calculateLineTotal(p, cart.getQuantity(), u.getId()).getFreeUnits();
             if (cart.getQuantity() + freeUnits > p.getQuantity()) {
                 throw new ResourceInvalidException("Số lượng hàng trong kho không đủ");
             }
@@ -115,6 +115,7 @@ public class CartService {
         }
 
         Page<CartItemDTO> cartItems = this.cartRepository.findCartItemsByUserId(user.getId(), pageable);
+        cartItems.forEach(item -> enrichPersonalDiscount(item, user.getId()));
         return this.paginationHelper.fetchAllEntities(cartItems);
     }
 
@@ -125,7 +126,21 @@ public class CartService {
         if (user == null) {
             throw new ResourceInvalidException("User không tồn tại");
         }
-        return this.cartRepository.findCartItemsByUserIdAndProductId(user.getId(),productIds, pageable);
+        List<CartItemDTO> items = this.cartRepository.findCartItemsByUserIdAndProductId(user.getId(),productIds, pageable);
+        items.forEach(item -> enrichPersonalDiscount(item, user.getId()));
+        return items;
+    }
+
+    // Flash Sale CÁ NHÂN (Cart Recovery) — CHỈ hiển thị trong trang Giỏ hàng (không đụng PDP/ProductCard/
+    // gợi ý), xem PromotionService.getActivePersonalDiscount() — nguồn logic DUY NHẤT, không tự tính lại
+    // ở đây để tránh lệch công thức với OrderService lúc tính tiền thật.
+    private void enrichPersonalDiscount(CartItemDTO item, Long userId) {
+        this.promotionService.getActivePersonalDiscount(item.getId(), userId, item.getPrice())
+                .ifPresent(discount -> {
+                    item.setPersonalFlashSaleActive(true);
+                    item.setPersonalDiscountPrice(discount.getEffectivePrice());
+                    item.setPersonalFlashSaleEndsAt(discount.getExpiresAt());
+                });
     }
 
     public long countProductInCart(long userId){

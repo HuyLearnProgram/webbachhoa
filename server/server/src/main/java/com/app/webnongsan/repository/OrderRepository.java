@@ -43,9 +43,27 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
     long countByUser_Id(Long userId);
 
+    // Đếm số đơn PAID của 1 user — dùng cho hệ trao voucher tự động (FIRST_ORDER/MILESTONE), khác
+    // countByUser_Id (đếm MỌI đơn bất kể trạng thái) và countByPaymentStatus (đếm toàn hệ thống).
+    long countByUser_IdAndPaymentStatus(Long userId, String paymentStatus);
+
+    // Win-back (hệ trao voucher tự động, Phase 5): user CÓ ít nhất 1 đơn trong quá khứ nhưng đơn gần
+    // nhất đã cũ hơn cutoff — không nhắm vào user chưa từng mua (đó là việc của WELCOME/FIRST_ORDER).
+    // Object[]{userId (Long), lastOrderTime (Instant)}
+    @Query("SELECT o.user.id, MAX(o.orderTime) FROM Order o GROUP BY o.user.id HAVING MAX(o.orderTime) < :cutoff")
+    List<Object[]> findUsersWithLastOrderBefore(@Param("cutoff") java.time.Instant cutoff);
+
+    // Referral (Phase 6) — đếm số người được giới thiệu (referredBy = mã của mình) ĐÃ có ít nhất 1
+    // đơn PAID, dùng cho thống kê trang "Giới thiệu bạn bè" của user.
+    @Query("SELECT COUNT(DISTINCT o.user.id) FROM Order o WHERE o.user.referredBy = :referralCode AND o.paymentStatus = 'PAID'")
+    long countConvertedReferredUsers(@Param("referralCode") String referralCode);
+
     Optional<Order> findByVnpTxnRef(String vnpTxnRef);
 
     @Query("SELECT COUNT(DISTINCT od.order.id) FROM OrderDetail od WHERE od.product.id = :productId AND od.order.status = :status")
     long countOrdersByProductIdAndStatus(@Param("productId") Long productId, @Param("status") int status);
+
+    // Dùng để chặn hard-delete voucher đã từng được dùng trong đơn hàng thật
+    boolean existsByVoucher_Id(Long voucherId);
 }
 

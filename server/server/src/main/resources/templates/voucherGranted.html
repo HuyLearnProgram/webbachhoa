@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Voucher mới</title>
+</head>
+<body>
+<div style="padding: 20px; background-color: #f4f4f4; max-width: 600px; margin: 0 auto; border-radius: 10px; box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);">
+    <h2 style="color: #333;">Xin chào <span th:text="${NAME}"></span>,</h2>
+
+    <p style="color: #555; font-size: 14px;" th:text="${REASON_TEXT}"></p>
+
+    <div style="background-color: #ffffff; border: 2px dashed #10B981; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+        <div style="font-size: 20px; font-weight: bold; color: #10B981; letter-spacing: 1px;" th:text="${CODE}"></div>
+        <div style="font-size: 16px; color: #333; margin-top: 8px;" th:text="${DISCOUNT_TEXT}"></div>
+        <div style="font-size: 13px; color: #888;" th:if="${MAX_DISCOUNT_TEXT}" th:text="${MAX_DISCOUNT_TEXT}"></div>
+        <div style="font-size: 13px; color: #888;" th:if="${MIN_ORDER_TEXT}" th:text="${MIN_ORDER_TEXT}"></div>
+        <div style="font-size: 13px; color: #b45309; margin-top: 8px;">Hạn sử dụng: <span th:text="${EXPIRY_TEXT}"></span></div>
+    </div>
+
+    <a href="#" th:href="@{http://localhost:5173/member/voucher}"
+       style="display: inline-block; padding: 10px 20px; margin: 10px 0; font-size: 16px; color: white; background-color: #10B981; text-decoration: none; border-radius: 5px;">
+        Xem trong Ví voucher
+    </a>
+
+    <p style="color: #999; font-size: 12px;">
+        Voucher đã tự động được thêm vào ví của bạn — dùng ngay khi thanh toán đơn hàng tiếp theo.
+    </p>
+</div>
+</body>
+</html>

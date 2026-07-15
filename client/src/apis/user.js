@@ -8,6 +8,13 @@ export const apiRegister = async (data) =>
         withCredentials: true
     });
 
+// Referral (Phase 6 hệ trao voucher tự động) — thống kê giới thiệu bạn bè của user hiện tại
+export const apiGetReferralStats = async () =>
+    axiosInstance({
+        url: "/users/referral-stats",
+        method: "get",
+    });
+
 export const apiLogin = async (data) =>
     axiosInstance({
         url: "/auth/login",

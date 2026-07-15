@@ -27,6 +27,9 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
   const [galleryImages, setGalleryImages] = useState(initialProductData?.images || []);
   const [isUploadingGallery, setIsUploadingGallery] = useState(false);
   const [promotionType, setPromotionType] = useState(initialProductData?.promotionType || PROMOTION_TYPES.NONE);
+  const [isFlashSale, setIsFlashSale] = useState(initialProductData?.isFlashSale ?? false);
+  const [flashSaleWindow1, setFlashSaleWindow1] = useState(initialProductData?.flashSaleWindow1 ?? true);
+  const [flashSaleWindow2, setFlashSaleWindow2] = useState(initialProductData?.flashSaleWindow2 ?? true);
 
   const [previewProductImage, setPreviewProductImage] = useState(
     resolveImageUrl(initialProductData?.imageUrl)
@@ -40,6 +43,9 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
     setGalleryImages(initialProductData?.images || []);
     setSelectedCategory(initialProductData?.category || null);
     setPromotionType(initialProductData?.promotionType || PROMOTION_TYPES.NONE);
+    setIsFlashSale(initialProductData?.isFlashSale ?? false);
+    setFlashSaleWindow1(initialProductData?.flashSaleWindow1 ?? true);
+    setFlashSaleWindow2(initialProductData?.flashSaleWindow2 ?? true);
   }, [initialProductData, reset]);
 
   const handleAddGalleryImage = async (event) => {
@@ -88,8 +94,8 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
       return;
     }
     if (promotionType === PROMOTION_TYPES.PRICE_DISCOUNT
-      && (!data?.originalPrice || Number(data.originalPrice) <= Number(data.price))) {
-      toast.error("Giá gốc phải lớn hơn giá bán (chỉ điền khi có khuyến mãi)");
+      && (!data?.discountPrice || Number(data.discountPrice) >= Number(data.price))) {
+      toast.error("Giá giảm phải nhỏ hơn giá bán (chỉ điền khi có khuyến mãi)");
       return;
     }
     if (promotionType === PROMOTION_TYPES.BUY_X_GET_Y
@@ -116,8 +122,8 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
       sku: data?.sku || null,
       price: data?.price,
       promotionType,
-      originalPrice: promotionType === PROMOTION_TYPES.PRICE_DISCOUNT && data?.originalPrice
-        ? Number(data.originalPrice) : null,
+      discountPrice: promotionType === PROMOTION_TYPES.PRICE_DISCOUNT && data?.discountPrice
+        ? Number(data.discountPrice) : null,
       promoBuyQuantity: promotionType === PROMOTION_TYPES.BUY_X_GET_Y && data?.promoBuyQuantity
         ? Number(data.promoBuyQuantity) : null,
       promoFreeQuantity: promotionType === PROMOTION_TYPES.BUY_X_GET_Y && data?.promoFreeQuantity
@@ -128,6 +134,9 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
         ? Number(data.promoBundlePrice) : null,
       promotionDurationDays: promotionType !== PROMOTION_TYPES.NONE && data?.promotionDurationDays
         ? Number(data.promotionDurationDays) : null,
+      isFlashSale: promotionType !== PROMOTION_TYPES.NONE && isFlashSale,
+      flashSaleWindow1,
+      flashSaleWindow2,
       unit: data?.unit || null,
       imageUrl: initialProductData?.imageUrl,
       quantity: data?.quantity,
@@ -225,12 +234,12 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
               {promotionType === PROMOTION_TYPES.PRICE_DISCOUNT && (
                 <InputFormAdmin
                   className="border p-2 w-full"
-                  defaultValue={productData?.originalPrice}
-                  label="Giá gốc"
-                  placeholder="Giá trước khi giảm"
+                  defaultValue={productData?.discountPrice}
+                  label="Giá giảm"
+                  placeholder="Giá sau khi giảm"
                   register={register}
                   errors={errors}
-                  id="originalPrice"
+                  id="discountPrice"
                   type="number"
                 />
               )}
@@ -291,6 +300,46 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
                   id="promotionDurationDays"
                   type="number"
                 />
+              )}
+
+              {promotionType !== PROMOTION_TYPES.NONE && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 h-[26px]">
+                    <input
+                      type="checkbox"
+                      id="isFlashSale"
+                      checked={isFlashSale}
+                      onChange={(e) => setIsFlashSale(e.target.checked)}
+                    />
+                    <label htmlFor="isFlashSale">Hiển thị trên banner Flash Sale trang chủ</label>
+                  </div>
+                  {isFlashSale && (
+                    <div className="flex flex-col gap-1 ml-6">
+                      <span className="text-xs text-gray-500">Chỉ giảm giá trong khung giờ đã chọn:</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="flashSaleWindow1"
+                          checked={flashSaleWindow1}
+                          onChange={(e) => setFlashSaleWindow1(e.target.checked)}
+                        />
+                        <label htmlFor="flashSaleWindow1">Khung 12h - 14h</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="flashSaleWindow2"
+                          checked={flashSaleWindow2}
+                          onChange={(e) => setFlashSaleWindow2(e.target.checked)}
+                        />
+                        <label htmlFor="flashSaleWindow2">Khung 20h - 22h</label>
+                      </div>
+                      {!flashSaleWindow1 && !flashSaleWindow2 && (
+                        <span className="text-xs text-red-500">Chưa chọn khung giờ nào — sản phẩm sẽ không bao giờ hiển thị Flash Sale.</span>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
               <InputFormAdmin

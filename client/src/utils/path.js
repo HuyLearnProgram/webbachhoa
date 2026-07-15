@@ -6,6 +6,7 @@ const path = {
   PRODUCTS_BASE: 'products',
 
   PRODUCT_DETAIL: "/products/:category/:pid/:productname",
+  FLASH_SALE: "flash-sale",
   RESET_PASSWORD: "reset-password",
   CART: "cart",
   CHECKOUT: "checkout",
@@ -18,6 +19,9 @@ const path = {
   PERSONAL: "personal",
   HISTORY: "buy-history",
   WISHLIST: "wishlist",
+  RECENTLY_VIEWED: "recently-viewed",
+  VOUCHER: "voucher",
+  REFERRAL: "referral",
 
   //Admin path
   ADMIN: "admin",
@@ -41,9 +45,14 @@ const path = {
   ADMIN_FEEDBACK: "feedback",
   ADMIN_FEEDBACK_DETAIL: "",
   ADMIN_RECOMMENDATION: "recommendation-metrics",
+  ADMIN_VOUCHER: "voucher",
+  ADMIN_EDIT_VOUCHER: "voucher/edit/:voucherId",
+  ADMIN_VOUCHER_AUTO_GRANT_RULES: "voucher-auto-grant-rules",
+  ADMIN_LUCKY_DRAW: "lucky-draw",
 
   ADD_PRODUCT: "product/add",
   ADD_CATEGORY: "category/add",
+  ADD_VOUCHER: "voucher/add",
   // ADMIN_
   FEEDBACK: "feedback"
 };

@@ -42,9 +42,19 @@ public class Order {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    // FK chỉ dùng để truy vấn/thống kê ("đơn nào từng dùng voucher X") — KHÔNG dùng để hiển thị
+    // số tiền đã giảm, vì voucher có thể bị admin sửa sau này. Dùng 4 field snapshot bên dưới.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "voucher_id")
     private Voucher voucher;
+
+    // Snapshot tại thời điểm đặt hàng — nguồn sự thật duy nhất khi hiển thị lịch sử đơn hàng.
+    private String voucherCode;
+    private String voucherType; // "PERCENT" / "FIXED"
+    @Column(columnDefinition = "DOUBLE DEFAULT 0")
+    private Double voucherDiscountValue = 0.0;
+    @Column(columnDefinition = "DOUBLE DEFAULT 0")
+    private Double voucherDiscountAmount = 0.0; // số tiền THỰC TẾ đã giảm (đã áp trần nếu có)
 
     @PrePersist
     public void handleBeforeCreate() {

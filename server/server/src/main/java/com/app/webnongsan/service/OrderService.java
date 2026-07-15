@@ -19,12 +19,14 @@ import com.app.webnongsan.util.testcomponent.PhoneValidator;
 import com.app.webnongsan.util.testcomponent.ValidationResult;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,6 +47,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final PaginationHelper paginationHelper;
     private final PromotionService promotionService;
+    private final VoucherValidationService voucherValidationService;
     @Autowired
     private final AddressValidator addressValidator;
     @Autowired
@@ -178,18 +181,26 @@ public class OrderService {
         res.setUserId(order.getUser().getId());
         res.setUserName(order.getUser().getName());
 
+        // Đọc từ snapshot lưu tại thời điểm đặt hàng — KHÔNG đọc order.getVoucher().getX() (field
+        // sống, có thể bị admin sửa sau này làm sai lệch số liệu hiển thị cho đơn hàng cũ).
         if (order.getVoucher() != null) {
-            Voucher voucher = order.getVoucher();
-            res.setVoucherId(voucher.getId());
-            res.setVoucherCode(voucher.getCode());
-            res.setVoucherType(voucher.getType().name()); // PERCENT / FIXED
-            res.setVoucherDiscountValue(voucher.getDiscountValue());
+            res.setVoucherId(order.getVoucher().getId());
+            res.setVoucherCode(order.getVoucherCode());
+            res.setVoucherType(order.getVoucherType());
+            res.setVoucherDiscountValue(order.getVoucherDiscountValue());
+            res.setVoucherDiscountAmount(order.getVoucherDiscountAmount());
         }
 
         return res;
     }
 
 
+    // @Transactional: nếu bất kỳ bước nào sau khi voucher đã được áp (usedCount tăng, UserVoucher
+    // ghi nhận) bị lỗi (VD lưu OrderDetail thất bại), toàn bộ phải rollback — trước đây không có
+    // transaction nên usedCount có thể bị tăng "khống" dù đơn hàng thất bại hoàn toàn. KHÔNG ảnh
+    // hưởng trừ kho: trừ kho (apiUpdateProduct) là 1 HTTP request RIÊNG do FE gọi SAU KHI đơn tạo
+    // thành công, nằm ngoài hoàn toàn method này.
+    @Transactional
     public Order create(OrderDTO orderDTO) throws ResourceInvalidException {
         // Validate address before processing
         ValidationResult addressValidation = addressValidator.validateAddress(orderDTO.getAddress());
@@ -207,14 +218,16 @@ public class OrderService {
         User currentUserDB = userService.getUserByUsername(emailLoggedIn);
 
         double total = 0;
+        List<VoucherValidationService.ItemLine> itemLines = new ArrayList<>();
         for (OrderDetailDTO item : orderDTO.getItems()) {
             Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new ResourceInvalidException("Sản phẩm không tồn tại"));
             if(product.getQuantity() <= 0) throw new ResourceInvalidException("Sản phẩm không còn hàng");
-            PromotionService.LineTotal lineTotal = promotionService.calculateLineTotal(product, item.getQuantity());
+            PromotionService.LineTotal lineTotal = promotionService.calculateLineTotal(product, item.getQuantity(), currentUserDB.getId());
             // Tồn kho phải đủ cho cả số lượng trả tiền LẪN quà tặng đi kèm (BUY_X_GET_Y) — cả 2 lấy chung 1 kho
             if(item.getQuantity() + lineTotal.getFreeUnits() > product.getQuantity()) throw new ResourceInvalidException("Sản phẩm không còn đủ hàng");
             total += lineTotal.getTotal();
+            itemLines.add(new VoucherValidationService.ItemLine(product.getId(), lineTotal.getTotal()));
         }
 
 
@@ -228,7 +241,7 @@ public class OrderService {
         order.setPaymentStatus("COD".equalsIgnoreCase(orderDTO.getPaymentMethod()) ? "UNPAID" : "PENDING_PAYMENT");
 
         // Áp dụng voucher nếu có
-        total = applyVoucherToOrder(order, orderDTO, currentUserDB, total);
+        total = applyVoucherToOrder(order, orderDTO, currentUserDB, total, itemLines);
 
         order.setTotal_price(total);
         Order savedOrder = orderRepository.save(order);
@@ -237,7 +250,14 @@ public class OrderService {
         orderDTO.getItems().forEach(item -> {
             Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
-            PromotionService.LineTotal lineTotal = promotionService.calculateLineTotal(product, item.getQuantity());
+            PromotionService.LineTotal lineTotal = promotionService.calculateLineTotal(product, item.getQuantity(), currentUserDB.getId());
+            // Snapshot: unit_price = giá KHÁCH THỰC TRẢ mỗi đơn vị (PromotionService.getEffectiveUnitPrice
+            // là nguồn DUY NHẤT — ưu tiên Flash Sale cá nhân > giảm giá công khai có gate khung giờ >
+            // giá thường, KHÔNG tự suy luận discountActive riêng ở đây nữa vì dễ lệch với 2 cơ chế mới);
+            // originalPrice = giá tham chiếu cao hơn để hiển thị gạch ngang, chỉ có giá trị khi đang thực
+            // sự giảm giá.
+            double unitPrice = promotionService.getEffectiveUnitPrice(product, currentUserDB.getId());
+            boolean discountActive = unitPrice < product.getPrice();
 
             OrderDetail orderDetail = new OrderDetail();
             OrderDetailId id = new OrderDetailId();
@@ -247,71 +267,60 @@ public class OrderService {
             orderDetail.setOrder(savedOrder);
             orderDetail.setProduct(product);
             orderDetail.setQuantity(item.getQuantity());
-            orderDetail.setUnit_price(product.getPrice());
+            orderDetail.setUnit_price(unitPrice);
             orderDetail.setLineTotal(lineTotal.getTotal());
             orderDetail.setPromotionType(product.getPromotionType() == null ? "NONE" : product.getPromotionType());
             orderDetail.setFreeUnits(lineTotal.getFreeUnits());
             orderDetail.setPromoBundleQuantity(product.getPromoBundleQuantity());
             orderDetail.setPromoBundlePrice(product.getPromoBundlePrice());
-            orderDetail.setOriginalPrice(product.getOriginalPrice());
+            orderDetail.setOriginalPrice(discountActive ? product.getPrice() : null);
             orderDetailRepository.save(orderDetail);
         });
 
         return savedOrder;
     }
 
-    private double applyVoucherToOrder(Order order, OrderDTO orderDTO, User user, double total) throws ResourceInvalidException {
+    private double applyVoucherToOrder(Order order, OrderDTO orderDTO, User user, double total,
+                                        List<VoucherValidationService.ItemLine> itemLines) throws ResourceInvalidException {
         if (orderDTO.getVoucherId() == null && orderDTO.getVoucherCode() == null) return total;
 
-        Voucher voucher = (orderDTO.getVoucherId() != null)
-                ? voucherRepository.findById(orderDTO.getVoucherId())
-                .orElseThrow(() -> new ResourceInvalidException("Voucher không tồn tại"))
-                : voucherRepository.findByCode(orderDTO.getVoucherCode())
-                .orElseThrow(() -> new ResourceInvalidException("Mã giảm giá không tồn tại"));
+        VoucherValidationService.VoucherResolution res = voucherValidationService
+                .resolveAndValidate(orderDTO.getVoucherId(), orderDTO.getVoucherCode(), user, total, itemLines, true);
+        Voucher voucher = res.getVoucher();
 
-        if (!voucher.isActiveNow())
-            throw new ResourceInvalidException("Voucher không còn hiệu lực");
+        // Atomic — enforcement THẬT của maxUsage, chặn race condition giữa các request đồng thời
+        // (check advisory ở resolveAndValidate phía trên không đủ an toàn một mình).
+        int updated = voucherRepository.incrementUsedCountIfAvailable(voucher.getId());
+        if (updated == 0) throw new ResourceInvalidException("Mã giảm giá đã dùng hết");
 
-        if (voucher.getMinimumOrderAmount() != null && total < voucher.getMinimumOrderAmount())
-            throw new ResourceInvalidException("Đơn hàng không đủ điều kiện để sử dụng voucher");
-        if(voucher.getUsedCount() >= voucher.getMaxUsage())
-            throw new ResourceInvalidException("Mã giảm giá đã dùng hết");
-
-        // Tính giảm giá
-        double discount = voucher.getType() == Voucher.VoucherType.PERCENT
-                ? total * voucher.getDiscountValue() / 100.0
-                : voucher.getDiscountValue();
-
-        // Giảm giá hợp lệ
-        total = Math.max(0, total - discount);
-        order.setVoucher(voucher);
-
-        // Cập nhật usage
-        voucher.setUsedCount((voucher.getUsedCount() == null ? 1 : voucher.getUsedCount()) + 1);
-        voucherRepository.save(voucher);
-
-        // Cập nhật trạng thái đã dùng trong bảng trung gian user_vouchers
-        UserVoucher userVoucher = userVoucherRepository
-                .findByUserIdAndVoucherId(user.getId(), voucher.getId())
-                .orElse(null);
-
-        if(userVoucher.getIsUsed())
+        try {
+            UserVoucher userVoucher = res.getExistingUserVoucher();
+            if (userVoucher != null) {
+                userVoucher.setIsUsed(true);
+                userVoucher.setAssignedAt(Instant.now());
+                userVoucherRepository.save(userVoucher);
+            } else {
+                // Voucher public dùng lần đầu qua mã (chưa từng được assign vào ví user)
+                UserVoucher newUV = new UserVoucher();
+                newUV.setUser(user);
+                newUV.setVoucher(voucher);
+                newUV.setIsUsed(true);
+                newUV.setAssignedAt(Instant.now());
+                userVoucherRepository.save(newUV);
+            }
+        } catch (DataIntegrityViolationException e) {
+            // Backstop DB-level (unique constraint user_id+voucher_id) cho race hiếm giữa 2 request
+            // cùng user cùng lúc dùng voucher lần đầu
             throw new ResourceInvalidException("Mã giảm giá đã được sử dụng");
-        if (userVoucher != null) {
-            userVoucher.setIsUsed(true);
-            userVoucher.setAssignedAt(Instant.now()); // cập nhật lại thời điểm sử dụng
-            userVoucherRepository.save(userVoucher);
-        } else {
-            // Nếu người dùng không có sẵn (ví dụ voucher public), có thể tạo mới bản ghi
-            UserVoucher newUV = new UserVoucher();
-            newUV.setUser(user);
-            newUV.setVoucher(voucher);
-            newUV.setIsUsed(true);
-            newUV.setAssignedAt(Instant.now());
-            userVoucherRepository.save(newUV);
         }
 
-        return total;
+        order.setVoucher(voucher);
+        order.setVoucherCode(voucher.getCode());
+        order.setVoucherType(voucher.getType().name());
+        order.setVoucherDiscountValue(voucher.getDiscountValue());
+        order.setVoucherDiscountAmount(res.getDiscountAmount());
+
+        return res.getTotalAfterDiscount();
     }
 
 
@@ -350,12 +359,13 @@ public class OrderService {
                 dto.setImageUrl(detail.getProduct().getImageUrl());
                 dto.setCategory(detail.getProduct().getCategory().getName());
 
-                // Set voucher if available
+                // Đọc từ snapshot lưu tại thời điểm đặt hàng (xem convertToOrderDTO — cùng lý do)
                 if (order.getVoucher() != null) {
                     dto.setVoucherId(order.getVoucher().getId());
-                    dto.setVoucherCode(order.getVoucher().getCode());
-                    dto.setVoucherType(order.getVoucher().getType().toString());
-                    dto.setVoucherDiscountValue(order.getVoucher().getDiscountValue());
+                    dto.setVoucherCode(order.getVoucherCode());
+                    dto.setVoucherType(order.getVoucherType());
+                    dto.setVoucherDiscountValue(order.getVoucherDiscountValue());
+                    dto.setVoucherDiscountAmount(order.getVoucherDiscountAmount());
                 }
 
                 orderDetailDTOs.add(dto);

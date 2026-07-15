@@ -1,10 +1,10 @@
 import React from 'react'
 import {
-    Banner,
     Sidebar,
     FeatureProduct,
     HotDeals,
-    HomeRecommendation
+    HomeRecommendation,
+    FlashSaleBanner
 } from "@/components";
 const Home = () => {
     return (
@@ -14,7 +14,7 @@ const Home = () => {
                     <Sidebar />
                 </div>
                 <div className="flex flex-col gap-5 pl-5 w-[75%] flex-auto">
-                    <Banner />
+                    <FlashSaleBanner />
                 </div>
             </div>
             <div className="mt-8">

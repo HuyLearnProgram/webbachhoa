@@ -55,6 +55,8 @@ public class OrderDetailDTO {
     @Transient
     private Double voucherDiscountValue;
     @Transient
+    private Double voucherDiscountAmount; // số tiền THỰC TẾ đã giảm (đã áp trần maxDiscountAmount nếu có)
+    @Transient
     private Instant deliveryTime;
     @Transient
     private String paymentStatus;

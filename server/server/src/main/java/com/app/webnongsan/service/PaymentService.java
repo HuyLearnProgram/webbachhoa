@@ -9,6 +9,8 @@ import com.app.webnongsan.util.VNPayUtil;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -17,8 +19,11 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+
     private final VNPAYConfig vnPayConfig;
     private final OrderRepository orderRepository;
+    private final VoucherGrantService voucherGrantService;
 
     public PaymentDTO.VNPayResponse createVnPayPayment(HttpServletRequest request) throws ResourceInvalidException {
         long amount = Integer.parseInt(request.getParameter("amount")) * 100L;
@@ -103,6 +108,15 @@ public class PaymentService {
             order.setTransactionNo(fields.get("vnp_TransactionNo"));
             order.setPaidAt(Instant.now());
             orderRepository.save(order);
+
+            // Hệ trao voucher tự động (first-order/milestone) — try-catch nuốt lỗi, không phá luồng
+            // xác nhận thanh toán VNPay chính.
+            try {
+                voucherGrantService.onOrderPaid(order);
+            } catch (Exception e) {
+                log.warn("Lỗi trao voucher tự động cho đơn hàng id={}: {}", order.getId(), e.getMessage());
+            }
+
             return true;
         } else {
             order.setPaymentStatus("PAYMENT_FAILED");

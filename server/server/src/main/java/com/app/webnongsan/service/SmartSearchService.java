@@ -211,7 +211,7 @@ public class SmartSearchService {
         Join<Product, Category> category = root.join("category");
         query.select(cb.construct(SearchProductDTO.class,
                 root.get("id"), root.get("productName"), root.get("price"), root.get("imageUrl"),
-                category.get("name"), root.get("rating"), root.get("originalPrice"),
+                category.get("name"), root.get("rating"), root.get("discountPrice"),
                 root.get("promotionType"), root.get("promoBuyQuantity"), root.get("promoFreeQuantity"),
                 root.get("promoBundleQuantity"), root.get("promoBundlePrice"), root.get("quantity")));
         // Phải lọc active=true như findActiveDtoByIdInAnyStock (nhánh không-sort dùng) — thiếu
@@ -251,7 +251,7 @@ public class SmartSearchService {
         Predicate predicate = withName.toPredicate(root, cq, cb);
         cq.select(cb.construct(SearchProductDTO.class,
                 root.get("id"), root.get("productName"), root.get("price"), root.get("imageUrl"),
-                category.get("name"), root.get("rating"), root.get("originalPrice"),
+                category.get("name"), root.get("rating"), root.get("discountPrice"),
                 root.get("promotionType"), root.get("promoBuyQuantity"), root.get("promoFreeQuantity"),
                 root.get("promoBundleQuantity"), root.get("promoBundlePrice"), root.get("quantity")));
         if (predicate != null) {

@@ -1,7 +1,6 @@
 export { default as Header } from "./headers/Header";
 export { default as Footer } from "./footer/Footer";
 export { default as Navigation } from "./navigation/Navigation";
-export { default as Banner } from "./common/Banner";
 export { default as Sidebar } from "./sidebar/Sidebar";
 export { default as FeatureProduct } from "./products/FeatureProduct";
 export { default as HotDeals } from "./products/HotDeals";
@@ -39,3 +38,8 @@ export {default as EmptyCart} from './cart/EmptyCart'
 export {default as CartFooter} from './cart/CartFooter'
 export {default as GiftDetailModal} from './cart/GiftDetailModal'
 export {default as WishlistItem} from './wishlist/WishlistItem'
+export {default as RecentlyViewedItem} from './products/RecentlyViewedItem'
+export {default as VoucherCard} from './vouchers/VoucherCard'
+export {default as FlashSaleBanner} from './vouchers/FlashSaleBanner'
+export {default as FlashSaleWindowTabs} from './vouchers/FlashSaleWindowTabs'
+export {default as LuckyDrawResultModal} from './vouchers/LuckyDrawResultModal'

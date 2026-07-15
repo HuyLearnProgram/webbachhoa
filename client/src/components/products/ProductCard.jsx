@@ -12,7 +12,7 @@ import { useSelector } from "react-redux";
 import Swal from "sweetalert2";
 import path from "@/utils/path";
 import { getCurrentUser } from "@/store/user/asyncActions";
-import { getPromotionBadgeLabel } from "@/utils/promotion";
+import { getPromotionBadgeLabel, getDiscountPercent, getEffectivePrice } from "@/utils/promotion";
 import { setViewSourceHandoff } from "@/utils/viewSourceHandoff";
 
 const { FaCartShopping, FaHeart, FaEye } = icons;
@@ -164,16 +164,16 @@ const ProductCard = ({ productData, navigate, dispatch, viewSource, referrerProd
             {renderStarFromNumber(productData?.rating)}
           </span>
           <span className="text-main whitespace-nowrap">
-            {formatMoney(productData?.price)} &#8363;
+            {formatMoney(getEffectivePrice(productData))} &#8363;
           </span>
           <span className="flex items-center gap-1 h-4 leading-4 whitespace-nowrap">
-            {productData?.originalPrice && productData.originalPrice > productData.price && (
+            {getDiscountPercent(productData) !== null && (
               <>
                 <span className="text-gray-400 line-through text-xs">
-                  {formatMoney(productData.originalPrice)} &#8363;
+                  {formatMoney(productData.price)} &#8363;
                 </span>
                 <span className="text-xs text-red-500 bg-red-50 px-1 rounded">
-                  -{Math.round((1 - productData.price / productData.originalPrice) * 100)}%
+                  -{getDiscountPercent(productData)}%
                 </span>
               </>
             )}

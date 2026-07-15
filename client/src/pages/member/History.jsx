@@ -164,6 +164,11 @@ const History = ({ navigate, location }) => {
                                                         {getOrderLinePromotionLabel(order)}
                                                     </div>
                                                 )}
+                                                {order?.voucherCode && (
+                                                    <div className="text-xs text-green-600 font-medium">
+                                                        Đã dùng mã: {order.voucherCode}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </td>

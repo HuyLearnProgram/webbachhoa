@@ -12,7 +12,7 @@ public class SearchProductDTO {
     private String imageUrl;
     private String category;
     private double rating;
-    private Double originalPrice;
+    private Double discountPrice;
     private String promotionType;
     private Integer promoBuyQuantity;
     private Integer promoFreeQuantity;
@@ -39,23 +39,23 @@ public class SearchProductDTO {
 
     // Dùng cho các query gợi ý (recommendation) — cần thêm quantity để ProductCard biết còn hàng hay không
     public SearchProductDTO(long id, String product_name, double price, String imageUrl, String category, double rating,
-                            Double originalPrice, String promotionType, Integer promoBuyQuantity, Integer promoFreeQuantity,
+                            Double discountPrice, String promotionType, Integer promoBuyQuantity, Integer promoFreeQuantity,
                             Integer promoBundleQuantity, Double promoBundlePrice, Integer quantity) {
-        this(id, product_name, price, imageUrl, category, originalPrice, promotionType,
+        this(id, product_name, price, imageUrl, category, discountPrice, promotionType,
                 promoBuyQuantity, promoFreeQuantity, promoBundleQuantity, promoBundlePrice);
         this.rating = rating;
         this.quantity = quantity;
     }
 
     public SearchProductDTO(long id, String product_name, double price, String imageUrl, String category,
-                            Double originalPrice, String promotionType, Integer promoBuyQuantity, Integer promoFreeQuantity,
+                            Double discountPrice, String promotionType, Integer promoBuyQuantity, Integer promoFreeQuantity,
                             Integer promoBundleQuantity, Double promoBundlePrice) {
         this.id = id;
         this.product_name = product_name;
         this.price = price;
         this.imageUrl = imageUrl;
         this.category = category;
-        this.originalPrice = originalPrice;
+        this.discountPrice = discountPrice;
         this.promotionType = promotionType;
         this.promoBuyQuantity = promoBuyQuantity;
         this.promoFreeQuantity = promoFreeQuantity;

@@ -16,14 +16,14 @@ import java.util.List;
 @Repository
 public interface CartRepository extends JpaRepository<Cart, CartId>, JpaSpecificationExecutor<Cart> {
     @Query("SELECT new com.app.webnongsan.domain.response.cart.CartItemDTO" +
-            "(p.id, p.productName, p.price, p.originalPrice, p.promotionType, p.promoBuyQuantity, p.promoFreeQuantity, " +
+            "(p.id, p.productName, p.price, p.discountPrice, p.promotionType, p.promoBuyQuantity, p.promoFreeQuantity, " +
             "p.promoBundleQuantity, p.promoBundlePrice, c.quantity, p.imageUrl, cate.name, p.quantity, c.timestamp) " +
             "FROM Cart c JOIN c.product p JOIN p.category cate " +
             "WHERE c.user.id = :userId " +
             "ORDER BY c.timestamp DESC")
     Page<CartItemDTO> findCartItemsByUserId(@Param("userId") Long userId, Pageable pageable);
     @Query("SELECT new com.app.webnongsan.domain.response.cart.CartItemDTO" +
-            "(p.id, p.productName, p.price, p.originalPrice, p.promotionType, p.promoBuyQuantity, p.promoFreeQuantity, " +
+            "(p.id, p.productName, p.price, p.discountPrice, p.promotionType, p.promoBuyQuantity, p.promoFreeQuantity, " +
             "p.promoBundleQuantity, p.promoBundlePrice, c.quantity, p.imageUrl, cate.name, p.quantity, c.timestamp) " +
             "FROM Cart c JOIN c.product p JOIN p.category cate " +
             "WHERE c.user.id = :userId AND p.id IN :productIds " +

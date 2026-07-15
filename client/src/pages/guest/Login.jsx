@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { InputField, Button, ForgotPassword } from "@/components";
 import Swal from 'sweetalert2';
 import { apiLogin, apiRegister, apiLoginGoogle } from "@/apis";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import path from "@/utils/path";
 import { login } from '@/store/user/userSlice';
 import { apiMergeTrackingSession } from '@/apis/recommendation';
@@ -14,11 +14,13 @@ import { GoogleLogin } from '@react-oauth/google';
 const Login = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
 
   const [payload, setPayload] = useState({
     email: "",
     password: "",
-    name: ""
+    name: "",
+    referralCode: ""
   });
 
   const [isRegister, setisRegister] = useState(false);
@@ -26,9 +28,18 @@ const Login = () => {
   const { register: formRegister, handleSubmit, formState: { errors } } = useForm();
   const [loading, setLoading] = useState(false);
 
+  // Referral (Phase 6) — đọc mã giới thiệu từ link chia sẻ (?ref=<mã>) để tự điền sẵn lúc đăng ký
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) {
+      setPayload((prev) => ({ ...prev, referralCode: ref }));
+      setisRegister(true);
+    }
+  }, [searchParams]);
+
   const onSubmit = useCallback(async () => {
     setLoading(true);
-    const { name, ...data } = payload;
+    const { name, referralCode, ...data } = payload;
     if (isRegister) {
       const res = await apiRegister(payload);
       setLoading(false);
@@ -100,7 +111,18 @@ const Login = () => {
                 }
               }}
               // Disable input during loading
-              disabled={loading} 
+              disabled={loading}
+            />
+          )}
+          {isRegister && (
+            <InputField
+              value={payload.referralCode}
+              setValue={setPayload}
+              nameKey="referralCode"
+              register={formRegister}
+              errors={errors}
+              validationRules={{}}
+              disabled={loading}
             />
           )}
           <InputField

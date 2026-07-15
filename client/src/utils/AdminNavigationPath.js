@@ -35,5 +35,20 @@ const AdminNavigationPath = [
         value: "Gợi ý AI",
         path: path.ADMIN_RECOMMENDATION
     },
+    {
+        id: 8,
+        value: "Mã giảm giá",
+        path: path.ADMIN_VOUCHER
+    },
+    {
+        id: 9,
+        value: "Quy tắc trao voucher",
+        path: path.ADMIN_VOUCHER_AUTO_GRANT_RULES
+    },
+    {
+        id: 10,
+        value: "Rút thăm may mắn",
+        path: path.ADMIN_LUCKY_DRAW
+    },
 ];
 export default AdminNavigationPath;

@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 @Entity
@@ -38,6 +39,21 @@ public class User {
     private String provider;
     private String providerId;
     private String avatarUrl;
+
+    // Thời điểm tạo tài khoản — phục vụ hệ trao voucher tự động (welcome, mốc "tài khoản mới N ngày").
+    // Dòng cũ trước khi thêm cột này sẽ có giá trị NULL, không backfill vì không có giá trị suy ra đúng.
+    private Instant createdAt;
+
+    // Ngày sinh (tuỳ chọn, user tự cập nhật ở trang cá nhân) — phục vụ voucher sinh nhật tự động.
+    private LocalDate birthday;
+
+    // Mã giới thiệu của CHÍNH user này — tự sinh lúc đăng ký, dùng để chia sẻ cho bạn bè.
+    @Column(unique = true)
+    private String referralCode;
+
+    // referralCode của NGƯỜI ĐÃ GIỚI THIỆU user này (nếu có, nhập lúc đăng ký) — không FK, decouple
+    // đơn giản, tra ngược qua UserRepository.findByReferralCode khi cần.
+    private String referredBy;
 
     @Column(columnDefinition = "MEDIUMTEXT")
     private String refreshToken;

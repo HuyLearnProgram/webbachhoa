@@ -16,6 +16,17 @@ Backend Spring Boot (`../server`) phải chạy trước ở `http://localhost:8
 Muốn gợi ý dùng nguồn AI thật (không fallback): chạy thêm `../recommendation-service` (uvicorn :8000,
 xem README trong đó) — không chạy cũng không vỡ gì, Java tự fallback rule-based.
 
+**Trước khi chạy `uvicorn` cho `recommendation-service`, kiểm tra port 8000 chưa bị chiếm** —
+tiến trình uvicorn của phiên làm việc trước rất dễ bị bỏ quên chạy nền (không có auto-reload/kill khi
+đóng terminal), lần chạy sau sẽ load xong toàn bộ model/train nhưng bind port thất bại
+(`[Errno 10048] only one usage of each socket address`), dễ nhầm tưởng service lỗi. Kiểm tra + xử lý:
+```bash
+netstat -ano | findstr ":8000"                          # xem PID đang LISTENING
+powershell -Command "Get-Process -Id <PID>"              # xác nhận đúng là python/uvicorn cũ
+powershell -Command "Stop-Process -Id <PID> -Force"      # tắt rồi chạy lại uvicorn mới
+```
+Áp dụng tương tự nếu nghi port 8080 (Spring Boot)/5173 (Vite) bị chiếm bởi tiến trình cũ.
+
 ## Chạy dev
 ```bash
 npm run dev

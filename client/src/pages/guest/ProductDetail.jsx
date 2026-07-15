@@ -18,7 +18,7 @@ import clsx from 'clsx';
 import { toast } from 'react-toastify';
 import icons from '@/utils/icons';
 import { getCurrentUser } from '@/store/user/asyncActions';
-import { getFreeGiftUnits, getMaxOrderableQuantity } from '@/utils/promotion';
+import { getFreeGiftUnits, getMaxOrderableQuantity, getDiscountPercent, getEffectivePrice, getActiveFlashSaleWindowEnd } from '@/utils/promotion';
 
 const { FaHeart } = icons
 
@@ -26,6 +26,44 @@ const resolveProductImage = (imageUrl) =>
   imageUrl && imageUrl.startsWith('https')
     ? imageUrl
     : (imageUrl ? `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${imageUrl}` : product_default);
+
+// Badge + đếm ngược "FLASH SALE" — chỉ hiện khi sản phẩm ĐANG thực sự trong khung giờ Flash Sale
+// (không phải chỉ isFlashSale=true, vì ngoài khung giờ thì giá đã tự về giá thường rồi).
+const FlashSaleBadge = ({ product }) => {
+  const [remaining, setRemaining] = useState(() => {
+    const target = getActiveFlashSaleWindowEnd(product);
+    return target ? target.getTime() - Date.now() : null;
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const target = getActiveFlashSaleWindowEnd(product);
+      setRemaining(target ? target.getTime() - Date.now() : null);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [product]);
+
+  if (remaining == null || remaining <= 0) return null;
+  const totalSeconds = Math.floor(remaining / 1000);
+  const pad = (n) => String(n).padStart(2, '0');
+  const hh = pad(Math.floor(totalSeconds / 3600));
+  const mm = pad(Math.floor((totalSeconds % 3600) / 60));
+  const ss = pad(totalSeconds % 60);
+
+  return (
+    <div className='flex items-center gap-2'>
+      <span className='inline-flex items-center gap-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold px-2 py-1 rounded'>
+        ⚡ FLASH SALE
+      </span>
+      <span className='text-xs text-gray-600'>Kết thúc trong</span>
+      <span className='flex gap-0.5 font-mono text-xs'>
+        <span className='bg-black text-white px-1.5 py-0.5 rounded'>{hh}</span>
+        <span className='bg-black text-white px-1.5 py-0.5 rounded'>{mm}</span>
+        <span className='bg-black text-white px-1.5 py-0.5 rounded'>{ss}</span>
+      </span>
+    </div>
+  );
+};
 
 const ProductDetail = ({ isQuickView, data }) => {
 
@@ -252,14 +290,15 @@ const ProductDetail = ({ isQuickView, data }) => {
           )}
         </div>
         <div className={clsx('flex flex-col gap-4', isQuickView ? 'w-1/2' : 'w-2/5 ')}>
+          {product?.isFlashSale && <FlashSaleBadge product={product} />}
           <div className='flex justify-between items-center'>
             <div className='flex items-center gap-3'>
-              <h2 className='text-[30px] font-semibold'>{`${formatMoney(product?.price)}đ`}</h2>
-              {product?.originalPrice && product.originalPrice > product.price && (
+              <h2 className='text-[30px] font-semibold'>{`${formatMoney(getEffectivePrice(product))}đ`}</h2>
+              {getDiscountPercent(product) !== null && (
                 <>
-                  <span className='text-gray-400 line-through text-lg'>{`${formatMoney(product.originalPrice)}đ`}</span>
+                  <span className='text-gray-400 line-through text-lg'>{`${formatMoney(product.price)}đ`}</span>
                   <span className='text-sm text-red-500 bg-red-50 px-2 py-1 rounded font-semibold'>
-                    -{Math.round((1 - product.price / product.originalPrice) * 100)}%
+                    -{getDiscountPercent(product)}%
                   </span>
                 </>
               )}

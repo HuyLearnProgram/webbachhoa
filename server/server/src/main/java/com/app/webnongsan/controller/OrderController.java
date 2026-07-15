@@ -12,6 +12,7 @@ import com.app.webnongsan.domain.response.product.ProductReturnStatsDTO;
 import com.app.webnongsan.repository.ProductRepository;
 import com.app.webnongsan.service.EventTrackingService;
 import com.app.webnongsan.service.OrderService;
+import com.app.webnongsan.service.VoucherGrantService;
 import com.app.webnongsan.util.SecurityUtil;
 import com.app.webnongsan.util.annotation.ApiMessage;
 import com.app.webnongsan.util.exception.PermissionException;
@@ -37,9 +38,12 @@ import java.util.Optional;
 @RequestMapping("api/v2")
 @AllArgsConstructor
 public class OrderController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OrderController.class);
+
     private final OrderService orderService;
     private final ProductRepository productRepository;
     private final EventTrackingService eventTrackingService;
+    private final VoucherGrantService voucherGrantService;
 
     @GetMapping("allOrders")
     @ApiMessage("Get all Orders")
@@ -117,7 +121,8 @@ public class OrderController {
             if (status == 2 || status == 3) {
                 order.setDeliveryTime(Instant.now());
             }
-            if (status == 2 && "COD".equalsIgnoreCase(order.getPaymentMethod())) {
+            boolean justPaid = status == 2 && "COD".equalsIgnoreCase(order.getPaymentMethod());
+            if (justPaid) {
                 order.setPaymentStatus("PAID");
                 order.setPaidAt(Instant.now());
             }
@@ -128,6 +133,15 @@ public class OrderController {
             // Lưu lại đơn hàng
             this.orderService.save(order);
 
+            // Hệ trao voucher tự động (first-order/milestone) — chỉ khi đơn VỪA chuyển PAID ở lần
+            // gọi này; try-catch nuốt lỗi, không phá luồng cập nhật trạng thái đơn hàng chính.
+            if (justPaid) {
+                try {
+                    voucherGrantService.onOrderPaid(order);
+                } catch (Exception e) {
+                    log.warn("Lỗi trao voucher tự động cho đơn hàng id={}: {}", order.getId(), e.getMessage());
+                }
+            }
 
             // Tạo DTO phản hồi
             OrderDTO dto = new OrderDTO();

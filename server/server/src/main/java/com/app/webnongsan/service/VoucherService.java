@@ -2,16 +2,21 @@ package com.app.webnongsan.service;
 
 import com.app.webnongsan.domain.*;
 
+import com.app.webnongsan.domain.request.VoucherPreviewRequestDTO;
+import com.app.webnongsan.domain.request.VoucherRequestDTO;
 import com.app.webnongsan.domain.response.PaginationDTO;
-import com.app.webnongsan.domain.response.order.OrderDTO;
 import com.app.webnongsan.domain.response.voucher.VoucherDTO;
+import com.app.webnongsan.domain.response.voucher.VoucherPreviewResponseDTO;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import com.app.webnongsan.repository.*;
 import com.app.webnongsan.util.SecurityUtil;
 import com.app.webnongsan.util.PaginationHelper;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 
@@ -22,11 +27,15 @@ import java.util.Optional;
 @Service
 @AllArgsConstructor
 public class VoucherService {
+    private static final Logger log = LoggerFactory.getLogger(VoucherService.class);
 
     private final VoucherRepository voucherRepository;
     private final UserVoucherRepository userVoucherRepository;
     private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
     private final PaginationHelper paginationHelper;
+    private final VoucherValidationService voucherValidationService;
+    private final CategoryRepository categoryRepository;
 
     /**
      * Lấy danh sách voucher đang hoạt động
@@ -36,11 +45,20 @@ public class VoucherService {
     }
 
     /**
-     * Phân trang danh sách voucher của admin
+     * Voucher đang hiển thị trên banner Flash Sale trang chủ (Phase 3 hệ trao voucher tự động) —
+     * chỉ voucher công khai + được admin/tự động tick isFlashSale=true, sắp hết hạn hiện trước.
      */
-    public PaginationDTO getAllVouchers(Pageable pageable) {
-        Page<Voucher> page = voucherRepository.findAllByIsActiveTrue(pageable);
-        return paginationHelper.fetchAllEntities(page);
+    public List<Voucher> getFlashSaleVouchers() {
+        return voucherRepository.findFlashSaleVouchers(Instant.now());
+    }
+
+    /**
+     * Phân trang danh sách voucher của admin — thấy được CẢ voucher đã deactivate
+     * (trước đây dùng findAllByIsActiveTrue nên admin không xem lại được voucher đã tắt).
+     * Hỗ trợ filter (spring-filter) để search theo mã voucher trên UI admin.
+     */
+    public PaginationDTO getAllVouchers(Specification<Voucher> spec, Pageable pageable) {
+        return paginationHelper.fetchAllEntities(spec, pageable, voucherRepository);
     }
 
     /**
@@ -51,81 +69,70 @@ public class VoucherService {
 
         Page<UserVoucher> userVoucherPage = userVoucherRepository.findActiveUserVouchers(user.getId(), pageable);
 
-        // Ánh xạ sang DTO
         Page<VoucherDTO> dtoPage = userVoucherPage.map(uv -> {
             Voucher v = uv.getVoucher();
-            VoucherDTO dto = new VoucherDTO(
+            return new VoucherDTO(
                     v.getId(),
                     v.getCode(),
                     v.getType().name(),
                     v.getDiscountValue(),
                     v.getMinimumOrderAmount(),
                     v.getMaxUsage(),
+                    v.getMaxDiscountAmount(),
                     v.getUsedCount(),
                     v.getIsActive(),
                     v.getStartDate(),
                     v.getEndDate(),
                     uv.getIsUsed(),
-                    uv.getAssignedAt()
+                    uv.getAssignedAt(),
+                    v.getApplicableCategory() != null ? v.getApplicableCategory().getId() : null,
+                    v.getApplicableCategory() != null ? v.getApplicableCategory().getName() : null
             );
-            return dto;
         });
 
         return paginationHelper.fetchAllEntities(dtoPage);
     }
 
-
-
-
     /**
-     * Áp dụng voucher theo mã (check điều kiện hợp lệ)
+     * Preview/validate voucher trước khi đặt hàng — dùng chung cho cả 2 luồng chọn-từ-danh-sách
+     * (voucherId) và nhập-tay (code). Thuần đọc, KHÔNG tăng usedCount, KHÔNG ghi UserVoucher.
      */
-    private double applyVoucherToOrder(Order order, OrderDTO orderDTO, User user, double totalBeforeDiscount)
-            throws ResourceInvalidException {
-        Long voucherId = orderDTO.getVoucherId();
-        if (voucherId == null) return totalBeforeDiscount;
+    public VoucherPreviewResponseDTO previewVoucher(VoucherPreviewRequestDTO dto) throws ResourceInvalidException {
+        if (dto.getVoucherId() == null && (dto.getCode() == null || dto.getCode().isBlank()))
+            throw new ResourceInvalidException("Thiếu mã hoặc id voucher");
 
-        Optional<UserVoucher> optional = userVoucherRepository
-                .findByUserIdAndVoucherId(user.getId(), voucherId);
+        User user = getCurrentUserOrThrow();
+        List<VoucherValidationService.ItemLine> items = dto.getItems() == null ? List.of()
+                : dto.getItems().stream()
+                    .map(i -> new VoucherValidationService.ItemLine(i.getProductId(), i.getLineTotal()))
+                    .toList();
+        VoucherValidationService.VoucherResolution res = voucherValidationService
+                .resolveAndValidate(dto.getVoucherId(), dto.getCode(), user, dto.getOrderTotal(), items, true);
 
-        if (optional.isEmpty())
-            throw new ResourceInvalidException("Voucher không tồn tại hoặc không thuộc về người dùng");
-
-        UserVoucher userVoucher = optional.get();
-        Voucher voucher = userVoucher.getVoucher();
-
-        if (Boolean.TRUE.equals(userVoucher.getIsUsed()))
-            throw new ResourceInvalidException("Mã giảm giá đã được sử dụng");
-
-        if (!Boolean.TRUE.equals(voucher.getIsActive()))
-            throw new ResourceInvalidException("Mã giảm giá đã hết hạn hoặc không hoạt động");
-
-        if (voucher.getMinimumOrderAmount() != null && totalBeforeDiscount < voucher.getMinimumOrderAmount())
-            throw new ResourceInvalidException("Đơn hàng không đủ điều kiện áp dụng mã giảm giá");
-
-        // Áp dụng và đánh dấu
-        userVoucher.setIsUsed(true);
-        userVoucherRepository.save(userVoucher);
-
-        double discountedTotal;
-        if ("PERCENT".equalsIgnoreCase(voucher.getType().name())) {
-            discountedTotal = totalBeforeDiscount * (1 - voucher.getDiscountValue() / 100);
-        } else {
-            discountedTotal = totalBeforeDiscount - voucher.getDiscountValue();
-        }
-
-        return Math.max(discountedTotal, 0);
+        Voucher v = res.getVoucher();
+        return new VoucherPreviewResponseDTO(
+                v.getId(), v.getCode(), v.getType().name(), v.getDiscountValue(),
+                res.getDiscountAmount(), res.getTotalAfterDiscount(),
+                v.getMinimumOrderAmount(), v.getStartDate(), v.getEndDate(),
+                v.getApplicableCategory() != null ? v.getApplicableCategory().getId() : null,
+                v.getApplicableCategory() != null ? v.getApplicableCategory().getName() : null
+        );
     }
 
-
     /**
-     * Gán voucher cho người dùng hiện tại (nếu chưa có)
+     * Gán voucher cho người dùng hiện tại (nếu chưa có) — chỉ cho self-assign voucher còn hiệu lực.
      */
     @Transactional
     public void assignVoucherToCurrentUser(Long voucherId) throws ResourceInvalidException {
         User user = getCurrentUserOrThrow();
 
-        if (!voucherRepository.existsById(voucherId))
+        Voucher voucher = voucherRepository.findById(voucherId)
+                .orElseThrow(() -> new ResourceInvalidException("Voucher không tồn tại"));
+        if (!voucher.isActiveNow())
+            throw new ResourceInvalidException("Voucher đã hết hạn hoặc không còn hoạt động, không thể lưu vào ví");
+        // Chặn self-assign voucher riêng tư (hệ thống tự sinh cho đúng 1 user — welcome/birthday/...):
+        // không có cờ này, user khác đoán được id vẫn tự lưu được voucher vốn dành riêng cho người khác.
+        if (!Boolean.TRUE.equals(voucher.getIsPublic()))
             throw new ResourceInvalidException("Voucher không tồn tại");
 
         boolean alreadyAssigned = userVoucherRepository.existsByUserIdAndVoucherId(user.getId(), voucherId);
@@ -134,7 +141,7 @@ public class VoucherService {
 
         UserVoucher userVoucher = new UserVoucher();
         userVoucher.setUser(user);
-        userVoucher.setVoucher(voucherRepository.findById(voucherId).get());
+        userVoucher.setVoucher(voucher);
         userVoucherRepository.save(userVoucher);
     }
 
@@ -152,23 +159,6 @@ public class VoucherService {
         userVoucherRepository.delete(userVoucher.get());
     }
 
-    /**
-     * Đánh dấu đã sử dụng voucher
-     */
-    @Transactional
-    public void markVoucherAsUsed(Long userId, Long voucherId) {
-        Optional<UserVoucher> uvOpt = userVoucherRepository.findByUserIdAndVoucherId(userId, voucherId);
-        uvOpt.ifPresent(userVoucher -> {
-            userVoucher.setIsUsed(true);
-            userVoucherRepository.save(userVoucher);
-
-            Voucher voucher = userVoucher.getVoucher();
-            if (voucher.getUsedCount() == null) voucher.setUsedCount(1);
-            else voucher.setUsedCount(voucher.getUsedCount() + 1);
-            voucherRepository.save(voucher);
-        });
-    }
-
     private User getCurrentUserOrThrow() throws ResourceInvalidException {
         String email = SecurityUtil.getCurrentUserLogin().orElse("");
         User user = userRepository.findByEmail(email);
@@ -176,65 +166,95 @@ public class VoucherService {
         return user;
     }
 
-    public Voucher createVoucher(Voucher voucher) throws ResourceInvalidException {
-        if (voucherRepository.existsByCode(voucher.getCode())) {
+    /**
+     * Admin dùng: lấy 1 voucher theo id (phục vụ trang sửa)
+     */
+    public Voucher getVoucherById(Long id) throws ResourceInvalidException {
+        return voucherRepository.findById(id)
+                .orElseThrow(() -> new ResourceInvalidException("Voucher không tồn tại"));
+    }
+
+    /**
+     * Admin dùng: tạo voucher mới
+     */
+    public Voucher createVoucher(VoucherRequestDTO dto) throws ResourceInvalidException {
+        if (voucherRepository.existsByCode(dto.getCode())) {
             throw new ResourceInvalidException("Mã voucher đã tồn tại");
         }
-
-        if (voucher.getStartDate() != null && voucher.getEndDate() != null
-                && !voucher.getEndDate().isAfter(voucher.getStartDate())) {
-            throw new ResourceInvalidException("Thời gian kết thúc phải sau thời gian bắt đầu");
+        if (dto.getType() == Voucher.VoucherType.FIXED && dto.getMaxDiscountAmount() != null) {
+            throw new ResourceInvalidException("Trần giảm giá tối đa chỉ áp dụng cho voucher theo phần trăm");
         }
 
+        Voucher voucher = new Voucher();
+        applyRequestToEntity(voucher, dto);
         voucher.setUsedCount(0);
-        voucher.setIsActive(true); // Default là active
+        voucher.setIsActive(dto.getIsActive() == null || dto.getIsActive());
 
         return voucherRepository.save(voucher);
     }
 
-    public Voucher updateVoucher(Long id, Voucher updated) throws ResourceInvalidException {
+    /**
+     * Admin dùng: sửa voucher
+     */
+    public Voucher updateVoucher(Long id, VoucherRequestDTO dto) throws ResourceInvalidException {
         Voucher existing = voucherRepository.findById(id)
                 .orElseThrow(() -> new ResourceInvalidException("Voucher không tồn tại"));
 
-        existing.setCode(updated.getCode());
-        existing.setType(updated.getType());
-        existing.setDiscountValue(updated.getDiscountValue());
-        existing.setMinimumOrderAmount(updated.getMinimumOrderAmount());
-        existing.setMaxUsage(updated.getMaxUsage());
-
-        // Cập nhật endDate nếu không null
-        if (updated.getEndDate() != null) {
-            if (existing.getStartDate() != null && updated.getEndDate().isBefore(existing.getStartDate())) {
-                throw new ResourceInvalidException("Thời gian kết thúc phải sau thời gian bắt đầu");
-            }
-            existing.setEndDate(updated.getEndDate());
+        if (dto.getType() == Voucher.VoucherType.FIXED && dto.getMaxDiscountAmount() != null) {
+            throw new ResourceInvalidException("Trần giảm giá tối đa chỉ áp dụng cho voucher theo phần trăm");
         }
-        if (updated.getIsActive() != null) {
-            existing.setIsActive(updated.getIsActive());
+        if (!existing.getCode().equals(dto.getCode()) && voucherRepository.existsByCode(dto.getCode())) {
+            throw new ResourceInvalidException("Mã voucher đã tồn tại");
+        }
+
+        applyRequestToEntity(existing, dto);
+        if (dto.getIsActive() != null) {
+            existing.setIsActive(dto.getIsActive());
         }
 
         try {
             return voucherRepository.save(existing);
         } catch (Exception e) {
-            e.printStackTrace(); // hoặc dùng log.error
+            log.error("Lỗi cập nhật voucher id={}", id, e);
             throw new ResourceInvalidException("Lỗi cập nhật voucher: " + e.getMessage());
         }
     }
 
-    private VoucherDTO mapToVoucherDTO(UserVoucher uv) {
-        Voucher v = uv.getVoucher();
-        VoucherDTO dto = new VoucherDTO();
-        dto.setId(v.getId());
-        dto.setCode(v.getCode());
-        dto.setType(v.getType().name());
-        dto.setDiscountValue(v.getDiscountValue());
-        dto.setMinimumOrderAmount(v.getMinimumOrderAmount());
-        dto.setMaxUsage(v.getMaxUsage());
-        dto.setUsedCount(v.getUsedCount());
-        dto.setIsActive(v.getIsActive());
-        dto.setStartDate(v.getStartDate());
-        dto.setEndDate(v.getEndDate());
-        return dto;
+    private void applyRequestToEntity(Voucher voucher, VoucherRequestDTO dto) throws ResourceInvalidException {
+        voucher.setCode(dto.getCode());
+        voucher.setType(dto.getType());
+        voucher.setDiscountValue(dto.getDiscountValue());
+        voucher.setMinimumOrderAmount(dto.getMinimumOrderAmount());
+        voucher.setMaxUsage(dto.getMaxUsage());
+        voucher.setMaxDiscountAmount(dto.getMaxDiscountAmount());
+        voucher.setStartDate(dto.getStartDate());
+        voucher.setEndDate(dto.getEndDate());
+        voucher.setIsFlashSale(dto.getIsFlashSale() != null && dto.getIsFlashSale());
+        if (dto.getCategoryId() == null) {
+            voucher.setApplicableCategory(null);
+        } else {
+            voucher.setApplicableCategory(categoryRepository.findById(dto.getCategoryId())
+                    .orElseThrow(() -> new ResourceInvalidException("Danh mục không tồn tại")));
+        }
     }
 
+    /**
+     * Admin dùng: xoá voucher — chỉ cho HARD DELETE khi voucher CHƯA từng được dùng (usedCount==0
+     * và không có Order nào FK tới nó). Ngược lại, hướng dẫn dùng deactivate (PUT isActive=false)
+     * thay vì xoá — theo đúng convention soft-delete đã dùng cho Product/User/Category trong dự án.
+     */
+    @Transactional
+    public void deleteVoucher(Long id) throws ResourceInvalidException {
+        Voucher voucher = voucherRepository.findById(id)
+                .orElseThrow(() -> new ResourceInvalidException("Voucher không tồn tại"));
+
+        boolean used = (voucher.getUsedCount() != null && voucher.getUsedCount() > 0)
+                || orderRepository.existsByVoucher_Id(id);
+        if (used) {
+            throw new ResourceInvalidException(
+                    "Không thể xoá voucher đã từng được sử dụng — hãy vô hiệu hoá (tắt Đang hoạt động) thay vì xoá");
+        }
+
+        voucherRepository.deleteById(id);
+    }
 }

@@ -1,11 +1,26 @@
 import path from '@/utils/path';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FaCheckCircle } from 'react-icons/fa';
+import { useDispatch } from 'react-redux';
+import { showModal } from '@/store/app/appSlice';
+import { LuckyDrawResultModal } from '@/components';
 
 import { Link, useLocation } from 'react-router-dom';
 
 const PaymentSuccessCOD = () => {
+    const dispatch = useDispatch();
 
+    useEffect(() => {
+        // Rút thăm may mắn (Phase 7) — kết quả đã được quay sẵn từ Checkout.jsx trước lúc reload
+        // trang, chỉ đọc lại từ localStorage và hiện modal (đọc 1 lần rồi xoá, tránh hiện lại nếu
+        // user refresh trang này).
+        const raw = localStorage.getItem('luckyDrawResult');
+        if (raw) {
+            localStorage.removeItem('luckyDrawResult');
+            const result = JSON.parse(raw);
+            dispatch(showModal({ isShowModal: true, modalChildren: <LuckyDrawResultModal result={result} /> }));
+        }
+    }, [dispatch]);
 
     return (
         

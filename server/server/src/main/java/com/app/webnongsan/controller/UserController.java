@@ -3,6 +3,7 @@ package com.app.webnongsan.controller;
 import com.app.webnongsan.domain.User;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.user.CreateUserDTO;
+import com.app.webnongsan.domain.response.user.ReferralStatsDTO;
 import com.app.webnongsan.domain.response.user.UpdateUserDTO;
 import com.app.webnongsan.domain.response.user.UserDTO;
 import com.app.webnongsan.service.UserService;
@@ -45,6 +46,12 @@ public class UserController {
         }
         this.userService.delete(id);
         return ResponseEntity.ok(null);
+    }
+
+    @GetMapping("users/referral-stats")
+    @ApiMessage("Get referral stats of current user")
+    public ResponseEntity<ReferralStatsDTO> getReferralStats() throws ResourceInvalidException {
+        return ResponseEntity.ok(this.userService.getReferralStatsForCurrentUser());
     }
 
     @GetMapping("users/{id}")

@@ -28,4 +28,5 @@ public class OrderDTO {
     private String voucherCode;
     private String voucherType; // "PERCENT" or "FIXED"
     private Double voucherDiscountValue;
+    private Double voucherDiscountAmount; // số tiền THỰC TẾ đã giảm (đã áp trần maxDiscountAmount nếu có)
 }

@@ -2,10 +2,10 @@ import React,{useEffect,useState} from "react";
 import { Route, Routes ,Navigate} from "react-router-dom";
 import path from "@/utils/path";
 
-import {Overview, Feedback, OrderDetail, EditCategory, EditProduct, EditUser, UserDetail, ProductDetail, Category,Order,Product,User,RecommendationMetrics} from './index';
+import {Overview, Feedback, OrderDetail, EditCategory, EditProduct, EditUser, UserDetail, ProductDetail, Category,Order,Product,User,RecommendationMetrics,Voucher,EditVoucher,VoucherAutoGrantRule,LuckyDrawCampaign} from './index';
 import { useSelector } from "react-redux";
 import { useRef } from 'react';
-import {AddCategory,AddProduct} from "./Add";
+import {AddCategory,AddProduct,AddVoucher} from "./Add";
 import {AdminLayout} from "@/components/admin";
 
 const Admin= () =>{
@@ -62,6 +62,11 @@ const Admin= () =>{
                     <Route path={path.ADMIN_EDIT_USER} element={<EditUser/>}></Route>
                     <Route path={path.ADMIN_USER_DETAIL} element={<UserDetail/>}></Route>
                     <Route path={path.ADMIN_RECOMMENDATION} element={<RecommendationMetrics/>}></Route>
+                    <Route path={path.ADMIN_VOUCHER} element={<Voucher/>}></Route>
+                    <Route path={path.ADMIN_EDIT_VOUCHER} element={<EditVoucher/>}></Route>
+                    <Route path={path.ADD_VOUCHER} element={<AddVoucher/>}></Route>
+                    <Route path={path.ADMIN_VOUCHER_AUTO_GRANT_RULES} element={<VoucherAutoGrantRule/>}></Route>
+                    <Route path={path.ADMIN_LUCKY_DRAW} element={<LuckyDrawCampaign/>}></Route>
                 </Route>
             </Routes>
         </div>

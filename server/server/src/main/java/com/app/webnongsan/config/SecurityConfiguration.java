@@ -109,6 +109,32 @@ public class SecurityConfiguration {
                         // endpoint này rơi xuống anyRequest().authenticated() và mọi user đăng nhập
                         // (không chỉ ADMIN) đều gọi được (đã phát hiện khi thêm endpoint chỉnh AB_BANDIT_PCT).
                         .requestMatchers(HttpMethod.POST, "/api/v2/admin/recommendation-metrics/ab-pct").hasRole("ADMIN")
+                        // Quy tắc trao voucher tự động — cùng lý do trên, GET admin/** không tự áp dụng
+                        // cho POST/PUT/DELETE, phải khai riêng từng method.
+                        .requestMatchers(HttpMethod.POST, "/api/v2/admin/voucher-auto-grant-rules").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v2/admin/voucher-auto-grant-rules/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v2/admin/voucher-auto-grant-rules/*").hasRole("ADMIN")
+                        // Rút thăm may mắn (Lucky Draw) — admin CRUD campaign/prize, cùng lý do trên.
+                        .requestMatchers(HttpMethod.POST, "/api/v2/admin/lucky-draw/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v2/admin/lucky-draw/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v2/admin/lucky-draw/**").hasRole("ADMIN")
+                        // Voucher — vá lỗ hổng leo thang đặc quyền: trước đây các endpoint này không có
+                        // rule riêng nào, rơi xuống anyRequest().authenticated() nên bất kỳ user thường
+                        // đã đăng nhập nào cũng gọi được POST/PUT/GET-list-admin (vốn chỉ dành cho ADMIN).
+                        // Rule DELETE /vouchers/remove (user tự gỡ voucher khỏi ví) PHẢI khai TRƯỚC rule
+                        // DELETE /vouchers/* hasRole(ADMIN) bên dưới — AntPathMatcher "/api/v2/vouchers/*"
+                        // cũng khớp "/remove", nếu đảo thứ tự sẽ chặn nhầm user thường.
+                        .requestMatchers(HttpMethod.DELETE, "/api/v2/vouchers/remove").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v2/vouchers/assign").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v2/vouchers/preview").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v2/vouchers/active", "/api/v2/vouchers/my").authenticated()
+                        // Banner Flash Sale trang chủ — permitAll vì guest (chưa đăng nhập) cũng cần thấy,
+                        // phải khai TRƯỚC rule GET vouchers/* hasRole(ADMIN) bên dưới (AntPathMatcher khớp cả 2).
+                        .requestMatchers(HttpMethod.GET, "/api/v2/vouchers/flash-sale").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v2/vouchers").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v2/vouchers/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/vouchers", "/api/v2/vouchers/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v2/vouchers/*").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
 

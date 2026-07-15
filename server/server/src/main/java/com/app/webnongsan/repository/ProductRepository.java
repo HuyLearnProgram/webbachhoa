@@ -19,8 +19,24 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     java.util.Optional<Product> findBySku(String sku);
 
+    // Dùng bởi VoucherValidationService để xác định category của từng sản phẩm trong giỏ khi voucher
+    // bị scope theo category — trả [productId, categoryId] cho mỗi id, tránh load nguyên Product.
+    @Query("SELECT p.id, p.category.id FROM Product p WHERE p.id IN :ids")
+    List<Object[]> findCategoryIdsForProductIds(@Param("ids") List<Long> ids);
+
     // Dùng cho PromotionExpiryScheduler — lấy sản phẩm đã hết hạn khuyến mãi để tự động khôi phục
     List<Product> findByPromotionExpiresAtLessThanEqual(Instant now);
+
+    // Sản phẩm đang hiển thị trên banner Flash Sale trang chủ — còn bán, còn hàng, đang khuyến mãi
+    // thật (chưa hết hạn), admin/hệ thống tick isFlashSale=true. Sắp hết hạn hiện trước.
+    // Trả thẳng entity Product (không dùng SearchProductDTO — constructor-projection dùng chung
+    // nhiều nơi, tránh thêm overload mới theo đúng bài học "sửa là vỡ" đã ghi CLAUDE.md) — cần
+    // promotionExpiresAt cho đếm ngược FE mà SearchProductDTO hiện không có field này.
+    @Query("SELECT p FROM Product p " +
+            "WHERE p.isFlashSale = true AND p.active = true AND p.quantity > 0 AND p.promotionType <> 'NONE' " +
+            "AND (p.promotionExpiresAt IS NULL OR p.promotionExpiresAt > :now) " +
+            "ORDER BY p.promotionExpiresAt ASC")
+    List<Product> findFlashSaleProducts(@Param("now") Instant now);
 
     // COALESCE: không có sản phẩm nào khớp → MAX trả NULL, unbox về double ném NPE → 500.
     // Bug có sẵn nhưng chỉ lộ ra từ Smart Search (Phase B): query nhu cầu ("đồ sấy") giờ CÓ kết
@@ -41,7 +57,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     // cùng category, đang bán, còn hàng, loại chính nó, ưu tiên bán chạy rồi đến rating.
     // quantity > 0: sản phẩm hết hàng tạm thời (active vẫn true) không nên gợi ý cho khách.
     @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
-            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.originalPrice, p.promotionType, " +
+            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.discountPrice, p.promotionType, " +
             "p.promoBuyQuantity, p.promoFreeQuantity, p.promoBundleQuantity, p.promoBundlePrice, p.quantity) " +
             "FROM Product p JOIN p.category c " +
             "WHERE c.id = :categoryId AND p.id <> :productId AND p.active = true AND p.quantity > 0 " +
@@ -54,7 +70,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     // (giá/khuyến mãi/tồn kho luôn đọc mới nhất từ DB, không tin dữ liệu có thể stale từ Python;
     // item đã ẩn/xoá/hết hàng bị loại tự nhiên nhờ điều kiện active + quantity)
     @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
-            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.originalPrice, p.promotionType, " +
+            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.discountPrice, p.promotionType, " +
             "p.promoBuyQuantity, p.promoFreeQuantity, p.promoBundleQuantity, p.promoBundlePrice, p.quantity) " +
             "FROM Product p JOIN p.category c " +
             "WHERE p.id IN :ids AND p.active = true AND p.quantity > 0")
@@ -64,7 +80,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     // sản phẩm tạm hết hàng (khác rails gợi ý), lọc bớt ở đây sẽ tạo "lỗ" trong trang vì meta.total
     // đã tính theo danh sách rank từ Python.
     @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
-            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.originalPrice, p.promotionType, " +
+            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.discountPrice, p.promotionType, " +
             "p.promoBuyQuantity, p.promoFreeQuantity, p.promoBundleQuantity, p.promoBundlePrice, p.quantity) " +
             "FROM Product p JOIN p.category c " +
             "WHERE p.id IN :ids AND p.active = true")
@@ -72,7 +88,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     // Fallback thuần Java cho Home/Cart khi Python service down: best-seller đang bán, còn hàng
     @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
-            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.originalPrice, p.promotionType, " +
+            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating, p.discountPrice, p.promotionType, " +
             "p.promoBuyQuantity, p.promoFreeQuantity, p.promoBundleQuantity, p.promoBundlePrice, p.quantity) " +
             "FROM Product p JOIN p.category c " +
             "WHERE p.active = true AND p.quantity > 0 " +

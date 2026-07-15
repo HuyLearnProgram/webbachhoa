@@ -160,6 +160,54 @@ public class EmailService {
         this.sendEmailSync(to, "Thông tin tài khoản của bạn vừa được cập nhật", content, false, true);
     }
 
+    // Template email chung cho MỌI loại trao voucher tự động (welcome/first-order/milestone/
+    // cart-recovery/birthday/win-back/referral/lucky-draw) — tránh 8 template gần giống nhau,
+    // tham số hoá qua reasonText (câu giải thích lý do trao, tự nhiên theo từng loại).
+    @Async
+    public void sendVoucherGrantedEmail(String to, String username, String reasonText, Voucher voucher) {
+        Context context = new Context();
+        context.setVariable("NAME", username);
+        context.setVariable("REASON_TEXT", reasonText);
+        context.setVariable("CODE", voucher.getCode());
+        String discountText = voucher.getType() == Voucher.VoucherType.PERCENT
+                ? "Giảm " + formatPercent(voucher.getDiscountValue()) + "%"
+                : "Giảm " + formatCurrency(voucher.getDiscountValue());
+        context.setVariable("DISCOUNT_TEXT", discountText);
+        context.setVariable("MAX_DISCOUNT_TEXT",
+                voucher.getType() == Voucher.VoucherType.PERCENT && voucher.getMaxDiscountAmount() != null
+                        ? "(tối đa " + formatCurrency(voucher.getMaxDiscountAmount()) + ")" : null);
+        context.setVariable("MIN_ORDER_TEXT",
+                voucher.getMinimumOrderAmount() != null && voucher.getMinimumOrderAmount() > 0
+                        ? "Áp dụng cho đơn hàng từ " + formatCurrency(voucher.getMinimumOrderAmount()) : null);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy").withZone(java.time.ZoneId.systemDefault());
+        context.setVariable("EXPIRY_TEXT", formatter.format(voucher.getEndDate()));
+        String content = this.templateEngine.process("voucherGranted", context);
+        this.sendEmailSync(to, "Bạn vừa nhận được 1 voucher mới!", content, false, true);
+    }
+
+    // Cart Recovery — thông báo 1 sản phẩm trong giỏ hàng khách vừa được giảm giá CÁ NHÂN (do để quên
+    // >=48h), chỉ áp dụng trong khung giờ Flash Sale (12h-14h, 20h-22h), hết hạn 22h00 CÙNG NGÀY.
+    @Async
+    public void sendCartRecoveryDiscountEmail(String to, String username, String productName,
+                                                double discountPercent, double originalPrice, double discountedPrice,
+                                                java.time.Instant expiresAt) {
+        Context context = new Context();
+        context.setVariable("NAME", username);
+        context.setVariable("PRODUCT_NAME", productName);
+        context.setVariable("DISCOUNT_TEXT", "Giảm " + formatPercent(discountPercent) + "%");
+        context.setVariable("ORIGINAL_PRICE_TEXT", formatCurrency(originalPrice));
+        context.setVariable("DISCOUNTED_PRICE_TEXT", formatCurrency(discountedPrice));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy").withZone(java.time.ZoneId.systemDefault());
+        context.setVariable("EXPIRY_TEXT", formatter.format(expiresAt));
+        String content = this.templateEngine.process("cartRecoveryFlashSale", context);
+        this.sendEmailSync(to, "Sản phẩm trong giỏ hàng của bạn đang được giảm giá!", content, false, true);
+    }
+
+    private String formatPercent(Double value) {
+        if (value == null) return "";
+        return value == Math.floor(value) ? String.valueOf(value.intValue()) : String.valueOf(value);
+    }
+
     private String formatCurrency(Double amount) {
         Locale locale = new Locale("vi", "VN");
         NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(locale);

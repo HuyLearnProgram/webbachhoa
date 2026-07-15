@@ -13,7 +13,7 @@ import avatarDefault from "@/assets/avatarDefault.png";
 import { TurnBackHeader } from "@/components/admin";
 import { statusHideOrder } from "@/utils/constants";
 import { renderStarFromNumber } from "@/utils/helper";
-import { getPromotionBadgeLabel } from "@/utils/promotion";
+import { getPromotionBadgeLabel, getDiscountPercent, getEffectivePrice } from "@/utils/promotion";
 import icons from "@/utils/icons";
 
 const { MdOutlineBlock } = icons;
@@ -132,7 +132,7 @@ function ProductDetail() {
     return <div className="w-full">Loading...</div>;
   }
 
-  const hasSale = product.originalPrice && product.originalPrice > product.price;
+  const discountPercent = getDiscountPercent(product);
   const isActive = product.active !== false;
   const galleryImages = [
     { id: "main", imageUrl: product.imageUrl },
@@ -233,15 +233,15 @@ function ProductDetail() {
             <div><span className="text-gray-500">Đơn vị tính: </span>{product.unit || "—"}</div>
             <div>
               <span className="text-gray-500">Giá bán: </span>
-              {hasSale && (
+              {discountPercent !== null && (
                 <span className="text-gray-400 line-through mr-2">
-                  {product.originalPrice.toLocaleString("vi-VN")} đ
+                  {product.price.toLocaleString("vi-VN")} đ
                 </span>
               )}
-              <span>{product.price.toLocaleString("vi-VN")} đ</span>
-              {hasSale && (
+              <span>{getEffectivePrice(product).toLocaleString("vi-VN")} đ</span>
+              {discountPercent !== null && (
                 <Tag color="red" style={{ marginLeft: 4 }}>
-                  -{Math.round((1 - product.price / product.originalPrice) * 100)}%
+                  -{discountPercent}%
                 </Tag>
               )}
             </div>

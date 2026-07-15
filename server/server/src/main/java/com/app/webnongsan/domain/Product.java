@@ -29,10 +29,14 @@ public class Product {
     @Column(unique = true)
     private String sku;
 
+    // Giá bán ỔN ĐỊNH — KHÔNG bị hệ thống tự sửa khi bật/tắt khuyến mãi PRICE_DISCOUNT (chỉ đổi khi
+    // admin thực sự muốn đổi giá thường). Khi có khuyến mãi PRICE_DISCOUNT đang chạy, đây là giá hiển
+    // thị gạch ngang (giá tham chiếu), giá khách THỰC TRẢ là discountPrice.
     private double price;
 
-    // Giá gốc trước giảm (nullable) — chỉ hiển thị khuyến mãi khi originalPrice > price
-    private Double originalPrice;
+    // Giá giảm (nullable) — giá KHÁCH THỰC TRẢ khi promotionType=PRICE_DISCOUNT đang chạy, bắt buộc
+    // discountPrice < price. null = không có khuyến mãi giảm giá trực tiếp.
+    private Double discountPrice;
 
     // Loại khuyến mãi: NONE | PRICE_DISCOUNT | BUY_X_GET_Y | BUNDLE_PRICE — theo state-machine-bằng-String cùng convention với Order.paymentStatus
     // DEFAULT ở DB (không chỉ Java-side) để dữ liệu cũ/cài đặt mới tự có 'NONE' thay vì NULL khi ddl-auto=update thêm cột
@@ -62,6 +66,21 @@ public class Product {
     // Ẩn/hiện sản phẩm thay cho hard delete; DEFAULT 1 để dữ liệu cũ tự thành "đang bán" khi ddl-auto=update thêm cột
     @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
     private Boolean active = true;
+
+    // true = hiện trên banner "Flash Sale" trang chủ (Phase 3 hệ trao voucher tự động) — chỉ có ý
+    // nghĩa khi promotionType khác NONE. Admin tick tay HOẶC hệ thống tự set (Cart Recovery tầng 2 —
+    // sản phẩm bị nhiều user bỏ quên lâu ngày tự động lên flash-sale, xem VoucherGrantService/scheduler).
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 0")
+    private Boolean isFlashSale = false;
+
+    // Chỉ có ý nghĩa khi isFlashSale=true — admin chọn áp dụng khung giờ nào trong 2 khung Flash Sale
+    // cấu hình sẵn (mặc định 12h-14h/20h-22h, xem PromotionService/application.properties). DEFAULT 1
+    // cho cả 2 cột để sản phẩm Flash Sale cũ (tick trước khi có tính năng này) tự áp dụng cả 2 khung —
+    // giữ nguyên hành vi cũ, không cần backfill.
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
+    private Boolean flashSaleWindow1 = true;
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
+    private Boolean flashSaleWindow2 = true;
 
     private String imageUrl;
 

@@ -10,7 +10,7 @@ Dự án xây dựng một hệ thống thương mại điện tử hoàn chỉn
 
 ### Chức năng cho người dùng (Client-Side):
 -   **Đăng ký / Đăng nhập:** Xác thực người dùng bằng JWT.
--   **Tìm kiếm & lọc sản phẩm nâng cao:** Lọc theo danh mục, khoảng giá, đánh giá, khuyến mãi (chọn nhiều tiêu chí cùng lúc), tìm kiếm đa từ khoá.
+-   **Tìm kiếm & lọc sản phẩm nâng cao:** Lọc theo danh mục, khoảng giá, đánh giá, khuyến mãi (chọn nhiều tiêu chí cùng lúc); tìm kiếm hiểu theo ngữ nghĩa/nhu cầu bằng AI, mặc định xếp theo độ liên quan cá nhân hoá (xem mục "Tìm kiếm thông minh").
 -   **Xem chi tiết sản phẩm:** Kèm đánh giá/bình luận từ người mua khác.
 -   **Khuyến mãi sản phẩm đa dạng:** Giảm giá trực tiếp, mua X tặng Y, mua theo combo giá ưu đãi — tự động áp dụng và tự hết hạn theo thời gian.
 -   **Quản lý giỏ hàng:** Thêm, xóa, cập nhật số lượng, chọn sản phẩm muốn đặt hàng bằng checkbox.
@@ -37,6 +37,13 @@ Dự án xây dựng một hệ thống thương mại điện tử hoàn chỉn
 -   **Luôn sẵn sàng:** nếu dịch vụ gợi ý AI gặp sự cố, hệ thống tự chuyển sang gợi ý dự phòng (sản phẩm cùng danh mục/bán chạy) — trải nghiệm người dùng không bao giờ bị gián đoạn.
 -   **Dashboard đo lường & điều khiển (Admin):** theo dõi tỉ lệ bấm/chuyển đổi theo từng nguồn gợi ý, độ đa dạng, độ phủ sản phẩm được gợi ý, so sánh hiệu quả qua thử nghiệm A/B — và điều chỉnh trực tiếp tỉ lệ thử nghiệm ngay trên dashboard.
 
+### Tìm kiếm thông minh (Smart Search):
+-   **Hiểu theo nhu cầu, không chỉ đúng tên:** tìm "đồ ăn vặt", "thực phẩm sạch", "đồ sấy"... vẫn ra kết quả phù hợp dù không khớp tên sản phẩm, nhờ AI hiểu ý nghĩa câu tìm kiếm thay vì chỉ so khớp chữ.
+-   **Sắp xếp theo mức độ liên quan (mặc định, kiểu Shopee/Tiki):** kết hợp độ khớp từ khoá, ý nghĩa câu tìm, sở thích cá nhân của khách và độ phổ biến sản phẩm để ưu tiên kết quả khách có khả năng thích nhất lên đầu.
+-   **Gợi ý từ khoá "Mọi người cũng tìm":** đề xuất từ khoá phổ biến ngay khi khách đang gõ, dựa trên lịch sử tìm kiếm thật của cộng đồng người dùng.
+-   **Luôn có kết quả, không bao giờ vỡ trang:** nếu dịch vụ AI gặp sự cố hoặc câu tìm kiếm không rõ nghĩa, hệ thống tự động chuyển về tìm theo tên như trước — trải nghiệm người dùng không bị gián đoạn.
+-   **Dashboard đo lường tìm kiếm (Admin):** theo dõi tỉ lệ bấm theo từng kiểu tìm kiếm, tỉ lệ tìm không ra kết quả, và danh sách từ khoá khách hay tìm nhưng chưa có hàng — gợi ý hướng nhập hàng mới.
+
 ### Kiểm thử (Testing):
 -   **White Box Testing:** Sử dụng **JUnit** trong Spring Boot để kiểm thử đơn vị (Unit Test), đảm bảo tính đúng đắn của các logic nghiệp vụ ở tầng Backend.
 -   **Black Box Testing:** Sử dụng **Selenium** để thực hiện kiểm thử tự động hóa giao diện người dùng (E2E Testing), giả lập các hành vi của người dùng trên trình duyệt.
@@ -55,9 +62,10 @@ Dự án xây dựng một hệ thống thương mại điện tử hoàn chỉn
     -   **HTTP Client:** Axios
     -   **Styling:** Tailwind CSS / Material-UI
     -   **Build Tool:** Vite / Create React App
--   **AI Recommendation Service:**
+-   **AI Recommendation & Smart Search Service:**
     -   **Framework:** Python 3.12, FastAPI, Uvicorn
-    -   **Thuật toán:** TF-IDF + Cosine Similarity (content-based), FP-Growth (association rules mua kèm), Collaborative Filtering (ALS), MMR re-ranking (đa dạng hoá), LinUCB Multi-Armed Bandit (explore-exploit)
+    -   **Thuật toán gợi ý:** TF-IDF + Cosine Similarity (content-based), FP-Growth (association rules mua kèm), Collaborative Filtering (ALS), MMR re-ranking (đa dạng hoá), LinUCB Multi-Armed Bandit (explore-exploit)
+    -   **Tìm kiếm ngữ nghĩa:** multilingual-e5-small embedding (ONNX Runtime), kết hợp tìm theo từ khoá + ngữ nghĩa + cá nhân hoá
     -   **Scheduling:** APScheduler (huấn luyện lại định kỳ)
 -   **Cơ sở dữ liệu (Database):**
     -   MySQL 8
@@ -236,7 +244,6 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 
 ### Trang quản lý đơn hàng (Admin):
 ![ma_order](./screenshots/ma_order.png)
-![ma_order_detail](./screenshots/ma_order_detail.png)
 ![ma_order_detail1](./screenshots/ma_order_detail1.png)
 ![ma_order_detail2](./screenshots/ma_order_detail2.png)
 ![ma_order_detail_invoice](./screenshots/ma_order_detail_invoice.png)

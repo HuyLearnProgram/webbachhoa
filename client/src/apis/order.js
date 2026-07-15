@@ -69,10 +69,7 @@ export const apiGetOrderStatusStats = async () =>
         url: `admin/order-status-stats`,
     })
 
-export const apiGetMyVouchers = async () =>
-    axiosInstance({
-        url: `vouchers/my`,
-    })
+// apiGetMyVouchers đã chuyển sang apis/voucher.js (domain voucher tách riêng)
 // Thêm hàm cập nhật thông tin đơn hàng
 export const apiUpdateOrderInfo = (orderId, data) =>
     axiosInstance({

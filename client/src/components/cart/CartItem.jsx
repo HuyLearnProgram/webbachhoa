@@ -5,7 +5,7 @@ import { QuantitySelector } from '@/components';
 import { convertToSlug } from '@/utils/helper';
 import product_default from '@/assets/product_default.png';
 import icons from '@/utils/icons';
-import { getPromotionBadgeLabel, getFreeGiftUnits } from '@/utils/promotion';
+import { getPromotionBadgeLabel, getFreeGiftUnits, getDiscountPercent, getEffectivePrice, getPersonalFlashSaleBadge } from '@/utils/promotion';
 
 const { IoTrashBinOutline } = icons;
 
@@ -58,16 +58,22 @@ const CartItem = ({
         />
         <div className="flex flex-col">
           <h3 className="text-lg truncate hover:underline">{item.productName}</h3>
-          {item.originalPrice && item.originalPrice > item.price ? (
+          {getDiscountPercent(item) !== null ? (
             <p className="text-sm">
-              <span className="text-main">{item.price.toLocaleString('vi-VN')} đ</span>{' '}
-              <span className="text-gray-400 line-through text-xs">{item.originalPrice.toLocaleString('vi-VN')} đ</span>
+              <span className="text-main">{getEffectivePrice(item).toLocaleString('vi-VN')} đ</span>{' '}
+              <span className="text-gray-400 line-through text-xs">{item.price.toLocaleString('vi-VN')} đ</span>
             </p>
           ) : (
             <p className="text-sm text-gray-500">{item.price.toLocaleString('vi-VN')} đ</p>
           )}
           {getPromotionBadgeLabel(item) && (
             <p className="text-xs text-red-500">{getPromotionBadgeLabel(item)}</p>
+          )}
+          {getPersonalFlashSaleBadge(item) && (
+            <p className="text-xs font-medium text-orange-500 flex items-center gap-1">
+              <span className="bg-orange-500 text-white px-1 rounded-sm text-[10px]">FLASH SALE</span>
+              {getPersonalFlashSaleBadge(item)}
+            </p>
           )}
           <p className="text-xs text-gray-500">Có sẵn: {item.stock}</p>
           {item.stock <= 0 && (

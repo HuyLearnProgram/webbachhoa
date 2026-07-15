@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Sản phẩm trong giỏ hàng đang giảm giá</title>
+</head>
+<body>
+<div style="padding: 20px; background-color: #f4f4f4; max-width: 600px; margin: 0 auto; border-radius: 10px; box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);">
+    <h2 style="color: #333;">Xin chào <span th:text="${NAME}"></span>,</h2>
+
+    <p style="color: #555; font-size: 14px;">
+        Sản phẩm bạn để trong giỏ hàng đang được giảm giá dành riêng cho bạn — nhanh tay hoàn tất đơn hàng trước khi hết hạn!
+    </p>
+
+    <div style="background-color: #ffffff; border: 2px dashed #f97316; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+        <div style="font-size: 16px; font-weight: bold; color: #333;" th:text="${PRODUCT_NAME}"></div>
+        <div style="font-size: 18px; color: #f97316; font-weight: bold; margin-top: 8px;" th:text="${DISCOUNT_TEXT}"></div>
+        <div style="margin-top: 8px;">
+            <span style="font-size: 15px; color: #10B981; font-weight: bold;" th:text="${DISCOUNTED_PRICE_TEXT}"></span>
+            <span style="font-size: 13px; color: #999; text-decoration: line-through; margin-left: 6px;" th:text="${ORIGINAL_PRICE_TEXT}"></span>
+        </div>
+        <div style="font-size: 13px; color: #b45309; margin-top: 8px;">
+            Chỉ áp dụng trong khung giờ Flash Sale (12h-14h và 20h-22h) — kết thúc lúc <span th:text="${EXPIRY_TEXT}"></span>
+        </div>
+    </div>
+
+    <a href="#" th:href="@{http://localhost:5173/cart}"
+       style="display: inline-block; padding: 10px 20px; margin: 10px 0; font-size: 16px; color: white; background-color: #10B981; text-decoration: none; border-radius: 5px;">
+        Xem giỏ hàng ngay
+    </a>
+
+    <p style="color: #999; font-size: 12px;">
+        Ưu đãi chỉ dành riêng cho bạn và chỉ hiển thị khi xem giỏ hàng — không cần nhập mã.
+    </p>
+</div>
+</body>
+</html>

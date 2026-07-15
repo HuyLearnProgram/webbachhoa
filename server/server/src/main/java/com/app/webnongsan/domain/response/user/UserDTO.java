@@ -3,6 +3,8 @@ package com.app.webnongsan.domain.response.user;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 @Getter
 @Setter
 public class UserDTO {
@@ -23,4 +25,7 @@ public class UserDTO {
     private String provider;
 
     private String providerId;
+
+    // Phục vụ voucher sinh nhật tự động — user tự cập nhật ở trang cá nhân (tuỳ chọn)
+    private LocalDate birthday;
 }

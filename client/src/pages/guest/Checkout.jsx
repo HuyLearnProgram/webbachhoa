@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import payment from '@/assets/payment/payment.svg';
-import { apiCreateOrder, apiDeleteCart, apiGetSelectedCart, apiPaymentVNPay, apiSendEmail, getUserById, apiUpdateProduct, apiGetMyVouchers } from "@/apis";
+import { apiCreateOrder, apiDeleteCart, apiGetSelectedCart, apiPaymentVNPay, apiSendEmail, getUserById, apiUpdateProduct, apiGetMyVouchers, apiPreviewVoucher, apiSpinLuckyDraw } from "@/apis";
 import { Button,InputForm, GiftDetailModal } from "@/components";
 import { useForm } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -9,7 +9,7 @@ import { toast } from "react-toastify";
 import { FaRegCreditCard } from "react-icons/fa6";
 import { showModal } from "@/store/app/appSlice";
 import { getCurrentUser } from "@/store/user/asyncActions";
-import { calculateLineTotal, getFreeGiftUnits, getPromotionBadgeLabel } from "@/utils/promotion";
+import { calculateLineTotal, getFreeGiftUnits, getPromotionBadgeLabel, getDiscountPercent, getEffectivePrice } from "@/utils/promotion";
 import { getOrCreateSessionId } from "@/utils/sessionId";
 
 
@@ -23,7 +23,11 @@ const Checkout = () => {
     const [showVoucherModal, setShowVoucherModal] = useState(false);
     const [tempSelectedVoucher, setTempSelectedVoucher] = useState(null); // mã đang được chọn tạm trong popup
     const [userVouchers, setUserVouchers] = useState([]);
+    // selectedVoucher giờ luôn là kết quả trả về từ server (POST vouchers/preview) — không bao giờ
+    // tự tính PERCENT/FIXED ở FE nữa, tránh trùng lặp công thức và đảm bảo BE là nguồn sự thật duy nhất.
     const [selectedVoucher, setSelectedVoucher] = useState(null);
+    const [manualVoucherCode, setManualVoucherCode] = useState('');
+    const [voucherLoading, setVoucherLoading] = useState(false);
 
     const location = useLocation();
     const { selectedItems } = location.state || {};
@@ -48,11 +52,52 @@ const Checkout = () => {
 
     const fetchUserVouchers = async () => {
         try {
-            const res = await apiGetMyVouchers(); // API trả danh sách vouchers (chưa dùng)
+            const res = await apiGetMyVouchers({ size: 100 }); // đủ lớn cho modal chọn ở checkout
             if (res?.data?.result) setUserVouchers(res.data.result);
         } catch (err) {
             console.error('Lỗi khi lấy danh sách voucher:', err);
         }
+    };
+
+    // Hợp nhất 2 luồng (chọn từ danh sách + nhập tay) qua 1 hàm duy nhất gọi server validate —
+    // BE là nguồn sự thật duy nhất (check hạn dùng/đã dùng/hết lượt), FE không tự tính toán trước.
+    const previewAndApplyVoucher = async ({ voucherId, code }) => {
+        setVoucherLoading(true);
+        try {
+            const items = (cart || []).map((el) => ({
+                productId: el.id,
+                lineTotal: calculateLineTotal(el, el.quantity).total,
+            }));
+            const res = await apiPreviewVoucher({ voucherId, code, orderTotal: getCartTotal(), items });
+            if (res?.statusCode === 200 && res?.data) {
+                setSelectedVoucher(res.data);
+                return true;
+            }
+            // Lỗi nghiệp vụ (400) — message từ BE đã rõ ràng, không phải lỗi hệ thống
+            toast.error(res?.message || 'Voucher không hợp lệ', { autoClose: 3000 });
+            setSelectedVoucher(null);
+            fetchUserVouchers();
+            return false;
+        } catch (error) {
+            // Lỗi mạng/hệ thống thật sự (khác lỗi nghiệp vụ 400 từ BE)
+            console.error('Lỗi khi kiểm tra voucher:', error);
+            toast.error(`Lỗi hệ thống: ${error?.message || 'Không xác định'}`, { autoClose: 3000 });
+            setSelectedVoucher(null);
+            return false;
+        } finally {
+            setVoucherLoading(false);
+        }
+    };
+
+    const handleApplyManualCode = async () => {
+        const code = manualVoucherCode.trim();
+        if (!code) return;
+        const ok = await previewAndApplyVoucher({ code });
+        if (ok) setManualVoucherCode('');
+    };
+
+    const handleClearVoucher = () => {
+        setSelectedVoucher(null);
     };
 
     const handlePayment = async (data, event) => {
@@ -65,38 +110,39 @@ const Checkout = () => {
             // Phase 3: sessionId để backend attribute conversion cho cả impression
             // được ghi lúc còn là guest (trước khi login/merge session)
             formData.append("sessionId", getOrCreateSessionId());
-            let total = getCartTotal();
-            if (selectedVoucher) {
-                if (selectedVoucher.type === "PERCENT") {
-                    total = total * (1 - selectedVoucher.discountValue / 100);
-                } else {
-                    total -= selectedVoucher.discountValue;
-                }
-            }
+            // total đã được server tính sẵn (kèm trần maxDiscountAmount nếu có) từ lần preview gần nhất
+            const total = selectedVoucher ? selectedVoucher.totalAfterDiscount : getCartTotal();
             formData.append("totalPrice", Math.max(total, 0));
 
             formData.append("paymentMethod", paymentMethod);
-            
-            if (selectedVoucher?.id) {
-                formData.append("voucherId", selectedVoucher.id);
+
+            if (selectedVoucher?.voucherId) {
+                formData.append("voucherId", selectedVoucher.voucherId);
             }
-    
+
             const items = cart?.map((item) => ({
                 productId: item?.id,
                 productName: item?.productName,
                 quantity: item?.quantity,
-                unit_price: item?.price
+                unit_price: getEffectivePrice(item)
             }));
             formData.append("items", new Blob([JSON.stringify(items)], { type: "application/json" }));
-    
+
             const response = await apiCreateOrder(formData);
             const delay = 2000;
-    
+
             if (!response || response.statusCode !== 201) {
+                // Lỗi nghiệp vụ từ BE (VD voucher vừa hết lượt/hết hạn ngay lúc submit) — message đã
+                // rõ ràng, không phải lỗi hệ thống; đồng thời gỡ voucher stale để tránh lặp lại lỗi.
                 console.log(response);
-                throw new Error(response?.message || "Không thể tạo đơn hàng");
+                toast.error(response?.message || "Không thể tạo đơn hàng", { autoClose: 3000 });
+                if (selectedVoucher) {
+                    setSelectedVoucher(null);
+                    fetchUserVouchers();
+                }
+                return;
             }
-    
+
             if (paymentMethod === 'VNPAY') {
                 const vnpayRes = await apiPaymentVNPay({ orderId: response.data, amount: formData.get("totalPrice"), bankCode: "NCB" });
     
@@ -142,6 +188,18 @@ const Checkout = () => {
                 dispatch(getCurrentUser());
                 await apiSendEmail(response.data);
 
+                // Rút thăm may mắn (Phase 7) — gọi TRƯỚC khi reload trang (COD điều hướng kèm reload
+                // toàn trang ngay sau đây nên state React sẽ mất, phải lưu tạm kết quả vào localStorage
+                // để PaymentSuccessCOD.jsx đọc lại và hiện modal sau khi trang tải lại).
+                try {
+                    const luckyRes = await apiSpinLuckyDraw(response.data);
+                    if (luckyRes?.data) {
+                        localStorage.setItem('luckyDrawResult', JSON.stringify(luckyRes.data));
+                    }
+                } catch (error) {
+                    // Không có chiến dịch đang chạy / đơn chưa đạt tối thiểu... — im lặng bỏ qua
+                }
+
                 // setTimeout(() => {
                     navigate('/payment-success-cod');
                     window.location.reload();
@@ -157,22 +215,10 @@ const Checkout = () => {
         }
     };
 
-    const handleSelectVoucher = (voucher) => {
-        setSelectedVoucher(voucher);
-        setShowVoucherModal(false);
-    };
-    
-    //Tính tổng tiền
+    //Tính tổng tiền — đọc thẳng từ kết quả preview server trả về, không tự tính lại ở FE
     const getTotalWithDiscount = () => {
-        let total = getCartTotal();
-        if (selectedVoucher) {
-          if (selectedVoucher.type === "PERCENT") {
-            total *= (1 - selectedVoucher.discountValue / 100);
-          } else {
-            total -= selectedVoucher.discountValue;
-          }
-        }
-        return total > 0 ? total : 0;
+        if (selectedVoucher) return selectedVoucher.totalAfterDiscount;
+        return getCartTotal();
     };
 
     const getCartTotal = () => {
@@ -202,19 +248,14 @@ const Checkout = () => {
       
     // Gọi khi mở pop up voucher
     const openVoucherModal = () => {
-        setTempSelectedVoucher(selectedVoucher); // sao chép mã đang dùng sang tạm
+        // selectedVoucher có shape từ preview response (voucherId), khác shape list item (id) —
+        // chỉ cần seed đúng id để modal tô đúng voucher đang áp dụng.
+        setTempSelectedVoucher(selectedVoucher ? { id: selectedVoucher.voucherId } : null);
         setShowVoucherModal(true);
     };
-    // Tính số tiền được giảm
+    // Tính số tiền được giảm — đọc thẳng từ kết quả preview server trả về
     const getDiscountAmount = () => {
-        let total = getCartTotal();
-        if (!selectedVoucher) return 0;
-    
-        if (selectedVoucher.type === "PERCENT") {
-            return (total * selectedVoucher.discountValue) / 100;
-        } else {
-            return selectedVoucher.discountValue;
-        }
+        return selectedVoucher ? selectedVoucher.discountAmount : 0;
     };
 
     // Lấy dữ liệu người dùng
@@ -284,9 +325,9 @@ const Checkout = () => {
                                     </td>
                                     <td className="p-2 text-center">{el?.quantity}</td>
                                     <td className="p-2 text-right">
-                                        {el?.originalPrice && el.originalPrice > el.price && (
+                                        {getDiscountPercent(el) !== null && (
                                             <div className="text-gray-400 line-through text-xs">
-                                                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(+el.originalPrice)}
+                                                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(+el.price)}
                                             </div>
                                         )}
                                         {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculateLineTotal(el, el.quantity).total / el.quantity)}
@@ -363,21 +404,53 @@ const Checkout = () => {
                             {/* VOUCHER SECTION */}
                             <div className="flex flex-col gap-2">
                                 <label className="font-medium text-sm">Mã giảm giá</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={selectedVoucher?.code || ''}
-                                        readOnly
-                                        className="w-full px-4 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={openVoucherModal}
-                                        className="bg-yellow-400 hover:bg-yellow-300 text-white px-2 w-[215px] rounded-md"
-                                    >
-                                        Chọn voucher
-                                    </button>
-                                </div>
+                                {selectedVoucher ? (
+                                    <div className="flex items-center justify-between border rounded-md px-4 py-2 bg-green-50">
+                                        <div>
+                                            <span className="font-medium text-blue-600">{selectedVoucher.code}</span>
+                                            <span className="text-sm text-gray-600 ml-2">
+                                                Giảm {selectedVoucher.type === "PERCENT"
+                                                    ? `${selectedVoucher.discountValue}%`
+                                                    : `${selectedVoucher.discountValue.toLocaleString()}đ`}
+                                            </span>
+                                            {selectedVoucher.categoryName && (
+                                                <div className="text-xs text-orange-600">Chỉ áp dụng: {selectedVoucher.categoryName}</div>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleClearVoucher}
+                                            className="text-red-500 text-sm hover:underline"
+                                        >
+                                            Xoá
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={manualVoucherCode}
+                                            onChange={(e) => setManualVoucherCode(e.target.value)}
+                                            placeholder="Nhập mã giảm giá"
+                                            className="w-full px-4 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleApplyManualCode}
+                                            disabled={!manualVoucherCode.trim() || voucherLoading}
+                                            className="bg-blue-500 hover:bg-blue-400 text-white px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                        >
+                                            Áp dụng
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={openVoucherModal}
+                                            className="bg-yellow-400 hover:bg-yellow-300 text-white px-2 w-[160px] rounded-md whitespace-nowrap"
+                                        >
+                                            Chọn voucher
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                             {/* px-4 py-2 rounded-md text-white bg-main text-semibold my-2 w-full justify-end */}
                             {<button className={ "px-4 py-2 rounded-md text-white bg-green-600 hover:bg-green-500 shadow-lg transition duration-300 w-full"} type="submit" name="paymentMethod" value="COD">Thanh toán khi nhận hàng</button>}
@@ -400,7 +473,11 @@ const Checkout = () => {
                     {userVouchers.map((voucher) => {
                     const isSelected = tempSelectedVoucher?.id === voucher.id;
                     const cartTotal = getCartTotal();
-                    const notEligible = (cartTotal < (voucher.minimumOrderAmount || 0)) || voucher.usedCount >= voucher.maxUsage;
+                    // maxUsage null = không giới hạn — trước đây so sánh trực tiếp với null làm
+                    // voucher không giới hạn bị hiểu nhầm là "đã dùng hết" (usedCount >= null coi
+                    // null như 0 trong JS, luôn true với usedCount dương).
+                    const usedUp = voucher.maxUsage != null && voucher.usedCount >= voucher.maxUsage;
+                    const notEligible = (cartTotal < (voucher.minimumOrderAmount || 0)) || usedUp;
 
                     return (
                         <div
@@ -438,11 +515,16 @@ const Checkout = () => {
                             Đơn tối thiểu: {voucher.minimumOrderAmount?.toLocaleString()}đ
                             </div>
                             <div className="text-sm text-gray-600">
-                            Còn lại: {(voucher.maxUsage - voucher.usedCount)?.toLocaleString()}
+                            Còn lại: {voucher.maxUsage != null ? (voucher.maxUsage - (voucher.usedCount || 0)).toLocaleString() : "Không giới hạn"}
                             </div>
+                            {voucher.categoryName && (
+                            <div className="text-sm text-orange-600">
+                                Chỉ áp dụng: {voucher.categoryName}
+                            </div>
+                            )}
                             {notEligible && (
                             <div className="text-sm text-red-500 font-medium">
-                                {voucher.usedCount >= voucher.maxUsage ? "Đã dùng hết" : "Không đủ điều kiện sử dụng"}
+                                {usedUp ? "Đã dùng hết" : "Không đủ điều kiện sử dụng"}
                             </div>
                             )}
                         </div>
@@ -460,16 +542,20 @@ const Checkout = () => {
                     Trở lại
                     </button>
                     <button
-                    onClick={() => {
-                        const total = getCartTotal();
-                        if (tempSelectedVoucher && total < (tempSelectedVoucher.minimumOrderAmount || 0)) return;
-                        setSelectedVoucher(tempSelectedVoucher);
-                        setShowVoucherModal(false);
+                    disabled={voucherLoading}
+                    onClick={async () => {
+                        if (!tempSelectedVoucher) {
+                            setSelectedVoucher(null);
+                            setShowVoucherModal(false);
+                            return;
+                        }
+                        // BE (POST vouchers/preview) là nguồn xác nhận cuối cùng — chỉ đóng modal
+                        // khi validate thành công, giữ modal mở nếu bị từ chối để chọn voucher khác.
+                        const ok = await previewAndApplyVoucher({ voucherId: tempSelectedVoucher.id });
+                        if (ok) setShowVoucherModal(false);
                     }}
                     className={`px-4 py-2 rounded-md text-white ${
-                        tempSelectedVoucher && getCartTotal() < (tempSelectedVoucher.minimumOrderAmount || 0)
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-orange-500 hover:bg-orange-600"
+                        voucherLoading ? "bg-gray-400 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600"
                     }`}
                     >
                     OK

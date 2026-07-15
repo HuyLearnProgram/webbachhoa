@@ -37,10 +37,34 @@ public class Voucher {
     @Min(value = 0, message = "Số lượt sử dụng tối đa không được âm")
     private Integer maxUsage;
 
+    // Trần giảm giá tối đa — chỉ có ý nghĩa với type=PERCENT (voucher FIXED không cần trần vì
+    // discountValue đã là số tiền cố định). null = không giới hạn trần.
+    @PositiveOrZero(message = "Trần giảm giá tối đa không được âm")
+    private Double maxDiscountAmount;
+
     @Min(value = 0, message = "Số lượt đã dùng không được âm")
     private Integer usedCount = 0;
 
     private Boolean isActive = true;
+
+    // true = voucher công khai, hiện trong danh sách "voucher công khai" cho mọi user tự lưu (hành vi
+    // gốc trước khi có hệ trao voucher tự động). false = voucher do hệ thống tự sinh riêng cho 1 user
+    // cụ thể (welcome/first-order/milestone/cart-recovery/birthday/win-back/referral/lucky-draw) —
+    // không được lọt vào danh sách công khai dù isActive=true, vì nó chỉ dành cho đúng 1 người.
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
+    private Boolean isPublic = true;
+
+    // true = hiện trên banner "Flash Sale" trang chủ (Phase 3 hệ trao voucher tự động). Admin tick tay
+    // khi tạo/sửa voucher — không phải MỌI voucher active/public đều nên nổi bật làm flash-sale.
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 0")
+    private Boolean isFlashSale = false;
+
+    // null = áp dụng cho toàn bộ đơn hàng (hành vi gốc). Khác null = chỉ áp dụng cho sản phẩm thuộc
+    // đúng danh mục này — VoucherValidationService tính giảm giá/đơn tối thiểu trên tổng tiền của
+    // riêng danh mục này trong giỏ, không phải toàn đơn.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "applicable_category_id")
+    private Category applicableCategory;
 
     private Instant startDate;
 
@@ -82,11 +106,12 @@ public class Voucher {
     }
     @JsonIgnore
     public boolean isExpired() {
-        return Instant.now().isAfter(endDate);
+        return endDate != null && Instant.now().isAfter(endDate);
     }
     @JsonIgnore
     public boolean isActiveNow() {
         return Boolean.TRUE.equals(isActive)
+                && startDate != null && endDate != null
                 && Instant.now().isAfter(startDate)
                 && Instant.now().isBefore(endDate);
     }

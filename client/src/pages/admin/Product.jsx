@@ -21,7 +21,7 @@ import { UploadOutlined } from "@ant-design/icons";
 import product_default from "@/assets/product_default.png";
 import { sortProductOption, LOW_STOCK_THRESHOLD, promotionTypeOptions } from "@/utils/constants";
 import { downloadBlob, stripDiacritics } from "@/utils/helper";
-import { getPromotionBadgeLabel } from "@/utils/promotion";
+import { getPromotionBadgeLabel, getDiscountPercent, getEffectivePrice } from "@/utils/promotion";
 import icons from "@/utils/icons";
 
 const { FaInfoCircle, FaFilter } = icons;
@@ -274,20 +274,19 @@ const Product = () => {
       dataIndex: "price",
       key: "price",
       render: (_, record) => {
-        const hasSale =
-          record.originalPrice && record.originalPrice > record.price;
+        const discountPercent = getDiscountPercent(record);
         const promoLabel = getPromotionBadgeLabel(record);
         return (
           <div>
-            {hasSale && (
+            {discountPercent !== null && (
               <div className="text-gray-400 line-through text-xs">
-                {record.originalPrice.toLocaleString("vi-VN")} đ
+                {record.price.toLocaleString("vi-VN")} đ
               </div>
             )}
-            <span>{record.price.toLocaleString("vi-VN")} đ</span>
-            {hasSale && (
+            <span>{getEffectivePrice(record).toLocaleString("vi-VN")} đ</span>
+            {discountPercent !== null && (
               <Tag color="red" style={{ marginLeft: 4 }}>
-                -{Math.round((1 - record.price / record.originalPrice) * 100)}%
+                -{discountPercent}%
               </Tag>
             )}
             {promoLabel && (

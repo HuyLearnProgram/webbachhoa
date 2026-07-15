@@ -120,6 +120,15 @@ export const apiUpdateAbBanditPct = async (pct) =>
         params: { pct },
     })
 
+// Trang "Sản phẩm đã xem" (member) — đọc lại ProductView của user hiện tại, phân trang,
+// sắp xếp theo lần xem gần nhất (backend tự xử lý qua JWT, không cần truyền userId)
+export const apiGetRecentlyViewed = async (page, size) =>
+    axiosInstance({
+        url: 'product-views',
+        method: 'get',
+        params: { page, size },
+    })
+
 // Gọi 1 lần ngay sau khi login thành công — nối lịch sử hành vi ẩn danh vào user thật
 export const apiMergeTrackingSession = () => {
     const sessionId = getOrCreateSessionId()

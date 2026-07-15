@@ -1,5 +1,5 @@
 import { FaPhone, FaCartShopping } from "react-icons/fa6";
-import { MdEmail, MdOutlineBlock } from "react-icons/md";
+import { MdEmail, MdOutlineBlock, MdOutlineTimer } from "react-icons/md";
 import { GrNext } from "react-icons/gr";
 import { SiAdguard } from "react-icons/si";
 import { GiReturnArrow } from "react-icons/gi";
@@ -43,6 +43,7 @@ const icons = {
   TbPinnedOff,
   FaInfoCircle,
   MdOutlineBlock,
+  MdOutlineTimer,
   FaFilter,
   FaSearch
 };

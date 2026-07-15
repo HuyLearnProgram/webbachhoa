@@ -1,9 +1,9 @@
 import path from "./path";
 import icons from "./icons";
 import { AiOutlineInfo } from "react-icons/ai";
-import { FaHome } from "react-icons/fa";
-import {FaHeart } from "react-icons/fa6";
-import { MdHistory } from "react-icons/md";
+import { FaHome, FaUserFriends } from "react-icons/fa";
+import {FaHeart, FaRegEye } from "react-icons/fa6";
+import { MdHistory, MdLocalOffer } from "react-icons/md";
 export const navigation = [
   {
     id: 1,
@@ -105,6 +105,22 @@ export const promotionTypeCustomerOptions = [
   { value: PROMOTION_TYPES.BUNDLE_PRICE, label: "Combo giá ưu đãi" },
 ];
 
+export const voucherTypeOptions = [
+  { value: "PERCENT", label: "Giảm theo phần trăm (%)" },
+  { value: "FIXED", label: "Giảm số tiền cố định (đ)" },
+];
+
+// Khớp enum AutoGrantType phía BE (domain/AutoGrantType.java)
+export const autoGrantTypeOptions = [
+  { value: "WELCOME", label: "Chào mừng thành viên mới" },
+  { value: "FIRST_ORDER", label: "Đơn hàng PAID đầu tiên" },
+  { value: "MILESTONE", label: "Mốc số đơn PAID" },
+  { value: "BIRTHDAY", label: "Sinh nhật" },
+  { value: "WIN_BACK", label: "Không mua hàng lâu ngày (Win-back)" },
+  { value: "REFERRAL_REFERRER", label: "Thưởng người giới thiệu bạn bè" },
+  { value: "LUCKY_DRAW", label: "Rút thăm may mắn" },
+];
+
 export const memberSidebar = [
   {
     id: 4,
@@ -134,6 +150,27 @@ export const memberSidebar = [
     text: 'Danh sách yêu thích',
     path: `/${path.MEMBER}/${path.WISHLIST}`,
     icon: <FaHeart size={20} />
+  },
+  {
+    id: 5,
+    type: 'SINGLE',
+    text: 'Sản phẩm đã xem',
+    path: `/${path.MEMBER}/${path.RECENTLY_VIEWED}`,
+    icon: <FaRegEye size={20} />
+  },
+  {
+    id: 6,
+    type: 'SINGLE',
+    text: 'Ví voucher',
+    path: `/${path.MEMBER}/${path.VOUCHER}`,
+    icon: <MdLocalOffer size={20} />
+  },
+  {
+    id: 7,
+    type: 'SINGLE',
+    text: 'Giới thiệu bạn bè',
+    path: `/${path.MEMBER}/${path.REFERRAL}`,
+    icon: <FaUserFriends size={20} />
   }
 ]
 

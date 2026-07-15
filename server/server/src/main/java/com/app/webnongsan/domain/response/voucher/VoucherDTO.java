@@ -16,6 +16,7 @@ public class VoucherDTO {
     private Double discountValue;
     private Double minimumOrderAmount;
     private Integer maxUsage;
+    private Double maxDiscountAmount;
     private Integer usedCount;
     private Boolean isActive;
     private Instant startDate;
@@ -23,4 +24,8 @@ public class VoucherDTO {
 
     private Boolean isUsed;
     private Instant assignedAt;
+
+    // null = áp dụng toàn bộ đơn hàng — khác null = chỉ áp dụng cho sản phẩm thuộc danh mục này.
+    private Long categoryId;
+    private String categoryName;
 }

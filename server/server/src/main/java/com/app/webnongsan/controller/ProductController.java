@@ -98,6 +98,19 @@ public class ProductController {
         return ResponseEntity.ok(this.productService.bulkUpdateActive(request.getIds(), request.getActive()));
     }
 
+    // window=1|2 — sản phẩm thuộc khung giờ Flash Sale tương ứng, xem ProductService.getFlashSaleProducts()
+    @GetMapping("products/flash-sale")
+    @ApiMessage("Get flash-sale products")
+    public ResponseEntity<List<Product>> getFlashSaleProducts(@RequestParam("window") int window) {
+        return ResponseEntity.ok(this.productService.getFlashSaleProducts(window));
+    }
+
+    @GetMapping("products/flash-sale-windows")
+    @ApiMessage("Get flash-sale time windows config")
+    public ResponseEntity<java.util.Map<String, String>> getFlashSaleWindows() {
+        return ResponseEntity.ok(this.productService.getFlashSaleWindowsConfig());
+    }
+
     @GetMapping("products/max-price")
     @ApiMessage("Get max price")
     public ResponseEntity<Double> getMaxPrice(

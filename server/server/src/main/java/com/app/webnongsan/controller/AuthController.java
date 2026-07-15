@@ -224,6 +224,11 @@ public class AuthController {
         Role r = new Role();
         r.setId(1); // USER — role mặc định cho tài khoản tự đăng ký
         user.setRole(r);
+        // Referral (Phase 6) — chỉ set nếu mã tồn tại thật, không chặn đăng ký nếu mã sai/không có
+        String referralCode = registerDTO.getReferralCode();
+        if (referralCode != null && !referralCode.isBlank() && this.userService.isExistedReferralCode(referralCode)) {
+            user.setReferredBy(referralCode);
+        }
         User newUser = this.userService.create(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(this.userService.convertToCreateDTO(newUser));
     }
@@ -273,6 +278,7 @@ public class AuthController {
             @RequestParam("email") String email,
             @RequestParam("phone") String phone,
             @RequestParam("address") String address,
+            @RequestParam(value = "birthday", required = false) String birthday,
             @RequestParam(value = "avatarUrl", required = false) MultipartFile avatar) throws IOException {
         String emailLoggedIn = SecurityUtil.getCurrentUserLogin().isPresent() ? SecurityUtil.getCurrentUserLogin().get() : "";
         // Lấy thông tin người dùng trong db
@@ -285,6 +291,10 @@ public class AuthController {
         currentUserDB.setEmail(email);
         currentUserDB.setPhone(phone);
         currentUserDB.setAddress(address);
+        // Ngày sinh (tuỳ chọn) — phục vụ voucher sinh nhật tự động (VoucherLoyaltyScheduler)
+        if (birthday != null && !birthday.isBlank()) {
+            currentUserDB.setBirthday(java.time.LocalDate.parse(birthday));
+        }
         // Kiểm tra nếu có avatar mới được upload
         // Nếu có avatar thì upload lên Cloudinary
         if (avatar != null && !avatar.isEmpty()) {

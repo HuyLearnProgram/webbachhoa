@@ -54,7 +54,7 @@ function EditProduct() {
       productName: product?.productName,
       sku: product?.sku,
       price: product?.price,
-      originalPrice: product?.originalPrice,
+      discountPrice: product?.discountPrice,
       promotionType: product?.promotionType,
       promoBuyQuantity: product?.promoBuyQuantity,
       promoFreeQuantity: product?.promoFreeQuantity,

@@ -19,4 +19,8 @@ public class RegisterRequestDTO {
     @NotBlank(message = "Không được để trống mật khẩu")
     @Size(min = 6, message = "Mật khẩu phải có ít nhất 6 ký tự")
     private String password;
+
+    // Mã giới thiệu của bạn bè (tuỳ chọn) — Phase 6 Referral. Nếu không tồn tại thì bỏ qua, KHÔNG
+    // chặn đăng ký (tránh 1 lỗi gõ nhầm mã làm mất khách hàng mới).
+    private String referralCode;
 }

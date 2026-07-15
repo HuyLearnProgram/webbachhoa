@@ -22,16 +22,17 @@ public class PromotionExpiryScheduler {
         if (expired.isEmpty()) return;
 
         for (Product product : expired) {
-            if ("PRICE_DISCOUNT".equals(product.getPromotionType()) && product.getOriginalPrice() != null) {
-                product.setPrice(product.getOriginalPrice());
-            }
+            // `price` (giá bán ổn định) không bao giờ bị đổi khi bật/tắt khuyến mãi — chỉ cần xoá
+            // discountPrice, không còn gì để "khôi phục" như cơ chế originalPrice cũ.
             product.setPromotionType("NONE");
-            product.setOriginalPrice(null);
+            product.setDiscountPrice(null);
             product.setPromoBuyQuantity(null);
             product.setPromoFreeQuantity(null);
             product.setPromoBundleQuantity(null);
             product.setPromoBundlePrice(null);
             product.setPromotionExpiresAt(null);
+            // isFlashSale chỉ có ý nghĩa khi còn khuyến mãi — hết hạn thì tự rời khỏi banner Flash Sale.
+            product.setIsFlashSale(false);
         }
         this.productRepository.saveAll(expired);
     }
