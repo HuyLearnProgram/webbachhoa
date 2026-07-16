@@ -3,15 +3,17 @@ import { MdDelete, MdModeEdit } from "react-icons/md";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { apiDeleteCategory, apiGetCategories } from "@/apis";
-import { useSearchParams, useNavigate, createSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation, createSearchParams } from 'react-router-dom';
 import { Button, Modal, Table, Input } from 'antd';
 import { AddScreenButton } from '@/components/admin';
-import { stripDiacritics } from '@/utils/helper';
+import { stripDiacritics, resolveImageUrl } from '@/utils/helper';
+import category_default from '@/assets/category_default.png';
 
 const CATEGORY_PER_PAGE = 6;
 
 const Category = () => {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [params] = useSearchParams();
   const [currentPage, setCurrentPage] = useState(Number(params.get('page')) || 1);
   const [categories, setCategories] = useState(null);
@@ -93,7 +95,7 @@ const Category = () => {
       key: 'imageUrl',
       render: (imageUrl) => (
         <img
-          src={imageUrl && imageUrl.startsWith('https') ? imageUrl : `${import.meta.env.VITE_BACKEND_TARGET}/storage/category/${imageUrl}`}
+          src={resolveImageUrl(imageUrl, 'category', category_default)}
           alt="Category"
           style={{ width: '60px', height: '60px', objectFit: 'cover' }}
         />
@@ -108,7 +110,7 @@ const Category = () => {
       title: 'Sửa',
       key: 'edit',
       render: (_, record) => (
-        <Button type="link" onClick={() => navigate(`${location.pathname}/edit/${record.id}`)}>
+        <Button type="link" onClick={() => navigate(`${pathname}/edit/${record.id}`)}>
           <MdModeEdit className="w-5 h-5 inline-block" />
         </Button>
       ),

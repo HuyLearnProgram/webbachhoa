@@ -1,22 +1,22 @@
 import React, { memo, useRef, useEffect, useState} from "react";
 import avatar from "@/assets/avatarDefault.png"
 import productDF from "@/assets/product_default.png"
-import { FaClock, FaRegStar, FaStar, FaX } from "react-icons/fa6";
-import { GrStatusCritical, GrStatusCriticalSmall } from "react-icons/gr";
 import { Modal, Button } from 'antd';
 import { apiCancelOrder } from "@/apis";
 import { getOrderLinePromotionLabel, hasOrderLineDiscount } from "@/utils/promotion";
+import icons from '@/utils/icons';
+
+const { FaClock, FaX } = icons;
 
 // Đơn cũ tạo trước khi có snapshot khuyến mãi có lineTotal = 0 (giá trị DEFAULT của cột mới thêm),
 // không phải null/undefined nên "??" không fallback được -> coi luôn giá trị falsy (0) là "chưa có snapshot".
 const getLineTotal = (item) => item?.lineTotal || item?.unit_price * item?.quantity;
 
-const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
+const OrderCard = ({ data, onClose, updateOrderStatus }) => {
     const modalRef = useRef()
     const [isCancel, setIsCancel]  = useState(false)
     useEffect(() => {
         modalRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
-        console.log(data)
     }, [])
 
     const handleCancelOrder = (oid)=>{
@@ -32,9 +32,6 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
                     updateOrderStatus(oid, 3);
                     onClose();
                 }
-            },
-            onCancel: () => {
-                console.log('Đơn hàng không bị hủy');
             },
         });
 
@@ -72,9 +69,6 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
         return total;
     };
     
-    useEffect(()=>{
-
-    },[data])
     return (
         <div onClick={e => e.stopPropagation()} ref={modalRef} 
         className="w-full max-w-3xl rounded-xl inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -93,18 +87,20 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
                     <span className="text-green-600 font-medium">{(data[0]?.status === 2 || data[0]?.status === 3 || data[0]?.status === 4)  ? "HOÀN THÀNH": "CHƯA HOÀN THÀNH"}</span>
                 </div>
                 <div className="overflow-y-auto max-h-80 mt-2 mb-2">
-                {data?.map((order,index) =>(
+                {data?.map((order,index) =>{
+                    const orderLinePromotionLabel = getOrderLinePromotionLabel(order);
+                    return (
                     <div key={order?.orderId + "-" + index} className="flex  space-x-4 items-center justify-start mb-6 w-full">
                         <img src={
-                            order?.imageUrl ? order?.imageUrl : productDF} alt={order?.productName} 
+                            order?.imageUrl ? order?.imageUrl : productDF} alt={order?.productName}
                             className="w-[40px]  h-[40px] object-cover rounded-lg border-primary shadow-md" />
                         <div className="ml-4 flex-1">
                             <h2 className="text-xl font-medium text-primary">{order?.productName}</h2>
                             <h2 className="text-sm text-gray-500">{order?.category}</h2>
                             <p className="text-sm">x{order?.quantity}</p>
-                            {getOrderLinePromotionLabel(order) && (
+                            {orderLinePromotionLabel && (
                                 <p className="text-xs text-red-500 font-medium">
-                                    {getOrderLinePromotionLabel(order)}
+                                    {orderLinePromotionLabel}
                                 </p>
                             )}
                         </div>
@@ -121,7 +117,8 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
                             </p>
                         </div>
                     </div>
-                ))}
+                    );
+                })}
                 {/* THÔNG TIN VOUCHER */}
                 {data[0]?.voucherCode && (
                 <div className="flex justify-between items-center mt-2 font-medium text-green-700">
@@ -170,4 +167,4 @@ const FeedbackCard = ({ data, onClose, updateOrderStatus }) => {
     )
 }
 
-export default memo(FeedbackCard)
+export default memo(OrderCard)

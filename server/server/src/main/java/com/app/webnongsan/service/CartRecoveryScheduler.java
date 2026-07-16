@@ -95,6 +95,16 @@ public class CartRecoveryScheduler {
 
         Instant now = Instant.now();
         Instant expiresAt = todayAt22h(now);
+        // Job lên lịch cố định 9h sáng nên bình thường luôn còn dư 13 tiếng tới 22h — nhưng nếu bị gọi
+        // thủ công để debug, hoặc scheduler "bắt kịp" 1 lần chạy bị trễ qua 22h00, todayAt22h() sẽ trả
+        // về 1 thời điểm ĐÃ Ở QUÁ KHỨ. Cấp CartRecoveryDiscount với expiresAt trong quá khứ sẽ vô hiệu
+        // ngay lập tức (getActivePersonalDiscount() luôn lọc expiresAt > now) — âm thầm, không lỗi gì
+        // hiện ra. Bỏ qua cả lần chạy này thay vì cấp phát vô nghĩa.
+        if (!expiresAt.isAfter(now)) {
+            log.warn("Cart Recovery: job chạy sau 22h00 (now={}, expiresAt tính được={} đã ở quá khứ) — " +
+                    "bỏ qua lần chạy này để tránh cấp Flash Sale cá nhân hết hạn ngay lập tức.", now, expiresAt);
+            return;
+        }
 
         for (Object[] row : rows) {
             Long userId = (Long) row[0];

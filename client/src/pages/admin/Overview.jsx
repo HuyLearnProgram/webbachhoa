@@ -8,7 +8,7 @@ import {
   apiGetFeedbackStats,
   apiGetTopProducts,
   apiGetRatingDistribution,
-  apiGetProducts,
+  apiGetProductStats,
 } from "@/apis";
 import { RevenueChart, BarChart, DoughnutChart } from "@/components/admin";
 import {
@@ -86,22 +86,18 @@ const Overview = () => {
     if (res.statusCode === 200) setFeedbackStats(res.data);
   };
 
+  // 1 lần gọi duy nhất thay vì fan-out N+1 request (1 lowStock + N category + N promotionType) —
+  // backend gộp sẵn 3 số liệu (ProductService.getProductStats()), FE chỉ map count vào danh mục/loại
+  // khuyến mãi đã biết sẵn (giữ nguyên 0 cho danh mục/loại chưa có sản phẩm nào).
   const fetchProductStats = async () => {
-    const lowStockRes = await apiGetProducts({ filter: `quantity<=${LOW_STOCK_THRESHOLD}`, size: 1 });
-    setLowStockCount(lowStockRes?.data?.meta?.total || 0);
-
-    const categoryCounts = await Promise.all(
-      categories.map((c) => apiGetProducts({ filter: `category.id='${c.id}'`, size: 1 }))
-    );
+    const res = await apiGetProductStats(LOW_STOCK_THRESHOLD);
+    if (res.statusCode !== 200) return;
+    setLowStockCount(res.data?.lowStockCount || 0);
     setCategoryDistribution(
-      categories.map((c, i) => ({ name: c.name, count: categoryCounts[i]?.data?.meta?.total || 0 }))
-    );
-
-    const promotionCounts = await Promise.all(
-      promotionTypeOptions.map((opt) => apiGetProducts({ filter: `promotionType='${opt.value}'`, size: 1 }))
+      categories.map((c) => ({ name: c.name, count: res.data?.categoryCounts?.[c.id] || 0 }))
     );
     setPromotionDistribution(
-      promotionTypeOptions.map((opt, i) => ({ label: opt.label, count: promotionCounts[i]?.data?.meta?.total || 0 }))
+      promotionTypeOptions.map((opt) => ({ label: opt.label, count: res.data?.promotionCounts?.[opt.value] || 0 }))
     );
   };
 

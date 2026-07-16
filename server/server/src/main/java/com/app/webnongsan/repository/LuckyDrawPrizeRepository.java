@@ -24,4 +24,11 @@ public interface LuckyDrawPrizeRepository extends JpaRepository<LuckyDrawPrize, 
     @Query("UPDATE LuckyDrawPrize p SET p.remainingQuantity = p.remainingQuantity - 1 " +
             "WHERE p.id = :id AND p.remainingQuantity IS NOT NULL AND p.remainingQuantity > 0")
     int decrementRemainingIfAvailable(@Param("id") Long id);
+
+    // Compensating action cho decrementRemainingIfAvailable — hoàn lại số lượng nếu bước gắn giải vào
+    // lượt quay (LuckyDrawService.spin()) thất bại SAU KHI đã trừ, tránh giải "biến mất" không ai nhận.
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE LuckyDrawPrize p SET p.remainingQuantity = p.remainingQuantity + 1 " +
+            "WHERE p.id = :id AND p.remainingQuantity IS NOT NULL")
+    void incrementRemainingBack(@Param("id") Long id);
 }

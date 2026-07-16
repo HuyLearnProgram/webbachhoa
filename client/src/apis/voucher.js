@@ -8,13 +8,6 @@ export const apiGetActiveVouchers = async () =>
         method: 'get',
     });
 
-// Voucher đang hiển thị trên banner Flash Sale trang chủ (Phase 3 hệ trao voucher tự động)
-export const apiGetFlashSaleVouchers = async () =>
-    axiosInstance({
-        url: 'vouchers/flash-sale',
-        method: 'get',
-    });
-
 export const apiGetMyVouchers = async (params) =>
     axiosInstance({
         url: 'vouchers/my',

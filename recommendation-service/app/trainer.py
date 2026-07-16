@@ -31,7 +31,10 @@ def train_all(force_cf: bool = False) -> ModelArtifacts:
 
     elapsed = time.perf_counter() - t0
     artifacts = ModelArtifacts(
-        model_version=datetime.now().isoformat(timespec="seconds"),
+        # UTC naive — nhất quán với mọi timestamp khác trong codebase (collaborative.py/fatigue.py/
+        # main.py đều dùng datetime.now(timezone.utc).replace(tzinfo=None)), tránh nhầm lẫn khi debug
+        # trên server múi giờ khác UTC (trước đây dùng giờ local).
+        model_version=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds"),
         tfidf_matrix=matrix,
         product_ids=product_ids,
         pid_to_idx=pid_to_idx,
@@ -41,6 +44,7 @@ def train_all(force_cf: bool = False) -> ModelArtifacts:
         popularity_by_category=pop_by_category,
         pid_to_category=pid_to_category,
         cf=cf,
+        popularity_lookup=dict(pop),
         repurchase_cycle_days=cycle_days,
         emb_matrix=emb_matrix,
         name_norm=name_norm,

@@ -119,6 +119,14 @@ public class ProductController {
         return ResponseEntity.ok(this.productService.getMaxPrice(category, productName));
     }
 
+    // GET admin/** đã có rule hasRole("ADMIN") sẵn trong SecurityConfiguration — không cần khai rule riêng.
+    @GetMapping("admin/product-stats")
+    @ApiMessage("Get product stats for admin dashboard")
+    public ResponseEntity<com.app.webnongsan.domain.response.product.ProductStatsDTO> getProductStats(
+            @RequestParam(value = "lowStockThreshold", defaultValue = "5") int lowStockThreshold) {
+        return ResponseEntity.ok(this.productService.getProductStats(lowStockThreshold));
+    }
+
     @GetMapping("products/search")
     @ApiMessage("Search products")
     public ResponseEntity<PaginationDTO> search(@Filter Specification<Product> spec, Pageable pageable) {

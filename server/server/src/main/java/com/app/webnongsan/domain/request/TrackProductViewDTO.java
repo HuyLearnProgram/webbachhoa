@@ -14,7 +14,7 @@ public class TrackProductViewDTO {
     @NotNull(message = "productId không được để trống")
     private Long productId;
 
-    // HOME_FEED | SEARCH_RESULT | SIMILAR | CATEGORY_PAGE | DIRECT
+    // HOME_FEED | SEARCH_RESULT | SIMILAR | CATEGORY_PAGE | CART_SUGGESTION | FLASH_SALE | DIRECT
     @Size(max = 30)
     private String source;
 

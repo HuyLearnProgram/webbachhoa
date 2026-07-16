@@ -29,6 +29,10 @@ public class User {
     private String email;
 
 //    @NotBlank(message = "Không được để trống password")
+    // Phòng vệ nhiều lớp — FORCE_LAZY_LOADING (Hibernate6Module) khiến mọi field không @JsonIgnore
+    // trên entity đều có nguy cơ lộ ra JSON nếu code tương lai lỡ serialize User trực tiếp thay vì
+    // qua DTO. password (bcrypt hash) không bao giờ cần trả về client.
+    @JsonIgnore
     private String password;
 
     private int status;
@@ -55,7 +59,9 @@ public class User {
     // đơn giản, tra ngược qua UserRepository.findByReferralCode khi cần.
     private String referredBy;
 
+    // refreshToken là bí mật xác thực (JWT) — cùng lý do @JsonIgnore như password ở trên.
     @Column(columnDefinition = "MEDIUMTEXT")
+    @JsonIgnore
     private String refreshToken;
     @ManyToOne
     @JoinColumn(name = "role_id")

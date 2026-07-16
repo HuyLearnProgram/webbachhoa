@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { InputField, Button, ForgotPassword } from "@/components";
 import Swal from 'sweetalert2';
-import { apiLogin, apiRegister, apiLoginGoogle, apiGetReferralMaxReward } from "@/apis";
+import { apiLogin, apiRegister, apiGetReferralMaxReward } from "@/apis";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import path from "@/utils/path";
 import { login } from '@/store/user/userSlice';
@@ -9,7 +9,6 @@ import { apiMergeTrackingSession } from '@/apis/recommendation';
 import { useDispatch } from "react-redux";
 import { useForm } from 'react-hook-form';
 import { ClipLoader } from "react-spinners";
-import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -77,19 +76,6 @@ const Login = () => {
       }
     }
   }, [payload, isRegister, dispatch, navigate]);
-
-  // const responseGoogle = async (response) => {
-  //   const { credential } = response;
-  //   if (credential) {
-  //     const result = await apiLoginGoogle(credential);
-  //     if (result.statusCode === 200) {
-  //       dispatch(login({ isLoggedIn: true, token: result.data.access_token, userData: result.data.user }));
-  //       navigate(`/${path.HOME}`);
-  //     } else {
-  //       Swal.fire('Oops!', result.message, 'error');
-  //     }
-  //   }
-  // };
 
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gradient-to-r from-green-300 to-blue-300 relative">
@@ -186,14 +172,6 @@ const Login = () => {
           >
             {isRegister ? "Đăng ký" : "Đăng nhập"}
           </Button>
-
-          {/* {!isRegister && (
-            <GoogleLogin
-              onSuccess={responseGoogle}
-              onFailure={(response) => console.log(response)}
-              className="mt-4 w-full"
-            />
-          )} */}
 
           <div className="flex items-center justify-between my-4 text-sm text-gray-700">
             {!isRegister && (

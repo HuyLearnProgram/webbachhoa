@@ -2,6 +2,8 @@ package com.app.webnongsan.util;
 
 import com.app.webnongsan.domain.response.user.ResLoginDTO;
 import com.nimbusds.jose.util.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -20,6 +22,7 @@ import java.util.*;
 
 @Service
 public class SecurityUtil {
+    private static final Logger log = LoggerFactory.getLogger(SecurityUtil.class);
     public static final MacAlgorithm JWT_ALGORITHM = MacAlgorithm.HS512;
     private final JwtEncoder jwtEncoder;
 
@@ -79,7 +82,9 @@ public class SecurityUtil {
             userLogin.setRole(resLoginDTO.getUser().getRole());
         }
 
-        assert resLoginDTO.getUser().getRole() != null;
+        if (resLoginDTO.getUser().getRole() == null) {
+            throw new IllegalStateException("User role không được để trống khi tạo access token");
+        }
         List<String> authorities = List.of("ROLE_" + resLoginDTO.getUser().getRole().getRoleName());
         Map<String, Object> additionalClaims = new HashMap<>();
         additionalClaims.put("user", userLogin);
@@ -132,7 +137,7 @@ public class SecurityUtil {
         try {
             return jwtDecoder.decode(token);
         } catch (Exception e) {
-            System.out.println(">>> Check token error: " + e.getMessage());
+            log.warn(">>> Check token error: {}", e.getMessage());
             throw e;
         }
     }

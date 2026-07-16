@@ -163,14 +163,6 @@ export const apiAddWishList = async (pid) => {
     })
 }
 
-export const apiSetStatusUser = async (user) => {
-    return axiosInstance({
-        url: "/users",
-        method: 'put',
-        data: user
-    });
-};
-
 export const apiUpdateUser = async (user) => {
     return axiosInstance({
         url: "/users",
@@ -178,6 +170,10 @@ export const apiUpdateUser = async (user) => {
         data: user
     });
 };
+
+// Cùng endpoint với apiUpdateUser (BE không tách riêng) — giữ tên riêng ở call site để rõ ý định
+// (khoá/mở khoá tài khoản) thay vì "sửa thông tin" chung chung.
+export const apiSetStatusUser = apiUpdateUser;
 
 // Tạo order
 export const apiCreateOrder = async (formData) => {

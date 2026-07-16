@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ClipLoader } from 'react-spinners';
 import { QuantitySelector } from '@/components';
-import { convertToSlug } from '@/utils/helper';
+import { convertToSlug, resolveImageUrl } from '@/utils/helper';
 import product_default from '@/assets/product_default.png';
 import icons from '@/utils/icons';
 import { getPromotionBadgeLabel, getFreeGiftUnits, getDiscountPercent, getEffectivePrice, getPersonalFlashSaleBadge } from '@/utils/promotion';
@@ -26,7 +26,10 @@ const CartItem = ({
   // 1 update đang debounce cho cùng dòng) — không khoá theo pendingUpdates của TOÀN bộ giỏ hàng,
   // trước đây gán nhầm nên bấm +/- 1 sản phẩm sẽ khoá luôn +/- của mọi sản phẩm khác trong 1.5s.
   const isRemoveDisabled = isItemDeleting || pendingUpdates.has(item.id);
-  
+  const discountPercent = getDiscountPercent(item);
+  const promotionBadgeLabel = getPromotionBadgeLabel(item);
+  const personalFlashSaleBadge = getPersonalFlashSaleBadge(item);
+
   return (
     <div className='grid grid-cols-10 items-center border-b pb-4'>
       <div className={`ml-4 ${item?.stock <= 0 ? 'opacity-50' : ''}`}>
@@ -46,19 +49,13 @@ const CartItem = ({
         className={`col-span-6 flex items-center ${item?.stock <= 0 ? 'opacity-50' : ''}`}
       >
         <img
-          src={
-            item?.imageUrl
-              ? item?.imageUrl.startsWith("https")
-                ? item?.imageUrl
-                : `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${item?.imageUrl}`
-              : product_default
-          }
+          src={resolveImageUrl(item?.imageUrl, "product", product_default)}
           alt={item.productName}
           className="w-20 h-20 object-cover rounded-md mr-4"
         />
         <div className="flex flex-col">
           <h3 className="text-lg truncate hover:underline">{item.productName}</h3>
-          {getDiscountPercent(item) !== null ? (
+          {discountPercent !== null ? (
             <p className="text-sm">
               <span className="text-main">{getEffectivePrice(item).toLocaleString('vi-VN')} đ</span>{' '}
               <span className="text-gray-400 line-through text-xs">{item.price.toLocaleString('vi-VN')} đ</span>
@@ -66,13 +63,13 @@ const CartItem = ({
           ) : (
             <p className="text-sm text-gray-500">{item.price.toLocaleString('vi-VN')} đ</p>
           )}
-          {getPromotionBadgeLabel(item) && (
-            <p className="text-xs text-red-500">{getPromotionBadgeLabel(item)}</p>
+          {promotionBadgeLabel && (
+            <p className="text-xs text-red-500">{promotionBadgeLabel}</p>
           )}
-          {getPersonalFlashSaleBadge(item) && (
+          {personalFlashSaleBadge && (
             <p className="text-xs font-medium text-orange-500 flex items-center gap-1">
               <span className="bg-orange-500 text-white px-1 rounded-sm text-[10px]">FLASH SALE</span>
-              {getPersonalFlashSaleBadge(item)}
+              {personalFlashSaleBadge}
             </p>
           )}
           <p className="text-xs text-gray-500">Có sẵn: {item.stock}</p>
@@ -125,4 +122,4 @@ const CartItem = ({
   );
 };
 
-export default CartItem;
+export default React.memo(CartItem);

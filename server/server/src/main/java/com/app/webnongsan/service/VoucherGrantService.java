@@ -155,7 +155,23 @@ public class VoucherGrantService {
         UserVoucher userVoucher = new UserVoucher();
         userVoucher.setUser(user);
         userVoucher.setVoucher(voucher);
-        userVoucherRepository.save(userVoucher);
+        try {
+            userVoucherRepository.save(userVoucher);
+        } catch (Exception e) {
+            // grantLog (dòng 126) đã commit và voucher (dòng 149) đã tạo — nếu bước gán UserVoucher lỗi,
+            // voucher sẽ mồ côi (không ai sở hữu) và mọi lần thử lại sau sẽ bị chặn ngay từ grantLog unique
+            // constraint (trả null im lặng ở dòng 128), khiến user vĩnh viễn mất suất nhận voucher này.
+            // Dọn voucher mồ côi ngay để tránh rác dữ liệu (không compensate được grantLog — chấp nhận
+            // được vì log chỉ dùng để chống trao trùng, không phải nguồn sự thật hiển thị cho user).
+            log.warn("Không gán được voucher cho user (type={}, user={}, voucherId={}): {}",
+                    type, user.getId(), voucher.getId(), e.getMessage());
+            try {
+                voucherRepository.delete(voucher);
+            } catch (Exception cleanupEx) {
+                log.warn("Không dọn được voucher mồ côi id={}: {}", voucher.getId(), cleanupEx.getMessage());
+            }
+            return null;
+        }
 
         try {
             emailService.sendVoucherGrantedEmail(user.getEmail(), user.getName(), reasonText(type), voucher);

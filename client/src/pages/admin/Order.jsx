@@ -4,7 +4,7 @@ import { apiGetAllOrders, apiUpdateOrderStatus } from "@/apis";
 import { useNavigate, useSearchParams, createSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Table, Button, Dropdown, Select, Input } from "antd";
-import { statusOrder, paymentStatusLabel } from "@/utils/constants";
+import { statusOrder, paymentStatusLabel, getOrderStatusLabel } from "@/utils/constants";
 import icons from "@/utils/icons";
 
 const { FaInfoCircle } = icons;
@@ -155,15 +155,7 @@ const Order = () => {
       render: (order) => (
         <Dropdown menu={{ items: statusMenuItems(order) }} trigger={['click']}>
           <Button className="w-20">
-            {order.status === 0
-              ? 'Pending'
-              : order.status === 1
-                ? 'In Delivery'
-                : order.status === 2
-                  ? 'Succeed'
-                  : order.status === 4
-                    ? 'Returned'
-                    : 'Cancelled'}
+            {getOrderStatusLabel(order.status)}
           </Button>
         </Dropdown>
       ),

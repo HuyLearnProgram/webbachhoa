@@ -5,33 +5,13 @@ import { Tabs, Table, Select, Input, Modal, Radio, message, Button } from "antd"
 import { getUserById, apiGetOrdersByUser, apiGetFeedbacksByUser, apiSetStatusUser } from "@/apis";
 import avatarDefault from "@/assets/avatarDefault.png";
 import { TurnBackHeader } from "@/components/admin";
-import { statusOrder, statusHideOrder, sortFeedbackOrder, lockReasonOptions, OTHER_LOCK_REASON } from "@/utils/constants";
-import { renderStarFromNumber } from "@/utils/helper";
+import { statusOrder, statusHideOrder, sortFeedbackOrder, lockReasonOptions, OTHER_LOCK_REASON, paymentStatusLabelWithClass, getOrderStatusLabel } from "@/utils/constants";
+import { renderStarFromNumber, resolveImageUrl } from "@/utils/helper";
 import icons from "@/utils/icons";
 
 const { FaInfoCircle } = icons;
 
-const getOrderStatusLabel = (status) => {
-  switch (status) {
-    case 0: return "Pending";
-    case 1: return "In Delivery";
-    case 2: return "Succeed";
-    case 3: return "Cancelled";
-    case 4: return "Returned";
-    default: return status;
-  }
-};
-
-const paymentStatusLabel = {
-  UNPAID: { text: "Chưa thanh toán", className: "text-gray-500" },
-  PENDING_PAYMENT: { text: "Chờ thanh toán", className: "text-yellow-600" },
-  PAID: { text: "Đã thanh toán", className: "text-green-600" },
-  PAYMENT_FAILED: { text: "Thanh toán thất bại", className: "text-red-500" },
-  REFUND_PENDING: { text: "Chờ hoàn tiền", className: "text-orange-500" },
-  REFUNDED: { text: "Đã hoàn tiền", className: "text-blue-500" },
-};
-
-const paymentStatusOptions = Object.entries(paymentStatusLabel).map(([value, { text }]) => ({ label: text, value }));
+const paymentStatusOptions = Object.entries(paymentStatusLabelWithClass).map(([value, { text }]) => ({ label: text, value }));
 
 // statusOrder được dùng chung với trang khách (member/History.jsx) nên giữ nguyên constant gốc,
 // chỉ lọc bỏ option giả "Lọc theo trạng thái" ở đây để Select admin dùng placeholder thật.
@@ -91,11 +71,7 @@ function UserDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
 
-  const avatarUrl = user?.avatarUrl
-    ? (user.avatarUrl.startsWith("https")
-      ? user.avatarUrl
-      : `${import.meta.env.VITE_BACKEND_TARGET}/storage/avatar/${user.avatarUrl}`)
-    : avatarDefault;
+  const avatarUrl = resolveImageUrl(user?.avatarUrl, "avatar", avatarDefault);
 
   const totalOrders = orders.length;
   // Chỉ tính đơn đã paymentStatus === 'PAID' (tiền đã thực sự thu được, xác nhận qua verify callback VNPay
@@ -223,7 +199,7 @@ function UserDetail() {
       dataIndex: "paymentStatus",
       key: "paymentStatus",
       render: (paymentStatus) => {
-        const info = paymentStatusLabel[paymentStatus] || { text: paymentStatus || "—", className: "text-gray-500" };
+        const info = paymentStatusLabelWithClass[paymentStatus] || { text: paymentStatus || "—", className: "text-gray-500" };
         return <span className={info.className}>{info.text}</span>;
       },
     },

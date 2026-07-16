@@ -8,11 +8,6 @@ import org.springframework.web.client.RestTemplate;
 
 @Configuration
 public class AppConfig {
-    @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
-    }
-
     // Không có module này, Jackson serialize trực tiếp field @ManyToOne(LAZY) (VD
     // Voucher.applicableCategory, VoucherAutoGrantRule.applicableCategory) sẽ ném "Type definition
     // error: [simple type, class org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor]" bất cứ khi
@@ -43,7 +38,8 @@ public class AppConfig {
 
     // Riêng cho proxy sang Python recommendation-service: timeout ngắn bắt buộc
     // (fail-fast rồi fallback rule-based, không để Home/PDP treo khi Python chết).
-    // Không dùng chung bean restTemplate ở trên vì bean đó không có timeout.
+    // Bean RestTemplate() không timeout dùng chung trước đây đã xoá (chỉ ProductService từng inject,
+    // qua 1 method đã comment-out từ trước) — mọi RestTemplate trong dự án giờ đều có timeout rõ ràng.
     @Bean(name = "recommendationRestTemplate")
     public RestTemplate recommendationRestTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();

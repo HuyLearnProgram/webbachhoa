@@ -78,8 +78,12 @@ class LinUCB:
     def ucb(self, category_id: int, x: np.ndarray) -> float:
         with self._lock:
             a, b, _ = self._get_arm(category_id)
-            theta = np.linalg.solve(a, b)
-            return float(theta @ x + settings.bandit_alpha * math.sqrt(max(x @ np.linalg.solve(a, x), 0.0)))
+            # Gộp 2 lần np.linalg.solve(a, ...) (cho theta và cho bonus term) thành 1 lần solve với
+            # 2 vế phải cùng lúc (chia sẻ chung 1 lần phân rã LU của ma trận a) — kết quả numeric
+            # giống hệt (cùng thuật toán LAPACK gesv bên dưới), chỉ giảm số lần factorize ma trận.
+            sol = np.linalg.solve(a, np.column_stack([b, x]))
+            theta, a_inv_x = sol[:, 0], sol[:, 1]
+            return float(theta @ x + settings.bandit_alpha * math.sqrt(max(x @ a_inv_x, 0.0)))
 
     def select(self, scored_arms: list[tuple[int, np.ndarray]]) -> list[int]:
         """Trả danh sách arm sort theo UCB giảm dần (tie-break random) — caller thử lần
@@ -94,7 +98,11 @@ class LinUCB:
             arm[0] += np.outer(x, x)
             arm[1] += reward * x
             arm[2] += 1
-            a, b, n = arm
+            # .copy() — a/b nếu không copy là alias của arm[0]/arm[1], save_arm() chạy NGOÀI lock nên
+            # 1 update() khác (nếu kiến trúc sau này cho phép chạy đồng thời) có thể mutate in-place
+            # trước khi serialize xong. Hiện tại scheduler chạy max_instances=1 nên an toàn, đây là
+            # phòng vệ cho tương lai, không đổi giá trị số học nào.
+            a, b, n = arm[0].copy(), arm[1].copy(), arm[2]
         state.save_arm(category_id, a, b, n)
 
     def n_arms(self) -> int:

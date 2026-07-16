@@ -1,5 +1,6 @@
 package com.app.webnongsan.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,8 +22,11 @@ public class CartRecoveryDiscount {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // @JsonIgnore — nhất quán với các entity khác, chặn đường lộ User.password/refreshToken nếu code
+    // nào sau này lỡ serialize entity này trực tiếp thay vì qua DTO.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)

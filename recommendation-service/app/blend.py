@@ -3,7 +3,7 @@
 from app.config import settings
 
 
-def _normalize(items: list[tuple[int, float]]) -> list[tuple[int, float]]:
+def normalize_scores(items: list[tuple[int, float]]) -> list[tuple[int, float]]:
     if not items:
         return []
     scores = [s for _, s in items]
@@ -32,7 +32,7 @@ def blend(
         weight = weights.get(name, 0.0)
         if weight <= 0:
             continue
-        for pid, norm_score in _normalize(items):
+        for pid, norm_score in normalize_scores(items):
             if pid in exclude:
                 continue
             contribution = weight * norm_score

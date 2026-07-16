@@ -26,7 +26,12 @@ public class PaymentService {
     private final VoucherGrantService voucherGrantService;
 
     public PaymentDTO.VNPayResponse createVnPayPayment(HttpServletRequest request) throws ResourceInvalidException {
-        long amount = Integer.parseInt(request.getParameter("amount")) * 100L;
+        long amount;
+        try {
+            amount = Integer.parseInt(request.getParameter("amount")) * 100L;
+        } catch (NumberFormatException e) {
+            throw new ResourceInvalidException("Số tiền thanh toán không hợp lệ");
+        }
         String bankCode = request.getParameter("bankCode");
         String orderIdParam = request.getParameter("orderId");
 

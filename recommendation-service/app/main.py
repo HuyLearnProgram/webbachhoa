@@ -7,6 +7,7 @@ Java tự fallback rule-based khi service down/rỗng nên mọi endpoint đư�
 
 import logging
 import math
+import threading
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -137,6 +138,10 @@ def _fetch_interactions(user_id: int | None, session_id: str | None):
         frames = [fetch_df(INTERACTIONS_SQL_USER, {"uid": user_id, **limits})]
         if session_id:
             frames.append(fetch_df(INTERACTIONS_SQL_SESSION, {"sid": session_id, **limits}))
+        # Chỉ 1 frame (guest chưa merge session) — concat 1 phần tử vẫn copy toàn bộ DataFrame không
+        # cần thiết, trả thẳng kèm reset_index để giữ đúng semantics ignore_index=True.
+        if len(frames) == 1:
+            return frames[0].reset_index(drop=True)
         return pd.concat(frames, ignore_index=True)
     if session_id:
         return fetch_df(INTERACTIONS_SQL_SESSION, {"sid": session_id, **limits})
@@ -232,23 +237,27 @@ def retrain():
 
 
 _ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+_env_file_lock = threading.Lock()
 
 
 def _update_env_file(updates: dict[str, str]) -> None:
     """Upsert key=value vào .env — để giá trị đổi runtime (AB_BANDIT_PCT...) sống sót qua restart
     uvicorn thay vì chỉ nằm trong bộ nhớ tiến trình. `.env` đã nằm trong .gitignore của
     recommendation-service nên không lo commit nhầm số liệu chỉnh tay lúc vận hành."""
-    lines = _ENV_PATH.read_text(encoding="utf-8").splitlines() if _ENV_PATH.exists() else []
-    pending = dict(updates)
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or "=" not in stripped:
-            continue
-        key = stripped.split("=", 1)[0].strip()
-        if key in pending:
-            lines[i] = f"{key}={pending.pop(key)}"
-    lines.extend(f"{key}={value}" for key, value in pending.items())
-    _ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # Lock — đây là read-modify-write trên file, không atomic; 2 request POST /internal/ab-config gần
+    # nhau (admin bấm nhanh/retry) có thể làm 1 write bị mất nếu không khoá.
+    with _env_file_lock:
+        lines = _ENV_PATH.read_text(encoding="utf-8").splitlines() if _ENV_PATH.exists() else []
+        pending = dict(updates)
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key = stripped.split("=", 1)[0].strip()
+            if key in pending:
+                lines[i] = f"{key}={pending.pop(key)}"
+        lines.extend(f"{key}={value}" for key, value in pending.items())
+        _ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 @app.post("/internal/ab-config")

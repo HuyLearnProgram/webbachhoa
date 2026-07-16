@@ -8,17 +8,12 @@ export const appSlice = createSlice({
     isLoading: false,
     isShowModal: false,
     modalChildren: null,
-    errorCode: null
   },
   reducers: {
     showModal: (state, action) => {
       state.isShowModal = action.payload.isShowModal
       state.modalChildren = action.payload.modalChildren
     },
-    setErrorCode: (state, action) => {
-      state.errorCode = action.payload.errorCode
-      console.log(state.errorCode)
-    }
   },
   extraReducers: (builder) => {
     builder.addCase(actions.getCategories.pending, (state) => {
@@ -37,6 +32,6 @@ export const appSlice = createSlice({
   },
 });
 
-export const { showModal, setErrorCode } = appSlice.actions
+export const { showModal } = appSlice.actions
 //export reducer = reducer(s) = extrareducers
 export default appSlice.reducer;

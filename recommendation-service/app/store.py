@@ -22,6 +22,9 @@ class ModelArtifacts:
     # Collaborative filtering (Phase 2) — CFModel | None (Any tránh import vòng);
     # None = guard chưa đủ dữ liệu / tắt, mọi nơi dùng phải chịu được None.
     cf: Any = None
+    # pid -> score, tính 1 lần lúc train (thay vì dict(popularity) build lại mỗi request trong
+    # search/rank.py) — cùng dữ liệu với `popularity`, chỉ khác cấu trúc để tra cứu O(1).
+    popularity_lookup: dict[int, float] = field(default_factory=dict)
     # Chu kỳ mua lại ước tính mỗi sản phẩm (ngày) — dùng chung bởi collaborative.py (lúc train)
     # và main._profile_scores (lúc serve) để hãm tín hiệu mua thật ngay sau khi mua.
     repurchase_cycle_days: dict = field(default_factory=dict)

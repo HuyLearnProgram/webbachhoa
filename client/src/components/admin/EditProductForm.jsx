@@ -7,11 +7,9 @@ import { apiUploadImage, apiUpdateProduct2, apiAddProductImage, apiRemoveProduct
 import product_default from "@/assets/product_default.png";
 import { toast } from 'react-toastify';
 import { promotionTypeOptions, PROMOTION_TYPES } from "@/utils/constants";
+import { resolveImageUrl } from "@/utils/helper";
 
-const resolveImageUrl = (imageUrl) =>
-  imageUrl && imageUrl.startsWith('https')
-    ? imageUrl
-    : (imageUrl ? `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${imageUrl}` : product_default);
+const resolveProductImageUrl = (imageUrl) => resolveImageUrl(imageUrl, "product", product_default);
 
 const EditProductForm = ({ initialProductData, onUpdated }) => {
   const {
@@ -32,12 +30,12 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
   const [flashSaleWindow2, setFlashSaleWindow2] = useState(initialProductData?.flashSaleWindow2 ?? true);
 
   const [previewProductImage, setPreviewProductImage] = useState(
-    resolveImageUrl(initialProductData?.imageUrl)
+    resolveProductImageUrl(initialProductData?.imageUrl)
   );
 
   useEffect(() => {
     setProductData(initialProductData);
-    setPreviewProductImage(resolveImageUrl(initialProductData?.imageUrl));
+    setPreviewProductImage(resolveProductImageUrl(initialProductData?.imageUrl));
     // Reset form values with the updated initialProductData
     reset(initialProductData);
     setGalleryImages(initialProductData?.images || []);
@@ -405,7 +403,7 @@ const EditProductForm = ({ initialProductData, onUpdated }) => {
                     {galleryImages.map((img) => (
                       <div key={img.id} className="relative w-20 h-20 border rounded-lg overflow-hidden">
                         <Image
-                          src={resolveImageUrl(img.imageUrl)}
+                          src={resolveProductImageUrl(img.imageUrl)}
                           width={80}
                           height={80}
                           className="object-cover"

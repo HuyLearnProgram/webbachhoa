@@ -277,7 +277,7 @@ const LuckyDrawCampaign = () => {
                             <label>Voucher trao khi trúng (để trống = giải "Trượt")</label>
                             <select className="border p-2 w-full rounded-lg" {...prizeForm.register('voucherAutoGrantRuleId')}>
                                 <option value="">-- Trượt (không trao gì) --</option>
-                                {rules.map((r) => (
+                                {rules.filter((r) => r.autoGrantType === 'LUCKY_DRAW').map((r) => (
                                     <option key={r.id} value={r.id}>{r.codePrefix} ({r.autoGrantType})</option>
                                 ))}
                             </select>

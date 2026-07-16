@@ -27,6 +27,14 @@ logger = logging.getLogger(__name__)
 
 _cache_lock = threading.Lock()
 _cache: dict[int, tuple[float, dict]] = {}  # days -> (fetched_at, report)
+_compute_locks: dict[int, threading.Lock] = {}  # days -> lock riêng, tránh cache stampede
+
+
+def _get_compute_lock(days: int) -> threading.Lock:
+    with _cache_lock:
+        if days not in _compute_locks:
+            _compute_locks[days] = threading.Lock()
+        return _compute_locks[days]
 
 
 def _now() -> datetime:
@@ -218,23 +226,34 @@ def build_report(days: int, art) -> dict:
         if cached and time.time() - cached[0] < settings.metrics_experiment_cache_ttl_s:
             return cached[1]
 
-    cutoff = _now() - timedelta(days=days)
-    report: dict = {"days": days, "generated_at": _now().isoformat(timespec="seconds")}
-    blocks = {
-        "ctr_by_placement_source": lambda: _ctr_by_placement_source(cutoff),
-        "intra_list_diversity": lambda: _intra_list_diversity(cutoff, art),
-        "weekly_entropy": lambda: _weekly_entropy(cutoff),
-        "catalog_coverage_30d": _catalog_coverage_30d,
-        "repeat_no_click_by_category": lambda: _repeat_no_click_by_category(cutoff),
-        "ab_cohorts": lambda: _ab_cohorts(cutoff),
-    }
-    for name, fn in blocks.items():
-        try:
-            report[name] = fn()
-        except Exception:
-            logger.exception("Metrics block %s lỗi — trả null, không giết cả report.", name)
-            report[name] = None
+    # Khoá riêng theo `days` (không phải _cache_lock chung) — request đồng thời CÙNG `days` xếp hàng
+    # chờ nhau thay vì cùng compute lại 6 query nặng (cache stampede khi cache vừa hết TTL); request
+    # KHÁC `days` không bị chặn lẫn nhau vì mỗi `days` có lock riêng.
+    with _get_compute_lock(days):
+        # Double-check: request xếp hàng sau có thể đã được request đầu (giữ lock trước) tính xong và
+        # ghi cache trong lúc chờ — khỏi tính lại.
+        with _cache_lock:
+            cached = _cache.get(days)
+            if cached and time.time() - cached[0] < settings.metrics_experiment_cache_ttl_s:
+                return cached[1]
 
-    with _cache_lock:
-        _cache[days] = (time.time(), report)
-    return report
+        cutoff = _now() - timedelta(days=days)
+        report: dict = {"days": days, "generated_at": _now().isoformat(timespec="seconds")}
+        blocks = {
+            "ctr_by_placement_source": lambda: _ctr_by_placement_source(cutoff),
+            "intra_list_diversity": lambda: _intra_list_diversity(cutoff, art),
+            "weekly_entropy": lambda: _weekly_entropy(cutoff),
+            "catalog_coverage_30d": _catalog_coverage_30d,
+            "repeat_no_click_by_category": lambda: _repeat_no_click_by_category(cutoff),
+            "ab_cohorts": lambda: _ab_cohorts(cutoff),
+        }
+        for name, fn in blocks.items():
+            try:
+                report[name] = fn()
+            except Exception:
+                logger.exception("Metrics block %s lỗi — trả null, không giết cả report.", name)
+                report[name] = None
+
+        with _cache_lock:
+            _cache[days] = (time.time(), report)
+        return report

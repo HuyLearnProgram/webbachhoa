@@ -15,6 +15,7 @@ import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -258,6 +259,9 @@ public class VoucherService {
      * Admin dùng: xoá voucher — chỉ cho HARD DELETE khi voucher CHƯA từng được dùng (usedCount==0
      * và không có Order nào FK tới nó). Ngược lại, hướng dẫn dùng deactivate (PUT isActive=false)
      * thay vì xoá — theo đúng convention soft-delete đã dùng cho Product/User/Category trong dự án.
+     * Voucher này có thể đã được 1 số user tự lưu vào ví (UserVoucher) mà CHƯA AI dùng — usedCount=0
+     * đảm bảo mọi UserVoucher đó đều isUsed=false (không có cách nào isUsed=true mà usedCount không
+     * tăng), nên dọn sạch các dòng ví chưa dùng này rồi mới xoá voucher, không cần chặn lại.
      */
     @Transactional
     public void deleteVoucher(Long id) throws ResourceInvalidException {
@@ -271,6 +275,16 @@ public class VoucherService {
                     "Không thể xoá voucher đã từng được sử dụng — hãy vô hiệu hoá (tắt Đang hoạt động) thay vì xoá");
         }
 
-        voucherRepository.deleteById(id);
+        try {
+            userVoucherRepository.deleteByVoucherId(id);
+            voucherRepository.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            // Guard usedCount/existsByVoucher_Id ở trên đã chặn phần lớn trường hợp, nhưng vẫn giữ lại
+            // catch này cho các ràng buộc FK khác chưa lường hết — tránh lộ message DB kỹ thuật (tên
+            // bảng/cột) thẳng ra response 500 cho client.
+            log.warn("Xoá voucher id={} vi phạm ràng buộc dữ liệu: {}", id, e.getMessage());
+            throw new ResourceInvalidException(
+                    "Không thể xoá voucher này do còn dữ liệu liên quan — hãy vô hiệu hoá thay vì xoá");
+        }
     }
 }

@@ -37,13 +37,24 @@ public class SearchProductDTO {
         this.rating = rating;
     }
 
-    // Dùng cho các query gợi ý (recommendation) — cần thêm quantity để ProductCard biết còn hàng hay không
+    // Dùng cho các query gợi ý (recommendation) — cần thêm quantity để ProductCard biết còn hàng hay không.
+    // Set trực tiếp từng field (không delegate rồi patch thêm) — tránh im lặng lệch field nếu constructor
+    // 11-arg bên dưới đổi thứ tự/tập field sau này.
     public SearchProductDTO(long id, String product_name, double price, String imageUrl, String category, double rating,
                             Double discountPrice, String promotionType, Integer promoBuyQuantity, Integer promoFreeQuantity,
                             Integer promoBundleQuantity, Double promoBundlePrice, Integer quantity) {
-        this(id, product_name, price, imageUrl, category, discountPrice, promotionType,
-                promoBuyQuantity, promoFreeQuantity, promoBundleQuantity, promoBundlePrice);
+        this.id = id;
+        this.product_name = product_name;
+        this.price = price;
+        this.imageUrl = imageUrl;
+        this.category = category;
         this.rating = rating;
+        this.discountPrice = discountPrice;
+        this.promotionType = promotionType;
+        this.promoBuyQuantity = promoBuyQuantity;
+        this.promoFreeQuantity = promoFreeQuantity;
+        this.promoBundleQuantity = promoBundleQuantity;
+        this.promoBundlePrice = promoBundlePrice;
         this.quantity = quantity;
     }
 

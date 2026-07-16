@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import product_default from '@/assets/product_default.png';
-import { convertToSlug } from '@/utils/helper';
+import { convertToSlug, resolveImageUrl } from '@/utils/helper';
 
 // Layout hàng ngang giống hệt WishlistItem.jsx — dùng cho trang "Sản phẩm đã xem" để đồng nhất
 // format hiển thị với trang Wishlist (danh sách từ trên xuống thay vì lưới ProductCard).
@@ -13,13 +13,7 @@ const RecentlyViewedItem = ({ item }) => {
                 className={`flex items-center flex-1 ${item.quantity <= 0 ? 'opacity-50' : ''}`}
             >
                 <img
-                    src={
-                        item.imageUrl
-                            ? (item.imageUrl.startsWith('https')
-                                ? item.imageUrl
-                                : `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${item.imageUrl}`)
-                            : product_default
-                    }
+                    src={resolveImageUrl(item.imageUrl, 'product', product_default)}
                     alt={item.product_name}
                     className="w-20 h-20 object-cover rounded-md mr-4"
                 />

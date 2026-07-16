@@ -7,10 +7,12 @@ import product_default from '@/assets/product_default.png';
 import { createSearchParams, useNavigate, useSearchParams } from "react-router-dom";
 import { statusOrder } from "@/utils/constants";
 import withBaseComponent from "@/hocs/withBaseComponent"
-import { FaEye } from "react-icons/fa6";
 import { showModal } from "@/store/app/appSlice";
-import { convertToSlug } from "@/utils/helper";
+import { convertToSlug, resolveImageUrl } from "@/utils/helper";
 import { getOrderLinePromotionLabel, hasOrderLineDiscount } from "@/utils/promotion";
+import icons from "@/utils/icons";
+
+const { FaEye } = icons;
 
 
 const History = ({ navigate, location }) => {
@@ -31,7 +33,6 @@ const History = ({ navigate, location }) => {
             response = await apiGetOrders({ page });
             setPaginate(response.data?.meta);
             setCurrentPage(page);
-            console.log(response.data)
         } else if (!isNaN(+status?.status)) {
             response = await apiGetOrders({ page, status: status?.status });
             setPaginate(response.data?.meta);
@@ -62,22 +63,13 @@ const History = ({ navigate, location }) => {
         })
     }
     const handleViewDetail = (oid,pid)=>{
-        console.log(oid,pid)
-        if (!isLoggedIn) {
-            Modal.confirm({
-                title: "Oops!",
-                content: "Đăng nhập trước xem",
-                okText: "Đăng nhập",
-                cancelText: "Hủy",
-                onOk: () => navigate(`/${path.LOGIN}`)
-            });
-        } else {
-            const order = ordersPage.filter(order => order?.orderId === oid);
-            dispatch(showModal({
-                isShowModal: true,
-                modalChildren: <OrderCard data={order} onClose={() => dispatch(showModal({ isShowModal: false }))} updateOrderStatus={updateOrderStatus}/>
-            }));
-        }
+        // MemberLayout đã redirect /login khi !isLoggedIn nên trang này không thể mount ở trạng thái
+        // chưa đăng nhập — không cần nhánh dự phòng riêng (trước đây gọi Modal/path chưa import, dead code).
+        const order = ordersPage.filter(order => order?.orderId === oid);
+        dispatch(showModal({
+            isShowModal: true,
+            modalChildren: <OrderCard data={order} onClose={() => dispatch(showModal({ isShowModal: false }))} updateOrderStatus={updateOrderStatus}/>
+        }));
     }
     // Đơn cũ tạo trước khi có snapshot khuyến mãi có lineTotal = 0 (giá trị DEFAULT của cột mới thêm),
     // không phải null/undefined nên "??" không fallback được -> coi luôn giá trị falsy (0) là "chưa có snapshot".
@@ -128,7 +120,7 @@ const History = ({ navigate, location }) => {
                         <tbody className="divide-y divide-gray-200">
                             {ordersPage?.map((order, index) => (
                                 <tr
-                                    key={order.productId + "-" + index}
+                                    key={`${order.orderId}-${order.productId}`}
                                     className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-100 transition-colors duration-200`}
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -144,16 +136,7 @@ const History = ({ navigate, location }) => {
                                             <div className="flex-shrink-0 h-10 w-10">
                                                 <img
                                                     className="h-10 w-10 rounded-full object-cover"
-                                                    // src={order?.imageUrl || product_default}
-                                                    src={
-                                                        order?.imageUrl
-                                                          ? order?.imageUrl.startsWith("https")
-                                                            ? order?.imageUrl
-                                                            : `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${
-                                                                order?.imageUrl
-                                                              }`
-                                                          : product_default
-                                                      }
+                                                    src={resolveImageUrl(order?.imageUrl, "product", product_default)}
                                                     alt={order.productName}
                                                 />
                                             </div>

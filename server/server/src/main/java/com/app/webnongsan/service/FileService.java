@@ -1,5 +1,7 @@
 package com.app.webnongsan.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,6 +19,8 @@ import java.nio.file.StandardCopyOption;
 
 @Service
 public class FileService {
+    private static final Logger log = LoggerFactory.getLogger(FileService.class);
+
     @Value("${upload-file.base-uri}")
     private String basePath;  // Không dùng từ URI nữa
 
@@ -27,12 +31,12 @@ public class FileService {
         if (!tmpDir.isDirectory()) {
             try {
                 Files.createDirectory(tmpDir.toPath());
-                System.out.println(">>> CREATE NEW DIRECTORY SUCCESSFUL, PATH = " + tmpDir.toPath());
+                log.info(">>> CREATE NEW DIRECTORY SUCCESSFUL, PATH = {}", tmpDir.toPath());
             } catch (IOException e) {
-                e.printStackTrace();
-            }   
+                log.error(">>> CREATE NEW DIRECTORY FAILED, PATH = {}", tmpDir.toPath(), e);
+            }
         } else {
-            System.out.println(">>> SKIP MAKING DIRECTORY, ALREADY EXISTS");
+            log.debug(">>> SKIP MAKING DIRECTORY, ALREADY EXISTS");
         }
     }
 

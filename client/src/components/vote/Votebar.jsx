@@ -1,5 +1,8 @@
 import React, { useRef, useEffect } from "react"
-import { AiFillStar } from "react-icons/ai"
+import icons from '@/utils/icons';
+
+const { AiFillStar } = icons;
+
 const Votebar = ({ number, ratingCount, ratingTotal }) => {
     const percentRef = useRef()
     useEffect(() => {

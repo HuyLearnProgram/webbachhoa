@@ -1,7 +1,6 @@
 package com.app.webnongsan.domain.response.order;
 
 import jakarta.persistence.Transient;
-import lombok.AllArgsConstructor;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,7 +11,6 @@ import java.time.Instant;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class OrderDetailDTO {
     private long productId;
     private String productName;

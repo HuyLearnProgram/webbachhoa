@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { formatMoney, renderStarFromNumber, convertToSlug } from "@/utils/helper";
+import { formatMoney, renderStarFromNumber, convertToSlug, resolveImageUrl } from "@/utils/helper";
 import { SelectOption } from "..";
 import icons from "@/utils/icons";
 import withBaseComponent from "@/hocs/withBaseComponent";
@@ -87,6 +87,10 @@ const ProductCard = ({ productData, navigate, dispatch, viewSource, referrerProd
       ? 'border border-amber-200/70 shadow-sm'
       : 'border';
 
+  const effectivePrice = getEffectivePrice(productData);
+  const discountPercent = getDiscountPercent(productData);
+  const promotionBadgeLabel = getPromotionBadgeLabel(productData);
+
   return (
     <div className="w-full h-auto text-base px-[10px]">
       <div
@@ -142,15 +146,8 @@ const ProductCard = ({ productData, navigate, dispatch, viewSource, referrerProd
 
           <div className="aspect-w-1 aspect-h-1">
             <img
-              // src={productData?.imageUrl || product_default}
               src={
-                productData?.imageUrl
-                  ? productData.imageUrl.startsWith("https")
-                    ? productData.imageUrl
-                    : `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${
-                      productData.imageUrl
-                      }`
-                  : product_default
+                resolveImageUrl(productData?.imageUrl, "product", product_default)
               }
               alt=""
               className={`object-cover w-full ${compact ? 'h-28' : 'h-40'}`}
@@ -164,22 +161,22 @@ const ProductCard = ({ productData, navigate, dispatch, viewSource, referrerProd
             {renderStarFromNumber(productData?.rating)}
           </span>
           <span className="text-main whitespace-nowrap">
-            {formatMoney(getEffectivePrice(productData))} &#8363;
+            {formatMoney(effectivePrice)} &#8363;
           </span>
           <span className="flex items-center gap-1 h-4 leading-4 whitespace-nowrap">
-            {getDiscountPercent(productData) !== null && (
+            {discountPercent !== null && (
               <>
                 <span className="text-gray-400 line-through text-xs">
                   {formatMoney(productData.price)} &#8363;
                 </span>
                 <span className="text-xs text-red-500 bg-red-50 px-1 rounded">
-                  -{getDiscountPercent(productData)}%
+                  -{discountPercent}%
                 </span>
               </>
             )}
           </span>
           <span className="text-xs text-red-500 h-4 leading-4 line-clamp-1">
-            {getPromotionBadgeLabel(productData)}
+            {promotionBadgeLabel}
           </span>
         </div>
       </div>

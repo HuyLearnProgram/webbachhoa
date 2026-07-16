@@ -7,6 +7,7 @@ import { apiUpdateUser } from "@/apis";
 import avatarDefault from "@/assets/avatarDefault.png";
 import { toast } from "react-toastify";
 import { lockReasonOptions, OTHER_LOCK_REASON } from "@/utils/constants";
+import { resolveImageUrl } from "@/utils/helper";
 
 function EditUserForm({ initialUserData }) {
   const { current } = useSelector((state) => state.user);
@@ -21,11 +22,7 @@ function EditUserForm({ initialUserData }) {
   const [selectedReason, setSelectedReason] = useState(null);
   const [customReason, setCustomReason] = useState("");
 
-  const avatarUrl = initialUserData?.avatarUrl
-    ? (initialUserData.avatarUrl.startsWith("https")
-      ? initialUserData.avatarUrl
-      : `${import.meta.env.VITE_BACKEND_TARGET}/storage/avatar/${initialUserData.avatarUrl}`)
-    : avatarDefault;
+  const avatarUrl = resolveImageUrl(initialUserData?.avatarUrl, "avatar", avatarDefault);
 
   const submitUpdate = async (data, lockReason) => {
     const userToUpdate = {

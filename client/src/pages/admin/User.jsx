@@ -6,6 +6,7 @@ import { apiGetAllUser, apiSetStatusUser } from "@/apis";
 import avatarDefault from "@/assets/avatarDefault.png";
 import { MdModeEdit } from "react-icons/md";
 import { statusUserOption, lockReasonOptions, OTHER_LOCK_REASON } from "@/utils/constants";
+import { stripDiacritics } from "@/utils/helper";
 import icons from "@/utils/icons";
 
 const { FaInfoCircle } = icons;
@@ -51,7 +52,7 @@ const User = () => {
 
   useEffect(() => {
     const filters = [];
-    if (search) filters.push(`name~'${search}'`);
+    if (search) filters.push(`name~'${stripDiacritics(search)}'`);
     if (status) filters.push(`status=${status}`);
 
     const queries = { page: currentPage, size: USER_PER_PAGE, filter: filters };

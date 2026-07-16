@@ -3,9 +3,11 @@ import avatar from '@/assets/avatarDefault.png'
 import { memberSidebar } from '@/utils/constants';
 import { NavLink } from "react-router-dom";
 import clsx from "clsx";
-import { AiOutlineCaretDown, AiOutlineCaretRight } from "react-icons/ai";
 import { useSelector } from "react-redux";
 import { getUserById } from "@/apis";
+import icons from '@/utils/icons';
+
+const { AiOutlineCaretDown, AiOutlineCaretRight } = icons;
 
 const activedStyle = 'px-4 py-2 flex items-center gap-2 text-white  bg-[#10B981]'
 const notActivedStyle = 'px-4 py-2 flex items-center gap-2 hover:bg-green-100'

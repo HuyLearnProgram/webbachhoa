@@ -79,9 +79,9 @@ public class OrderController {
         return ResponseEntity.ok(this.orderService.findOrder(orderId));
     }
 
-    @GetMapping("updateOrderStatus/{orderId}")
+    @PutMapping("updateOrderStatus/{orderId}")
     @ApiMessage("Update order status")
-    public ResponseEntity<RestResponse<OrderDTO>> updateOrderStatus(
+    public ResponseEntity<?> updateOrderStatus(
             @PathVariable Long orderId,
             @RequestParam("status") int status) {
 
@@ -151,11 +151,10 @@ public class OrderController {
             dto.setOrderTime(order.getOrderTime());
             dto.setDeliveryTime(order.getDeliveryTime());
 
-            response.setData(dto);
-            response.setStatusCode(HttpStatus.OK.value());
-            response.setMessage("Cập nhật trạng thái đơn hàng thành công");
-
-            return ResponseEntity.ok(response);
+            // Không tự bọc RestResponse ở đây - FormatResponse (ResponseBodyAdvice toàn cục) đã tự bọc
+            // mọi response thành công, tự tay bọc thêm ở đây khiến "data" bị lồng 2 lớp phía client
+            // (đúng pattern đã áp dụng ở checkout() — xem comment tương tự tại đó).
+            return ResponseEntity.ok(dto);
 
         } catch (ResourceInvalidException e) {
             response.setStatusCode(HttpStatus.BAD_REQUEST.value());

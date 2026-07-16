@@ -22,7 +22,8 @@ export const setFlashSaleWindowsConfig = (config) => {
 
 const getFlashSaleWindows = () => flashSaleWindowsOverride || DEFAULT_FLASH_SALE_WINDOWS;
 
-const toMinutes = (hhmm) => {
+export const toMinutes = (hhmm) => {
+  if (!hhmm) return null;
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
 };

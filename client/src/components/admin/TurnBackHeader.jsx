@@ -1,6 +1,8 @@
 import React from 'react'
-import { HiArrowLeft } from "react-icons/hi2";
 import { useNavigate } from 'react-router-dom';
+import icons from '@/utils/icons';
+
+const { HiArrowLeft } = icons;
 
 function TurnBackHeader({ turnBackPage, header }) {
     const navigate = useNavigate();

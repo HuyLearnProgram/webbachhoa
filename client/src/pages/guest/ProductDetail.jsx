@@ -19,13 +19,11 @@ import { toast } from 'react-toastify';
 import icons from '@/utils/icons';
 import { getCurrentUser } from '@/store/user/asyncActions';
 import { getFreeGiftUnits, getMaxOrderableQuantity, getDiscountPercent, getEffectivePrice, getActiveFlashSaleWindowEnd } from '@/utils/promotion';
+import { resolveImageUrl } from '@/utils/helper';
 
 const { FaHeart } = icons
 
-const resolveProductImage = (imageUrl) =>
-  imageUrl && imageUrl.startsWith('https')
-    ? imageUrl
-    : (imageUrl ? `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${imageUrl}` : product_default);
+const resolveProductImage = (imageUrl) => resolveImageUrl(imageUrl, 'product', product_default);
 
 // Badge + đếm ngược "FLASH SALE" — chỉ hiện khi sản phẩm ĐANG thực sự trong khung giờ Flash Sale
 // (không phải chỉ isFlashSale=true, vì ngoài khung giờ thì giá đã tự về giá thường rồi).
@@ -70,7 +68,6 @@ const ProductDetail = ({ isQuickView, data }) => {
   const params = useParams();
   const [product, setProduct] = useState(null);
   const [paginate, setPaginate] = useState(null)
-  const [feedbacksPage, setFeedbacksPage] = useState(null)
   const [feedbacks, setFeedbacks] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [update, setUpdate] = useState(false)
@@ -135,7 +132,7 @@ const ProductDetail = ({ isQuickView, data }) => {
     const response = await apiGetRatingsPage(pid, { page, size: 5 });
     if (response.statusCode === 200) {
       setFeedbacks(response.data?.result);
-      setFeedbacksPage(response.data?.result); // Có thể bỏ qua nếu không cần
+      setPaginate(response.data?.meta);
       setCurrentPage(page);
     }
   };
@@ -146,21 +143,25 @@ const ProductDetail = ({ isQuickView, data }) => {
     }
   };
 
+  // Dữ liệu sản phẩm + gợi ý AI chỉ phụ thuộc pid — không cần gọi lại khi khách chuyển trang đánh giá
+  // hay vừa vote xong (trước đây gộp chung 1 effect với fetchFeedbacksData nên bị fetch lại thừa).
   useEffect(() => {
     const fetchData = async () => {
       if (pid) {
         logProductView();
         await fetchProductData();
         await fetchRecommended();
-
-        // Chỉ gọi fetchFeedbacksData nếu không ở chế độ Quick View
-        if (!isQuickView) {
-          await fetchFeedbacksData(currentPage);
-        }
       }
     };
-  
+
     fetchData();
+  }, [pid])
+
+  useEffect(() => {
+    // Chỉ gọi fetchFeedbacksData nếu không ở chế độ Quick View
+    if (pid && !isQuickView) {
+      fetchFeedbacksData(currentPage);
+    }
   }, [pid, currentPage, update, isQuickView])
 
   useEffect(() => {
@@ -245,6 +246,7 @@ const ProductDetail = ({ isQuickView, data }) => {
     });
   };
 
+  const thumbnails = [product?.imageUrl, ...(product?.images?.map(img => img.imageUrl) || [])].filter(Boolean);
 
   return (
     <div className='w-full' onClick={e => e.stopPropagation()}>
@@ -269,11 +271,9 @@ const ProductDetail = ({ isQuickView, data }) => {
               </div>
             </div>
           </div>
-          {[product?.imageUrl, ...(product?.images?.map(img => img.imageUrl) || [])]
-            .filter(Boolean).length > 1 && (
+          {thumbnails.length > 1 && (
             <div className='flex gap-2 px-2'>
-              {[product?.imageUrl, ...(product?.images?.map(img => img.imageUrl) || [])]
-                .filter(Boolean)
+              {thumbnails
                 .map((url, index) => (
                   <img
                     key={index}
@@ -376,7 +376,7 @@ const ProductDetail = ({ isQuickView, data }) => {
               <Button handleOnClick={handleVoteNow}>Đánh giá ngay</Button>
             </div>
             <div className='flex flex-col gap-4'>
-              {feedbacksPage?.map((el, index) => (
+              {feedbacks?.map((el, index) => (
                 <Comment key={index} ratingStar={el.ratingStar} content={el.description}
                   updatedAt={el.updatedAt} name={el.userName} 
                   image={el?.userAvatarUrl != null && el?.userAvatarUrl?.includes('http') ? 

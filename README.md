@@ -251,7 +251,7 @@ docker pull huyprogram/webnongsan-frontend:0.0.1
 
 ### Trang quản lý người dùng (Admin):
 ![ma_user](./screenshots/ma_user.png)
-![ma_user_detail](./screenshots/ma_user_detail.png)
+![ma_user_detail](./screenshots/ma_user_detail1.png)
 ![ma_user_detail - Chi tiết chi tiêu](./screenshots/ma_user_detail2.png)
 ![ma_user_edit](./screenshots/ma_user_edit.png)
 

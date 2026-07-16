@@ -126,7 +126,9 @@ class _Encoder:
             (hidden,) = self._onnx_session.run(["last_hidden_state"], feed)
             m = mask[:, :, None].astype(np.float32)
             emb = (hidden * m).sum(axis=1) / np.clip(m.sum(axis=1), 1e-9, None)
-            out.append(emb / np.linalg.norm(emb, axis=1, keepdims=True))
+            # Guard chia-cho-0: vector toàn số 0 (text rỗng/tokenizer trả toàn padding) sẽ có norm=0,
+            # np.clip tránh NaN lan truyền âm thầm vào cosine similarity ở tầng rank.py.
+            out.append(emb / np.clip(np.linalg.norm(emb, axis=1, keepdims=True), 1e-9, None))
         return np.concatenate(out, axis=0).astype(np.float32)
 
     def encode_passages(self, texts: list[str]) -> np.ndarray:

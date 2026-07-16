@@ -14,6 +14,7 @@ import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import icons from '@/utils/icons';
 import category_default from '@/assets/category_default.png';
+import { resolveImageUrl } from '@/utils/helper';
 
 const { FaFilter } = icons;
 
@@ -29,10 +30,7 @@ const override = {
   margin: "0 auto",
 };
 
-const resolveCategoryImage = (imageUrl) =>
-  imageUrl
-    ? (imageUrl.startsWith('https') ? imageUrl : `${import.meta.env.VITE_BACKEND_TARGET}/storage/category/${imageUrl}`)
-    : category_default;
+const resolveCategoryImage = (imageUrl) => resolveImageUrl(imageUrl, 'category', category_default);
 
 const RATING_OPTIONS = [5, 4, 3, 2, 1];
 
@@ -211,8 +209,12 @@ const Product = () => {
       baseFilters.push(`price >= ${priceRange[0]} and price <= ${priceRange[1]}`);
     }
 
-    if (sortOption) {
-      const [sortField, sortDirection] = sortOption.split('-');
+    // Đọc trực tiếp từ params (không dùng state sortOption) — tránh double-fetch khi vào thẳng URL có
+    // ?sort=: state sortOption chỉ đồng bộ ở effect riêng (dòng dưới), 1 nhịp render sau params đổi,
+    // nên nếu effect này phụ thuộc sortOption sẽ fetch 2 lần (lần đầu thiếu sort, lần 2 mới đúng).
+    const sortValue = params.get('sort') || '';
+    if (sortValue) {
+      const [sortField, sortDirection] = sortValue.split('-');
       base.sort = `${sortField},${sortDirection}`;
     }
 
@@ -232,7 +234,7 @@ const Product = () => {
     const queries = { ...base };
     if (baseFilters.length > 0) queries.filter = encodeURIComponent(baseFilters.join(' and '));
     fetchProducts(queries);
-  }, [params, sortOption, navigate]);
+  }, [params, navigate]);
 
   useEffect(() => {
     if (!isProductLoading && !error && products?.result?.length > 0) {

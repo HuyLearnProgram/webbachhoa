@@ -1,12 +1,9 @@
 import React from "react";
 import { PROMOTION_TYPES } from "@/utils/constants";
-import { formatMoney } from "@/utils/helper";
+import { formatMoney, resolveImageUrl } from "@/utils/helper";
 import product_default from "@/assets/product_default.png";
 
-const resolveProductImage = (imageUrl) =>
-  imageUrl && imageUrl.startsWith("https")
-    ? imageUrl
-    : (imageUrl ? `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${imageUrl}` : product_default);
+const resolveProductImage = (imageUrl) => resolveImageUrl(imageUrl, "product", product_default);
 
 // Box "🔥 ƯU ĐÃI ĐẶC BIỆT" cho khuyến mãi Mua X tặng Y / Mua N giá cố định — loại giảm giá (PRICE_DISCOUNT)
 // đã có badge % riêng ở nơi khác nên không hiện box này.

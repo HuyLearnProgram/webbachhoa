@@ -45,6 +45,14 @@ def _explore_positions(k: int, n_items: int) -> list[int]:
         except ValueError:
             continue
         positions.append(min(pos, max(n_items - 1, 0)))
+    if not positions:
+        # Toàn bộ entry trong bandit_explore_positions parse lỗi (VD gõ nhầm "2_7" thay vì "2,7") —
+        # explore bị tắt HOÀN TOÀN từ đây trở đi mà không có dấu hiệu gì khác (bandit_enabled vẫn
+        # True trên dashboard), dễ đánh lừa người vận hành tưởng bandit vẫn chạy bình thường.
+        logger.warning(
+            "bandit_explore_positions='%s' không parse được vị trí nào hợp lệ — explore đang bị tắt.",
+            settings.bandit_explore_positions,
+        )
     return sorted(set(positions))
 
 

@@ -46,13 +46,15 @@ def mmr_rerank(
     selected: list[tuple[int, float, str]] = []
     remaining = list(pool)
     while remaining and len(selected) < k:
-        best, best_val = None, -math.inf
-        for cand in remaining:
+        best_idx, best, best_val = None, None, -math.inf
+        for idx, cand in enumerate(remaining):
             pid, rel, _ = cand
             max_sim = max((_pair_sim(pid, s[0], art) for s in selected), default=0.0)
             val = lam * rel - (1 - lam) * max_sim
             if val > best_val:
-                best, best_val = cand, val
+                best_idx, best, best_val = idx, cand, val
         selected.append(best)
-        remaining.remove(best)
+        # pop(idx) thay remove(best) — tránh quét lại toàn bộ remaining lần 2 để tìm lại đúng phần tử
+        # bằng so sánh equality (tuple có float) khi đã biết sẵn vị trí từ vòng lặp trên.
+        remaining.pop(best_idx)
     return selected

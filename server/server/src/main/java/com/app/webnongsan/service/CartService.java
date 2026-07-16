@@ -15,6 +15,8 @@ import com.app.webnongsan.util.PaginationHelper;
 import com.app.webnongsan.util.SecurityUtil;
 import com.app.webnongsan.util.exception.ResourceInvalidException;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,8 @@ import java.util.Optional;
 @Service
 @AllArgsConstructor
 public class CartService {
+    private static final Logger log = LoggerFactory.getLogger(CartService.class);
+
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
@@ -43,7 +47,7 @@ public class CartService {
             event.setQuantity(quantity);
             this.cartEventRepository.save(event);
         } catch (Exception e) {
-            System.out.println(">>> Cart event log error: " + e.getMessage());
+            log.warn(">>> Cart event log error: {}", e.getMessage());
         }
     }
 
@@ -119,14 +123,14 @@ public class CartService {
         return this.paginationHelper.fetchAllEntities(cartItems);
     }
 
-    public List<CartItemDTO> getCartItemsByProductIds(List<Long> productIds, Pageable pageable) throws ResourceInvalidException{
+    public List<CartItemDTO> getCartItemsByProductIds(List<Long> productIds) throws ResourceInvalidException{
         String email = SecurityUtil.getCurrentUserLogin().isPresent() ? SecurityUtil.getCurrentUserLogin().get() : "";
         User user = this.userRepository.findByEmail(email);
 
         if (user == null) {
             throw new ResourceInvalidException("User không tồn tại");
         }
-        List<CartItemDTO> items = this.cartRepository.findCartItemsByUserIdAndProductId(user.getId(),productIds, pageable);
+        List<CartItemDTO> items = this.cartRepository.findCartItemsByUserIdAndProductId(user.getId(),productIds);
         items.forEach(item -> enrichPersonalDiscount(item, user.getId()));
         return items;
     }

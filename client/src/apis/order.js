@@ -50,6 +50,7 @@ export const apiGetMonthlyRevenue = async (month, year) =>
 export const apiUpdateOrderStatus = async (orderId, status) =>
     axiosInstance({
         url: `updateOrderStatus/${orderId}`,
+        method: 'put',
         params: { status: status },
     })
 

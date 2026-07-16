@@ -1,6 +1,6 @@
-import { FaPhone, FaCartShopping } from "react-icons/fa6";
+import { FaPhone, FaCartShopping, FaClock, FaX } from "react-icons/fa6";
 import { MdEmail, MdOutlineBlock, MdOutlineTimer } from "react-icons/md";
-import { GrNext } from "react-icons/gr";
+import { GrNext, GrStatusCritical, GrStatusCriticalSmall } from "react-icons/gr";
 import { SiAdguard } from "react-icons/si";
 import { GiReturnArrow } from "react-icons/gi";
 import {
@@ -18,6 +18,9 @@ import {
 } from "react-icons/fa";
 import { IoMenu, IoLogOutOutline, IoTrashBinOutline } from "react-icons/io5";
 import { TbInfoTriangle, TbPin, TbPinnedOff } from "react-icons/tb";
+import { HiArrowLeft } from "react-icons/hi2";
+import { AiFillStar, AiOutlineCaretDown, AiOutlineCaretRight } from "react-icons/ai";
+import { BiDotsHorizontalRounded } from "react-icons/bi";
 
 const icons = {
   FaPhone,
@@ -45,7 +48,16 @@ const icons = {
   MdOutlineBlock,
   MdOutlineTimer,
   FaFilter,
-  FaSearch
+  FaSearch,
+  HiArrowLeft,
+  AiFillStar,
+  AiOutlineCaretDown,
+  AiOutlineCaretRight,
+  FaClock,
+  FaX,
+  GrStatusCritical,
+  GrStatusCriticalSmall,
+  BiDotsHorizontalRounded
 };
 
 export default icons;

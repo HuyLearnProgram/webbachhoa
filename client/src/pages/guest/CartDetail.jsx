@@ -217,8 +217,10 @@ const Cart = ({ dispatch }) => {
   };
 
   const removeItem = (pid) => {
-    // Kiểm tra nếu có bất kỳ cập nhật nào đang pending
-    if (pendingUpdates.size > 0) return;
+    // Chỉ chặn xoá nếu ĐÚNG item này đang có cập nhật số lượng pending — trước đây check
+    // pendingUpdates.size > 0 (bất kỳ item nào trong giỏ) sẽ khoá nhầm nút xoá của TOÀN BỘ giỏ hàng
+    // chỉ vì 1 item khác đang debounce cập nhật số lượng.
+    if (pendingUpdates.has(pid)) return;
     
     setLoadingDeletes(prev => new Set(prev).add(pid));
     setTimeout(() => {

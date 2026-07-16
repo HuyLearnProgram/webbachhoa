@@ -13,8 +13,6 @@ class Settings(BaseSettings):
     top_k_neighbors: int = 50
     mmr_lambda: float = 0.7  # λ mặc định (guest / không history)
     mmr_lambda_min: float = 0.4
-    # Deprecated từ Phase 2 — thay bằng profile_tau_view_h (giữ để .env cũ không vỡ).
-    time_decay_tau_h: float = 72.0
 
     # Co-purchase (chạy "im lặng" tới khi đủ dữ liệu)
     copurchase_window_days: int = 180

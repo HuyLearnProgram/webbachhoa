@@ -1,10 +1,8 @@
 import React from "react";
 import product_default from "@/assets/product_default.png";
+import { resolveImageUrl } from "@/utils/helper";
 
-const resolveProductImage = (imageUrl) =>
-  imageUrl && imageUrl.startsWith("https")
-    ? imageUrl
-    : (imageUrl ? `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${imageUrl}` : product_default);
+const resolveProductImage = (imageUrl) => resolveImageUrl(imageUrl, "product", product_default);
 
 // gifts: [{ item: CartItemDTO, freeUnits: number }]
 const GiftDetailModal = ({ gifts, onClose }) => {

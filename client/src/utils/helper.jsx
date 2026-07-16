@@ -1,9 +1,19 @@
 import icons from "./icons";
 import { useMemo } from "react";
-import { BiDotsHorizontalRounded } from "react-icons/bi";
-const { FaRegStar, FaStar } = icons;
+const { FaRegStar, FaStar, BiDotsHorizontalRounded } = icons;
 
 export const formatMoney = (money) => Number(money?.toFixed(1)).toLocaleString();
+
+// URL đầy đủ của 1 ảnh lưu ở backend storage — ảnh ngoài (VD Cloudinary, đã là https) giữ nguyên,
+// ảnh nội bộ ghép với VITE_BACKEND_TARGET + folder (product|category|avatar). Trả `fallback`
+// (thường là ảnh mặc định import sẵn) khi không có imageUrl — dùng chung thay vì lặp lại pattern
+// `imageUrl ? (startsWith('https') ? imageUrl : ...) : fallback` ở nhiều nơi.
+export const resolveImageUrl = (imageUrl, folder, fallback = null) => {
+  if (!imageUrl) return fallback;
+  return imageUrl.startsWith("https")
+    ? imageUrl
+    : `${import.meta.env.VITE_BACKEND_TARGET}/storage/${folder}/${imageUrl}`;
+};
 
 export const downloadBlob = (blob, filename) => {
   const url = window.URL.createObjectURL(blob);

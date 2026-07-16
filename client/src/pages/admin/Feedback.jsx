@@ -7,7 +7,6 @@ import { useSearchParams } from "react-router-dom";
 import { sortFeedbackOrder, statusHideOrder } from "@/utils/constants";
 import withBaseComponent from "@/hocs/withBaseComponent";
 import icons from "@/utils/icons";
-import { getCurrentUser } from "@/store/user/asyncActions";
 import { FeedbackCard } from "@/components";
 import path from "@/utils/path";
 
@@ -18,7 +17,6 @@ const Feedback = ({ navigate, location }) => {
     const [paginate, setPaginate] = useState(null);
     const [feedbacksPage, setFeedbacksPage] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
-    const [paramPage, SetParamPage] = useState();
     const dispatch = useDispatch();
     const { current } = useSelector(state => state.user);
     const [params, setParams] = useSearchParams();
@@ -31,8 +29,7 @@ const Feedback = ({ navigate, location }) => {
         setSearchTerm(search || "");
     }, [search]);
 
-    const fetchRatings = async (page = 1, safParam = {}) => {
-        const { status, sort, search } = safParam;
+    const fetchRatings = async (page = 1) => {
         const queryParams = { page };
         if (status !== undefined && status !== null && status !== "") queryParams.status = status;
         if (sort && sort !== "product_name") queryParams.sort = sort;
@@ -55,17 +52,16 @@ const Feedback = ({ navigate, location }) => {
         }
     }
 
+    // Gộp về 1 effect duy nhất (trước đây tách riêng [current, currentPage] và [params] cùng fire lúc
+    // mount gây double-fetch; effect [params] còn fetch cứng page 1 mà không đồng bộ currentPage state,
+    // khiến pagination UI lệch dữ liệu khi đổi filter lúc đang ở trang > 1). Các handler đổi filter bên
+    // dưới tự gọi setCurrentPage(1) trước khi đổi params — nếu currentPage đã là 1 thì không đổi gì thêm,
+    // effect vẫn chỉ fire đúng 1 lần nhờ status/sort/search cũng đổi trong cùng batch re-render.
     useEffect(() => {
         if (current) {
-            fetchRatings(currentPage, paramPage);
+            fetchRatings(currentPage);
         }
-    }, [current, currentPage]);
-
-    useEffect(() => {
-        const pr = Object.fromEntries([...params]);
-        SetParamPage(pr);
-        fetchRatings(1, pr);
-    }, [params]);
+    }, [current, currentPage, status, sort, search]);
 
     const buildParams = (overrides) => {
         const next = { ...Object.fromEntries([...params]) };
@@ -77,10 +73,12 @@ const Feedback = ({ navigate, location }) => {
     };
 
     const handleChangeSortValue = (value) => {
+        setCurrentPage(1);
         buildParams({ sort: value });
     };
 
     const handleChangeStatusValue = (value) => {
+        setCurrentPage(1);
         buildParams({ status: value });
     };
 
@@ -116,9 +114,7 @@ const Feedback = ({ navigate, location }) => {
             const response = await apiHideRating(feedback?.id);
             if (+response.statusCode === 201) {
                 message.success(feedback?.status === 0 ? "Ẩn đánh giá thành công" : "Hiện đánh giá thành công");
-                setTimeout(() => {
-                    dispatch(getCurrentUser());
-                }, 1000);
+                fetchRatings(currentPage);
             } else {
                 message.error("Có lỗi. Không thể ẩn hay hiện đánh giá này");
             }
@@ -162,7 +158,7 @@ const Feedback = ({ navigate, location }) => {
                     placeholder="Tìm theo tên sản phẩm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    onSearch={(value) => buildParams({ search: value.trim() || undefined })}
+                    onSearch={(value) => { setCurrentPage(1); buildParams({ search: value.trim() || undefined }); }}
                     style={{ width: 280 }}
                 />
                 <Select

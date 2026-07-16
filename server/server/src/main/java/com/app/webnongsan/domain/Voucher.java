@@ -45,6 +45,7 @@ public class Voucher {
     @Min(value = 0, message = "Số lượt đã dùng không được âm")
     private Integer usedCount = 0;
 
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
     private Boolean isActive = true;
 
     // true = voucher công khai, hiện trong danh sách "voucher công khai" cho mọi user tự lưu (hành vi
@@ -74,7 +75,9 @@ public class Voucher {
 
     private Instant startDate;
 
-    @Future(message = "Thời gian kết thúc phải ở tương lai")
+    // KHÔNG @Future ở entity — validate "phải ở tương lai" chỉ có ý nghĩa lúc TẠO MỚI, đã đủ ở
+    // VoucherRequestDTO. Nếu để ở đây, admin sửa (VD chỉ đổi isActive=false) 1 voucher đã hết hạn sẽ có
+    // rủi ro ConstraintViolationException nếu Hibernate lifecycle validation từng được bật.
     private Instant endDate;
 
     private Instant createdAt;

@@ -21,6 +21,9 @@ from app.db import fetch_df
 
 logger = logging.getLogger(__name__)
 
+# Hằng số cho decay mũ half-life (~10k lần/train) — tránh gọi lại math.log(2) trong vòng lặp nóng.
+_LN2 = math.log(2)
+
 # Purchase dùng cùng filter commitment với co-purchase (status 1 = đang giao, 2 = thành công).
 # JOIN products + lọc active/quantity>0 ở cả 3 nhánh — giống content_based.py/popularity.py —
 # tránh sản phẩm hết hàng lọt vào "vũ trụ" CF rồi bị Java lọc mất ở bước hydrate cuối cùng,
@@ -87,7 +90,7 @@ def build(cycle_days: dict[int, float] | None = None) -> CFModel | None:
     for row in df.itertuples(index=False):
         w, hl = kind_params[row.kind]
         age_days = max((now - row.ts.to_pydatetime()).total_seconds() / 86400.0, 0.0)
-        value = w * math.exp(-age_days * math.log(2) / hl)
+        value = w * math.exp(-age_days * _LN2 / hl)
         if row.kind == "P":
             value *= repurchase.readiness(age_days, cycle_days.get(int(row.product_id)))
         key = (int(row.user_id), int(row.product_id))
@@ -99,7 +102,8 @@ def build(cycle_days: dict[int, float] | None = None) -> CFModel | None:
     eligible_users = sorted(
         u for u, n in interactions_per_user.items() if n >= settings.cf_min_user_interactions
     )
-    item_ids = sorted({pid for (u, pid) in confidence if u in set(eligible_users)})
+    eligible_user_set = set(eligible_users)
+    item_ids = sorted({pid for (u, pid) in confidence if u in eligible_user_set})
 
     if len(eligible_users) < settings.cf_min_users or len(item_ids) < settings.cf_min_items:
         logger.info(

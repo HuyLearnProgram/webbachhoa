@@ -31,6 +31,10 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetail, Long>,
         boolean existsById(OrderDetailId id);
         List<OrderDetail> findByOrderId(long orderId);
 
+        // 1 query cho cả trang đơn hàng thay vì gọi findByOrderId() trong vòng lặp per-order (N+1) —
+        // dùng ở OrderService.getOrderByCurrentUser().
+        List<OrderDetail> findByOrderIdIn(List<Long> orderIds);
+
         // Top sản phẩm bán chạy trong khoảng thời gian (chỉ đơn PAID) — dùng cho biểu đồ "Top 5 sản
         // phẩm bán chạy" ở Overview admin khi lọc theo tháng/năm. Object[]{productId, productName, totalSold}
         @Query("SELECT od.product.id, od.product.productName, SUM(od.quantity) FROM OrderDetail od " +

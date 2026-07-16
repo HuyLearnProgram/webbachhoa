@@ -62,10 +62,10 @@ def build() -> dict[int, list[tuple[int, float]]]:
     ]
 
     rules: dict[int, list[tuple[int, float]]] = {}
-    for _, row in rules_df.iterrows():
-        antecedent = int(next(iter(row["antecedents"])))
-        consequent = int(next(iter(row["consequents"])))
-        score = float(row["confidence"]) * min(float(row["lift"]), 3.0) / 3.0
+    for row in rules_df.itertuples(index=False):
+        antecedent = int(next(iter(row.antecedents)))
+        consequent = int(next(iter(row.consequents)))
+        score = float(row.confidence) * min(float(row.lift), 3.0) / 3.0
         rules.setdefault(antecedent, []).append((consequent, score))
     for pid in rules:
         rules[pid].sort(key=lambda x: -x[1])

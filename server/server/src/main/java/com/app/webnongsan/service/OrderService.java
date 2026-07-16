@@ -34,6 +34,7 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -137,37 +138,6 @@ public class OrderService {
         return p;
     }
 
-    public OrderDTO cancelOrder(Long id) throws ResourceInvalidException {
-
-        Optional<Order> orderOptional = orderRepository.findById(id);
-        Order o = new Order();
-        OrderDTO orderDTO = new OrderDTO();
-        if (orderOptional.isPresent()) {
-            o = orderOptional.get();
-            if (o.getStatus() == 0) o.setStatus(1);
-            else o.setStatus(3);
-            this.orderRepository.save(o);
-            orderDTO.setId(o.getId());
-            orderDTO.setOrderTime(o.getOrderTime());
-            orderDTO.setDeliveryTime(o.getDeliveryTime());
-            orderDTO.setStatus(o.getStatus());
-            orderDTO.setPaymentMethod(o.getPaymentMethod());
-
-            orderDTO.setAddress(o.getAddress());
-            orderDTO.setPhone(o.getPhone());
-            orderDTO.setPaymentStatus(o.getPaymentStatus());
-            orderDTO.setTotal_price(o.getTotal_price());
-            orderDTO.setTotalPrice(o.getTotal_price());
-
-            orderDTO.setUserEmail(o.getUser().getEmail());
-            orderDTO.setUserId(o.getUser().getId());
-            orderDTO.setUserName(o.getUser().getName());
-        }
-
-
-        return orderDTO;
-    }
-
     public OrderDTO convertToOrderDTO(Order order) {
         OrderDTO res = new OrderDTO();
         res.setId(order.getId());
@@ -220,8 +190,14 @@ public class OrderService {
         String emailLoggedIn = SecurityUtil.getCurrentUserLogin().orElse("");
         User currentUserDB = userService.getUserByUsername(emailLoggedIn);
 
+        // Fetch sản phẩm + tính giá/khuyến mãi ĐÚNG 1 LẦN mỗi item, lưu lại snapshot dùng chung cho cả
+        // bước tính total (voucher) LẪN bước lưu OrderDetail bên dưới — trước đây tách 2 vòng lặp riêng
+        // biệt (mỗi vòng tự fetch + tự gọi calculateLineTotal()) gây N+1 query thừa, và có khe hở TOCTOU
+        // thật: nếu giá/khuyến mãi đổi đúng lúc giữa 2 vòng lặp (VD Flash Sale window vừa kết thúc),
+        // total_price của Order sẽ lệch với tổng line_total thực lưu trong order_detail.
         double total = 0;
         List<VoucherValidationService.ItemLine> itemLines = new ArrayList<>();
+        List<OrderItemSnapshot> itemSnapshots = new ArrayList<>();
         for (OrderDetailDTO item : orderDTO.getItems()) {
             Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new ResourceInvalidException("Sản phẩm không tồn tại"));
@@ -229,8 +205,10 @@ public class OrderService {
             PromotionService.LineTotal lineTotal = promotionService.calculateLineTotal(product, item.getQuantity(), currentUserDB.getId());
             // Tồn kho phải đủ cho cả số lượng trả tiền LẪN quà tặng đi kèm (BUY_X_GET_Y) — cả 2 lấy chung 1 kho
             if(item.getQuantity() + lineTotal.getFreeUnits() > product.getQuantity()) throw new ResourceInvalidException("Sản phẩm không còn đủ hàng");
+            double unitPrice = promotionService.getEffectiveUnitPrice(product, currentUserDB.getId());
             total += lineTotal.getTotal();
             itemLines.add(new VoucherValidationService.ItemLine(product.getId(), lineTotal.getTotal()));
+            itemSnapshots.add(new OrderItemSnapshot(product, item.getQuantity(), lineTotal, unitPrice));
         }
 
 
@@ -249,17 +227,13 @@ public class OrderService {
         order.setTotal_price(total);
         Order savedOrder = orderRepository.save(order);
 
-        // Lưu chi tiết đơn hàng
-        orderDTO.getItems().forEach(item -> {
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
-            PromotionService.LineTotal lineTotal = promotionService.calculateLineTotal(product, item.getQuantity(), currentUserDB.getId());
-            // Snapshot: unit_price = giá KHÁCH THỰC TRẢ mỗi đơn vị (PromotionService.getEffectiveUnitPrice
-            // là nguồn DUY NHẤT — ưu tiên Flash Sale cá nhân > giảm giá công khai có gate khung giờ >
-            // giá thường, KHÔNG tự suy luận discountActive riêng ở đây nữa vì dễ lệch với 2 cơ chế mới);
-            // originalPrice = giá tham chiếu cao hơn để hiển thị gạch ngang, chỉ có giá trị khi đang thực
-            // sự giảm giá.
-            double unitPrice = promotionService.getEffectiveUnitPrice(product, currentUserDB.getId());
+        // Lưu chi tiết đơn hàng — dùng lại đúng snapshot (product/lineTotal/unitPrice) đã tính ở vòng
+        // lặp trên, không fetch/tính lại lần 2 (xem comment ở vòng lặp đầu).
+        for (OrderItemSnapshot snap : itemSnapshots) {
+            Product product = snap.product();
+            double unitPrice = snap.unitPrice();
+            // unit_price = giá KHÁCH THỰC TRẢ mỗi đơn vị; originalPrice = giá tham chiếu cao hơn để
+            // hiển thị gạch ngang, chỉ có giá trị khi đang thực sự giảm giá.
             boolean discountActive = unitPrice < product.getPrice();
 
             OrderDetail orderDetail = new OrderDetail();
@@ -269,19 +243,23 @@ public class OrderService {
             orderDetail.setId(id);
             orderDetail.setOrder(savedOrder);
             orderDetail.setProduct(product);
-            orderDetail.setQuantity(item.getQuantity());
+            orderDetail.setQuantity(snap.quantity());
             orderDetail.setUnit_price(unitPrice);
-            orderDetail.setLineTotal(lineTotal.getTotal());
+            orderDetail.setLineTotal(snap.lineTotal().getTotal());
             orderDetail.setPromotionType(product.getPromotionType() == null ? "NONE" : product.getPromotionType());
-            orderDetail.setFreeUnits(lineTotal.getFreeUnits());
+            orderDetail.setFreeUnits(snap.lineTotal().getFreeUnits());
             orderDetail.setPromoBundleQuantity(product.getPromoBundleQuantity());
             orderDetail.setPromoBundlePrice(product.getPromoBundlePrice());
             orderDetail.setOriginalPrice(discountActive ? product.getPrice() : null);
             orderDetailRepository.save(orderDetail);
-        });
+        }
 
         return savedOrder;
     }
+
+    // Snapshot 1 dòng sản phẩm đã fetch + tính giá — dùng chung giữa bước tính total (voucher) và
+    // bước lưu OrderDetail trong create(), tránh fetch/tính lại lần 2 (xem comment trong create()).
+    private record OrderItemSnapshot(Product product, int quantity, PromotionService.LineTotal lineTotal, double unitPrice) {}
 
     private double applyVoucherToOrder(Order order, OrderDTO orderDTO, User user, double total,
                                         List<VoucherValidationService.ItemLine> itemLines) throws ResourceInvalidException {
@@ -337,11 +315,17 @@ public class OrderService {
 
         Page<Order> ordersPage = orderRepository.findOrdersWithOptionalStatus(user.getId(), status, pageable);
 
+        // 1 query duy nhất cho cả trang (thay vì findByOrderId() trong vòng lặp per-order — N+1),
+        // rồi group lại theo orderId phía Java.
+        List<Long> orderIds = ordersPage.getContent().stream().map(Order::getId).toList();
+        Map<Long, List<OrderDetail>> detailsByOrderId = orderDetailRepository.findByOrderIdIn(orderIds).stream()
+                .collect(Collectors.groupingBy(d -> d.getId().getOrderId()));
+
         // Convert to DTOs
         List<OrderDetailDTO> orderDetailDTOs = new ArrayList<>();
 
         for (Order order : ordersPage.getContent()) {
-            List<OrderDetail> details = orderDetailRepository.findByOrderId(order.getId());
+            List<OrderDetail> details = detailsByOrderId.getOrDefault(order.getId(), List.of());
             for (OrderDetail detail : details) {
                 OrderDetailDTO dto = new OrderDetailDTO();
                 dto.setOrderId(order.getId());

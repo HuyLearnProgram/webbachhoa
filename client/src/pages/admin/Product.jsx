@@ -13,6 +13,7 @@ import "react-toastify/dist/ReactToastify.css";
 import {
   useSearchParams,
   useNavigate,
+  useLocation,
   createSearchParams,
 } from "react-router-dom";
 import { AddScreenButton } from "@/components/admin";
@@ -20,7 +21,7 @@ import { Table, Modal, Button, Select, Tag, Checkbox, Upload, Input, Popover } f
 import { UploadOutlined } from "@ant-design/icons";
 import product_default from "@/assets/product_default.png";
 import { sortProductOption, LOW_STOCK_THRESHOLD, promotionTypeOptions } from "@/utils/constants";
-import { downloadBlob, stripDiacritics } from "@/utils/helper";
+import { downloadBlob, stripDiacritics, resolveImageUrl } from "@/utils/helper";
 import { getPromotionBadgeLabel, getDiscountPercent, getEffectivePrice } from "@/utils/promotion";
 import icons from "@/utils/icons";
 
@@ -32,6 +33,7 @@ const Product = () => {
   const { categories } = useSelector((state) => state.app);
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [currentPage, setCurrentPage] = useState(Number(params.get("page")) || 1);
   const [products, setProducts] = useState(null);
   const [toggleProduct, setToggleProduct] = useState(null);
@@ -258,14 +260,7 @@ const Product = () => {
       key: "imageUrl",
       render: (text, record) => (
         <img
-          src={
-            record.imageUrl
-              ? record.imageUrl.startsWith("https")
-                ? record.imageUrl
-                : `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${record.imageUrl
-                }`
-              : product_default
-          }
+          src={resolveImageUrl(record.imageUrl, "product", product_default)}
           alt={record.product_name || "Product Image"}
           style={{ width: "80px", height: "70px", objectFit: "cover" }}
         />
@@ -381,7 +376,7 @@ const Product = () => {
       render: (_, record) => (
         <Button
           type="link"
-          onClick={() => navigate(`${location.pathname}/edit/${record.id}`)}
+          onClick={() => navigate(`${pathname}/edit/${record.id}`)}
         >
           <MdModeEdit className="w-5 h-5 inline-block" />
         </Button>

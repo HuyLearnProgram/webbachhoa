@@ -1,5 +1,6 @@
 package com.app.webnongsan.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,8 +28,12 @@ public class Feedback {
 
     private Instant timestamp;
 
+    // @JsonIgnore — nhất quán với các entity khác (CartEvent/LuckyDrawSpin/UserVoucher...) và chặn
+    // đường lộ User.password/refreshToken nếu code nào lỡ serialize Feedback trực tiếp (đã xảy ra thật
+    // ở POST /product/ratings trả về entity thô, dù FE hiện không đọc field này).
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)

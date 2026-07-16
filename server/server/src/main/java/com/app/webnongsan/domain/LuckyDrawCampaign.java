@@ -21,6 +21,7 @@ public class LuckyDrawCampaign {
     @NotBlank(message = "Tên chiến dịch không được để trống")
     private String name;
 
+    @Column(columnDefinition = "TINYINT(1) DEFAULT 1")
     private Boolean isActive = true;
 
     @NotNull(message = "Thời gian bắt đầu là bắt buộc")

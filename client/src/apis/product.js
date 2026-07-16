@@ -124,6 +124,15 @@ export const apiGetMaxPrice = async (category, productName) =>
         params: { category, productName },
     });
 
+// Gộp 3 số liệu Overview dashboard admin (tồn kho thấp/phân bố danh mục/phân bố khuyến mãi) —
+// thay cho fan-out N+1 request trước đây (1 lowStock + N category + N promotionType song song).
+export const apiGetProductStats = async (lowStockThreshold) =>
+    axiosInstance({
+        url: `/admin/product-stats`,
+        method: "get",
+        params: { lowStockThreshold },
+    });
+
 // Sản phẩm thuộc khung giờ Flash Sale (window: 1 hoặc 2) — không lọc theo giờ hiện tại, FE tự quyết
 // định hiển thị "Đang diễn ra"/"Sắp diễn ra" dựa vào apiGetFlashSaleWindows()
 export const apiGetFlashSaleProducts = async (window) =>
@@ -199,7 +208,7 @@ export const apiGetFeedbackStats = async () =>
 export const apiCancelOrder = async (id,params)=>
     axiosInstance({
         url: `updateOrderStatus/${id}`,
-        method: "get",
+        method: "put",
         params,
     })
 // Gợi ý "sản phẩm tương tự" đã chuyển sang src/apis/recommendation.js (apiGetSimilarProducts)

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { apiGetOrderDetail, apiGetOrderInfor, getUserById, apiUpdateOrderInfo, apiConfirmRefund } from "@/apis";
 import { TurnBackHeader } from "@/components/admin";
 import { Card, Row, Col, Typography, Table, Image, Tag } from "antd";
@@ -9,8 +9,9 @@ import { toast } from 'react-toastify';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import logo from "@/assets/logo.png";
-import { PROMOTION_TYPES } from "@/utils/constants";
+import { PROMOTION_TYPES, getOrderStatusLabel } from "@/utils/constants";
 import { getOrderLinePromotionLabel, hasOrderLineDiscount } from "@/utils/promotion";
+import { resolveImageUrl } from "@/utils/helper";
 
 
 
@@ -44,7 +45,6 @@ function OrderDetail() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const printRef = useRef();
 
   const exportToPDF = async () => {
     const element = document.getElementById('export-content');
@@ -213,13 +213,7 @@ function OrderDetail() {
       render: (text, record) => (
         <Image
           width={50}
-          src={
-            record.imageUrl && record.imageUrl.startsWith("https")
-              ? record.imageUrl
-              : record.imageUrl
-              ? `http://localhost:8080/storage/product/${record.imageUrl}`
-              : product_default
-          }
+          src={resolveImageUrl(record.imageUrl, "product", product_default)}
           alt={record.productName}
         />
       ),
@@ -470,7 +464,6 @@ function OrderDetail() {
 
       <div
         id="export-content"
-        ref={printRef}
         style={{
           position: "absolute",
           top: "-9999px",       // đẩy ra ngoài màn hình
@@ -555,11 +548,7 @@ function OrderDetail() {
           </p>
           <p><strong>Hình thức thanh toán:</strong> {orderInformation?.data?.paymentMethod === "COD" ? "Tiền mặt" : "Ngân hàng"}</p>
           <p><strong>Trạng thái:</strong>{" "}
-            {orderInformation?.data?.status === 0 ? "Pending" :
-              orderInformation?.data?.status === 1 ? "In Delivery" :
-                orderInformation?.data?.status === 2 ? "Success" :
-                  orderInformation?.data?.status === 4 ? "Returned" :
-                    "Cancel"}
+            {getOrderStatusLabel(orderInformation?.data?.status)}
           </p>
         </div>
 

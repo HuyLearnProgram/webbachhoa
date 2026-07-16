@@ -179,21 +179,31 @@ const Checkout = () => {
     
                 await Promise.all(promises);
                 formObject.orderId = response.data;
-                localStorage.setItem('paymentData', JSON.stringify(JSON.stringify(formObject)));
-                location.state = {};
+                localStorage.setItem('paymentData', JSON.stringify(formObject));
                 window.location.href = vnpayRes.data.data.paymentUrl;
             } else {
                 toast.success(response.data?.message || "Đặt hàng thành công!", {
                     autoClose: delay
                 });
-    
-                await Promise.all(cart.map(async (item) => {
-                    await apiUpdateProduct(item?.id, { quantity: item.quantity });
-                    await apiDeleteCart(item?.id);
-                }));
 
-                dispatch(getCurrentUser());
-                await apiSendEmail(response.data);
+                // Đơn hàng đã tạo thành công ở trên — các bước dọn dẹp sau đây (trừ kho/xoá giỏ/gửi mail)
+                // không được để lỗi rơi xuống catch ngoài cùng và hiện nhầm toast "Lỗi hệ thống" cho
+                // khách (đơn thực ra đã đặt xong). Bắt riêng, chỉ cảnh báo khác đi, vẫn tiếp tục điều
+                // hướng sang trang thành công như bình thường.
+                try {
+                    await Promise.all(cart.map(async (item) => {
+                        await apiUpdateProduct(item?.id, { quantity: item.quantity });
+                        await apiDeleteCart(item?.id);
+                    }));
+
+                    dispatch(getCurrentUser());
+                    await apiSendEmail(response.data);
+                } catch (postOrderError) {
+                    console.error("Lỗi cập nhật giỏ hàng/gửi email sau khi đặt hàng thành công:", postOrderError);
+                    toast.warn("Đặt hàng thành công! Có lỗi nhỏ khi cập nhật giỏ hàng, vui lòng liên hệ hỗ trợ nếu cần.", {
+                        autoClose: 4000
+                    });
+                }
 
                 // Rút thăm may mắn (Phase 7) — gọi TRƯỚC khi reload trang (COD điều hướng kèm reload
                 // toàn trang ngay sau đây nên state React sẽ mất, phải lưu tạm kết quả vào localStorage
@@ -389,11 +399,13 @@ const Checkout = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {cart?.map((el, index) => (<tr className="border" key={el?.productId + "-" + index}>
+                                {cart?.map((el, index) => {
+                                    const promotionBadgeLabel = getPromotionBadgeLabel(el);
+                                    return (<tr className="border" key={el?.productId + "-" + index}>
                                     <td className="p-2 text-left">
                                         {el?.productName}
-                                        {getPromotionBadgeLabel(el) && (
-                                            <div className="text-xs text-red-500">{getPromotionBadgeLabel(el)}</div>
+                                        {promotionBadgeLabel && (
+                                            <div className="text-xs text-red-500">{promotionBadgeLabel}</div>
                                         )}
                                     </td>
                                     <td className="p-2 text-center">{el?.quantity}</td>
@@ -405,7 +417,8 @@ const Checkout = () => {
                                         )}
                                         {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculateLineTotal(el, el.quantity).total / el.quantity)}
                                     </td>
-                                </tr>))}
+                                </tr>);
+                                })}
 
                                 {getGiftItems().length > 0 && (
                                     <tr className="border bg-orange-50 cursor-pointer" onClick={handleShowGiftDetail}>

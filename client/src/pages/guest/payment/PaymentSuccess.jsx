@@ -3,7 +3,7 @@ import path from '@/utils/path';
 import React, { useEffect, useState } from 'react';
 import { FaCheckCircle } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { getCurrentUser } from '@/store/user/asyncActions';
 import { showModal } from '@/store/app/appSlice';
 import { LuckyDrawResultModal } from '@/components';
@@ -13,7 +13,6 @@ const PaymentSuccess = () => {
     const dispatch = useDispatch();
     const [paymentInfo, setPaymentInfo] = useState();
     const [cart, setCart] = useState()
-    const location = useLocation();
 
 
     useEffect(() => {
@@ -22,8 +21,7 @@ const PaymentSuccess = () => {
         const paymentData = localStorage.getItem('paymentData');
             if (paymentData) {
                 // Phân tích cú pháp JSON
-                const parsedDataStr = JSON.parse(paymentData);
-                const parsedData = JSON.parse(parsedDataStr)
+                const parsedData = JSON.parse(paymentData);
                 const items = parsedData.items
                 setPaymentInfo(parsedData);
                 setCart(items)
@@ -32,8 +30,6 @@ const PaymentSuccess = () => {
             }
         }
         fetchPaymentData();
-        location.state = {}
-        
     }, [current]);
     useEffect(()=>{
         const handleProductUpdate = async ()=>{

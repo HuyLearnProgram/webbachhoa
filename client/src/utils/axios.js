@@ -36,7 +36,7 @@ axiosInstance.interceptors.request.use(function (config) {
     localData = JSON.parse(localData);
     const accessToken = JSON.parse(localData?.token);
     if (accessToken && accessToken !== 'null') {
-      config.headers = { authorization: `Bearer ${accessToken}` };
+      config.headers.authorization = `Bearer ${accessToken}`;
     }
   }
   return config;
@@ -77,7 +77,7 @@ axiosInstance.interceptors.response.use(function (response) {
       }
     }
   }
-  return error.response.data
+  return error.response ? error.response.data : Promise.reject(error);
 });
 
 export default axiosInstance;

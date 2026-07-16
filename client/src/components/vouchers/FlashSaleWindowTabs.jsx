@@ -1,14 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { apiGetFlashSaleWindows } from '@/apis';
 import icons from '@/utils/icons';
+import { toMinutes } from '@/utils/promotion';
 
 const { MdOutlineTimer } = icons;
-
-const toMinutes = (hhmm) => {
-    if (!hhmm) return null;
-    const [h, m] = hhmm.split(':').map(Number);
-    return h * 60 + m;
-};
 
 // 'ongoing' | 'upcoming' | 'ended' — parse lỗi (config sai định dạng) -> coi như 'ended' (ẩn tab đó
 // thay vì crash UI, đúng nguyên tắc phòng vệ đã áp dụng ở PromotionService phía backend).

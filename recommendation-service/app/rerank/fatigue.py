@@ -15,6 +15,9 @@ from app.metrics import metrics
 
 logger = logging.getLogger(__name__)
 
+# Hằng số cho decay mũ half-life (~1k lần/request) — tránh gọi lại math.log(2) trong vòng lặp nóng.
+_LN2 = math.log(2)
+
 # 2 query tách riêng theo user/session — không dùng OR vì OR vô hiệu cả 2 index
 # trên bảng impressions đang phình (21k+ dòng). Double-count sau session-merge chấp nhận
 # được: penalty đơn điệu, beta nhỏ.
@@ -57,7 +60,7 @@ def category_exposure(user_id: int | None, session_id: str | None, art) -> dict[
                 if cat is None:
                     continue
                 age_days = max((now - row.shown_at.to_pydatetime()).total_seconds() / 86400.0, 0.0)
-                exposure[cat] = exposure.get(cat, 0.0) + math.exp(-age_days * math.log(2) / half_life)
+                exposure[cat] = exposure.get(cat, 0.0) + math.exp(-age_days * _LN2 / half_life)
         if exposure:
             metrics.inc_fatigue_applied()
         return exposure

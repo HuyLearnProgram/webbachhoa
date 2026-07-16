@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS decisions (
 """
 
 
-def _utcnow() -> datetime:
+def utcnow() -> datetime:
     # naive-UTC nhất quán với fatigue.py/main.py (shown_at MySQL lưu UTC không timezone)
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -94,7 +94,7 @@ class BanditState:
                     "ON CONFLICT(category_id) DO UPDATE SET a=excluded.a, b=excluded.b, "
                     "n_updates=excluded.n_updates, updated_at=excluded.updated_at",
                     (category_id, a.astype(np.float64).tobytes(), b.astype(np.float64).tobytes(),
-                     n_updates, _utcnow().isoformat()),
+                     n_updates, utcnow().isoformat()),
                 )
                 self._conn.commit()
         except Exception:
@@ -120,7 +120,7 @@ class BanditState:
                     "INSERT OR IGNORE INTO decisions (request_id, product_id, category_id, context, created_at) "
                     "VALUES (?,?,?,?,?)",
                     (request_id, product_id, category_id,
-                     context.astype(np.float64).tobytes(), _utcnow().isoformat()),
+                     context.astype(np.float64).tobytes(), utcnow().isoformat()),
                 )
                 self._conn.commit()
         except Exception:
@@ -179,7 +179,7 @@ class BanditState:
         if self._conn is None:
             return 0
         try:
-            cutoff = (_utcnow() - timedelta(days=days)).isoformat()
+            cutoff = (utcnow() - timedelta(days=days)).isoformat()
             with self._lock:
                 cur = self._conn.execute(
                     "UPDATE decisions SET status = 'FINAL' WHERE status = 'PENDING' AND created_at < ?",

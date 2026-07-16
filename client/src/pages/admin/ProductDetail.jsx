@@ -12,21 +12,15 @@ import product_default from "@/assets/product_default.png";
 import avatarDefault from "@/assets/avatarDefault.png";
 import { TurnBackHeader } from "@/components/admin";
 import { statusHideOrder } from "@/utils/constants";
-import { renderStarFromNumber } from "@/utils/helper";
+import { renderStarFromNumber, resolveImageUrl } from "@/utils/helper";
 import { getPromotionBadgeLabel, getDiscountPercent, getEffectivePrice } from "@/utils/promotion";
 import icons from "@/utils/icons";
 
 const { MdOutlineBlock } = icons;
 
-const resolveProductImageUrl = (imageUrl) =>
-  imageUrl
-    ? (imageUrl.startsWith("https") ? imageUrl : `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${imageUrl}`)
-    : product_default;
+const resolveProductImageUrl = (imageUrl) => resolveImageUrl(imageUrl, "product", product_default);
 
-const resolveAvatarUrl = (avatarUrl) =>
-  avatarUrl
-    ? (avatarUrl.startsWith("https") ? avatarUrl : `${import.meta.env.VITE_BACKEND_TARGET}/storage/avatar/${avatarUrl}`)
-    : avatarDefault;
+const resolveAvatarUrl = (avatarUrl) => resolveImageUrl(avatarUrl, "avatar", avatarDefault);
 
 const feedbackSortOptions = [
   { label: "Mới nhất", value: "newest" },

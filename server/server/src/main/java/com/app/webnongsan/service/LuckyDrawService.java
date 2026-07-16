@@ -91,7 +91,18 @@ public class LuckyDrawService {
         }
 
         spin.setPrize(prize);
-        spinRepository.save(spin);
+        try {
+            spinRepository.save(spin);
+        } catch (Exception e) {
+            // Giải đã bị trừ số lượng ở bước trên (nếu có giới hạn) nhưng gắn vào lượt quay này thất
+            // bại — hoàn lại số lượng ngay để giải không "biến mất" vĩnh viễn không ai nhận được.
+            if (prize.getTotalQuantity() != null) {
+                prizeRepository.incrementRemainingBack(prize.getId());
+            }
+            log.error("Lucky Draw: lỗi lưu kết quả quay cho orderId={}, đã hoàn lại số lượng giải id={}: {}",
+                    orderId, prize.getId(), e.getMessage());
+            throw new ResourceInvalidException("Có lỗi khi ghi nhận kết quả quay thưởng, vui lòng thử lại");
+        }
 
         if (prize.getVoucherAutoGrantRule() == null) {
             return new LuckyDrawSpinResultDTO(true, prize.getLabel(), null);

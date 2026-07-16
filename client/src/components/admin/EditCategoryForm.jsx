@@ -5,11 +5,9 @@ import InputFormAdmin from "./InputFormAdmin";
 import { apiUploadImage, apiUpdateCategory } from "@/apis";
 import category_default from "@/assets/category_default.png";
 import { toast } from 'react-toastify';
+import { resolveImageUrl } from "@/utils/helper";
 
-const resolveImageUrl = (imageUrl) =>
-  imageUrl && imageUrl.startsWith('https')
-    ? imageUrl
-    : (imageUrl ? `${import.meta.env.VITE_BACKEND_TARGET}/storage/category/${imageUrl}` : category_default);
+const resolveCategoryImage = (imageUrl) => resolveImageUrl(imageUrl, "category", category_default);
 
 function EditCategoryForm({ initialCategoryData }) {
   const {
@@ -21,11 +19,11 @@ function EditCategoryForm({ initialCategoryData }) {
 
   const [categoryImage, setCategoryImage] = useState(null);
   const [previewCategoryImage, setPreviewCategoryImage] = useState(
-    resolveImageUrl(initialCategoryData?.imageUrl)
+    resolveCategoryImage(initialCategoryData?.imageUrl)
   );
 
   useEffect(() => {
-    setPreviewCategoryImage(resolveImageUrl(initialCategoryData?.imageUrl));
+    setPreviewCategoryImage(resolveCategoryImage(initialCategoryData?.imageUrl));
     reset(initialCategoryData);
     setCategoryImage(null);
   }, [initialCategoryData, reset]);

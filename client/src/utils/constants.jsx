@@ -193,14 +193,26 @@ export const statusOrder = [
   }
 ]
 
-export const paymentStatusLabel = {
-  UNPAID: "Chưa thanh toán",
-  PENDING_PAYMENT: "Chờ thanh toán",
-  PAID: "Đã thanh toán",
-  PAYMENT_FAILED: "Thanh toán thất bại",
-  REFUND_PENDING: "Chờ hoàn tiền",
-  REFUNDED: "Đã hoàn tiền",
+// Nhãn trạng thái đơn hàng dùng chung — suy ra trực tiếp từ statusOrder (nguồn duy nhất) để mọi
+// nơi hiển thị (admin Order/OrderDetail/UserDetail) không lệch chữ nhau ("Succeed" vs "Success",
+// "Cancel" vs "Cancelled"...).
+export const getOrderStatusLabel = (status) =>
+  statusOrder.find((o) => o.value === status)?.label || String(status ?? "—");
+
+// Nguồn sự thật duy nhất cho nhãn trạng thái thanh toán — className để tô màu ở nơi cần (VD
+// UserDetail.jsx), paymentStatusLabel (chỉ text) suy ra từ đây để 2 bản không lệch nhau khi sửa.
+export const paymentStatusLabelWithClass = {
+  UNPAID: { text: "Chưa thanh toán", className: "text-gray-500" },
+  PENDING_PAYMENT: { text: "Chờ thanh toán", className: "text-yellow-600" },
+  PAID: { text: "Đã thanh toán", className: "text-green-600" },
+  PAYMENT_FAILED: { text: "Thanh toán thất bại", className: "text-red-500" },
+  REFUND_PENDING: { text: "Chờ hoàn tiền", className: "text-orange-500" },
+  REFUNDED: { text: "Đã hoàn tiền", className: "text-blue-500" },
 };
+
+export const paymentStatusLabel = Object.fromEntries(
+  Object.entries(paymentStatusLabelWithClass).map(([key, { text }]) => [key, text])
+);
 
 export const statusHideOrder = [
   {

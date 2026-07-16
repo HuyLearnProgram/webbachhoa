@@ -17,7 +17,7 @@ Chống double-count: flag click_rewarded + status FINAL trong SQLite.
 import logging
 
 from app.bandit.linucb import linucb
-from app.bandit.state import state, _utcnow
+from app.bandit.state import state, utcnow
 from app.config import settings
 from app.db import fetch_df
 from app.metrics import metrics
@@ -51,7 +51,7 @@ def process_rewards() -> None:
         return
 
     impressions = _fetch_impressions(sorted({d["request_id"] for d in pending}))
-    now = _utcnow()
+    now = utcnow()
     n_click = n_purchase = n_negative = n_discarded = 0
 
     for d in pending:

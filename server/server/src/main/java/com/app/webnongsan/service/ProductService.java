@@ -5,6 +5,7 @@ import com.app.webnongsan.domain.Product;
 import com.app.webnongsan.domain.ProductImage;
 import com.app.webnongsan.domain.response.PaginationDTO;
 import com.app.webnongsan.domain.response.product.ProductImportResultDTO;
+import com.app.webnongsan.domain.response.product.ProductStatsDTO;
 import com.app.webnongsan.domain.response.product.ResProductDTO;
 import com.app.webnongsan.domain.response.product.SearchProductDTO;
 import com.app.webnongsan.repository.CategoryRepository;
@@ -20,17 +21,14 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
@@ -38,7 +36,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -46,8 +43,6 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final EntityManager entityManager;
-    private final RestTemplate restTemplate;
-//    private final String FASTAPI_URL_SIMILAR_ID = "http://127.0.0.1:8000/similar/%d";
     private final PaginationHelper paginationHelper;
     private final PlatformTransactionManager transactionManager;
     private final PromotionService promotionService;
@@ -148,6 +143,11 @@ public class ProductService {
     // từ cùng kho vật lý, tránh lặp lại bug "chỉ trừ đúng số trả tiền" đã xảy ra ở nhiều điểm check tồn kho khác.
     @Transactional
     public Product deductStock(long id, int paidQuantity) throws ResourceInvalidException {
+        // Chặn quantity<=0 — trước đây không guard, client gửi số âm sẽ vượt qua check tồn kho bên dưới
+        // (VD -100 + 0 < 50) và làm p.setQuantity(stock - (-100)) TĂNG khống tồn kho thay vì trừ.
+        if (paidQuantity <= 0) {
+            throw new ResourceInvalidException("Số lượng trừ kho phải lớn hơn 0");
+        }
         Product p = this.findById(id);
         if (p == null) throw new ResourceInvalidException("Product id = " + id + " không tồn tại");
         // userId=null: chỉ cần freeUnits (BUY_X_GET_Y) để trừ kho, không liên quan tới giá/Flash Sale cá nhân.
@@ -357,29 +357,6 @@ public class ProductService {
         return new PageImpl<>(resultList, pageable, totalCount);
     }
 
-//    public List<Long> fetchSimilarProductIds(Long productId) {
-//        String url = String.format(FASTAPI_URL_SIMILAR_ID, productId);
-//        Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-//
-//        return Optional.ofNullable((List<Integer>) response.get("data"))
-//                .orElse(Collections.emptyList())
-//                .stream()
-//                .map(Integer::longValue)
-//                .collect(Collectors.toList());
-//    }
-
-
-//    public List<SearchProductDTO> getSimilarProducts(Long productId) {
-//        List<Long> ids = fetchSimilarProductIds(productId);
-//        List<SearchProductDTO> res = productRepository.findByIdInList(ids);
-//
-//        // Sắp xếp danh sách `res` theo thứ tự trong `ids`
-//        return ids.stream()
-//                .map(id -> res.stream().filter(dto -> dto.getId() == id).findFirst().orElse(null))
-//                .filter(Objects::nonNull)
-//                .collect(Collectors.toList());
-//    }
-
     private void writeImportHeaderRow(Sheet sheet) {
         Row header = sheet.createRow(0);
         for (int i = 0; i < IMPORT_HEADERS.length; i++) {
@@ -540,6 +517,24 @@ public class ProductService {
         }
 
         this.productRepository.save(product);
+    }
+
+    // Gộp 3 số liệu Overview dashboard admin (tồn kho thấp/phân bố danh mục/phân bố khuyến mãi) vào
+    // 1 lần gọi — thay cho FE trước đây tự fan-out 1 + N category + N promotionType request song song.
+    public ProductStatsDTO getProductStats(int lowStockThreshold) {
+        long lowStockCount = this.productRepository.countByQuantityLessThanEqual(lowStockThreshold);
+
+        Map<Long, Long> categoryCounts = new HashMap<>();
+        for (Object[] row : this.productRepository.countGroupedByCategory()) {
+            if (row[0] != null) categoryCounts.put((Long) row[0], (Long) row[1]);
+        }
+
+        Map<String, Long> promotionCounts = new HashMap<>();
+        for (Object[] row : this.productRepository.countGroupedByPromotionType()) {
+            if (row[0] != null) promotionCounts.put((String) row[0], (Long) row[1]);
+        }
+
+        return new ProductStatsDTO(lowStockCount, categoryCounts, promotionCounts);
     }
 
     private String getCellString(Row row, int idx, DataFormatter dataFormatter) {

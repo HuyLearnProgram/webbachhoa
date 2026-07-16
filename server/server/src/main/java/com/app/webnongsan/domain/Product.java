@@ -120,8 +120,13 @@ public class Product {
     @JsonIgnore
     private List<Wishlist> wishlist;
 
-    // Ảnh phụ (gallery) — ảnh chính vẫn là imageUrl để tương thích ProductCard/bảng admin hiện có
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    // Ảnh phụ (gallery) — ảnh chính vẫn là imageUrl để tương thích ProductCard/bảng admin hiện có.
+    // LAZY (không phải EAGER) — EAGER trên @OneToMany gây N+1 khi Hibernate load nhiều Product cùng
+    // lúc (VD findFlashSaleProducts()/exportToExcel() load cả trăm sản phẩm kèm 1 query ảnh MỖI SP).
+    // Vẫn serialize đúng ra JSON cho endpoint trả 1 Product (GET/PUT/POST products/{id}...) nhờ
+    // Hibernate6Module.FORCE_LAZY_LOADING (AppConfig) + open-in-view=true (default) force-load LAZY
+    // collection trong lúc Jackson ghi response, không cần JOIN FETCH riêng.
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder asc")
     private List<ProductImage> images;
 

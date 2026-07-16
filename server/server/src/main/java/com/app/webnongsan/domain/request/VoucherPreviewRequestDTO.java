@@ -1,5 +1,6 @@
 package com.app.webnongsan.domain.request;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
@@ -22,4 +23,11 @@ public class VoucherPreviewRequestDTO {
     // Chi tiết từng sản phẩm trong giỏ — chỉ thực sự cần khi voucher bị scope theo category, nhưng
     // FE luôn gửi kèm để BE tự quyết định có cần dùng hay không.
     private List<VoucherItemLineDTO> items;
+
+    // Bean Validation gọi phương thức "isXxx()" gắn với thuộc tính ảo "xxx" — không phải field thật,
+    // chỉ để bắt request thiếu CẢ voucherId lẫn code trước khi vào service (tránh NPE/lỗi mơ hồ).
+    @AssertTrue(message = "Cần cung cấp voucherId hoặc code")
+    private boolean isVoucherIdentifierProvided() {
+        return voucherId != null || (code != null && !code.isBlank());
+    }
 }

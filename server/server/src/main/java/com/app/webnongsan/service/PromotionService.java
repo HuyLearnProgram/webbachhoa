@@ -29,6 +29,13 @@ public class PromotionService {
     private final String window1End;
     private final String window2Start;
     private final String window2End;
+    // Bản đã parse sẵn (nullable nếu config sai định dạng) — tránh gọi LocalTime.parse() lặp lại trên
+    // hot path (isBetween() được gọi ở MỌI lần tính giá: giỏ hàng/PDP/checkout). Parse 1 lần lúc khởi
+    // tạo, không đổi giá trị lúc runtime nên cache an toàn.
+    private final LocalTime window1StartTime;
+    private final LocalTime window1EndTime;
+    private final LocalTime window2StartTime;
+    private final LocalTime window2EndTime;
 
     // Constructor tường minh (KHÔNG @AllArgsConstructor của Lombok) — Lombok sinh constructor không
     // giữ lại annotation @Value trên tham số, khiến Spring hiểu nhầm thành cần inject bean kiểu String
@@ -44,6 +51,23 @@ public class PromotionService {
         this.window1End = window1End;
         this.window2Start = window2Start;
         this.window2End = window2End;
+        this.window1StartTime = parseTimeOrNull(window1Start);
+        this.window1EndTime = parseTimeOrNull(window1End);
+        this.window2StartTime = parseTimeOrNull(window2Start);
+        this.window2EndTime = parseTimeOrNull(window2End);
+    }
+
+    // 1 giá trị config sai định dạng (VD "24:00" thay vì "23:59") KHÔNG được phép làm sập service lúc
+    // khởi động — parse lỗi -> null -> isBetween() coi khung đó "không hoạt động" (an toàn hơn crash),
+    // chỉ log cảnh báo 1 lần lúc khởi tạo (không spam log mỗi lần tính giá như trước khi parse lặp lại).
+    private LocalTime parseTimeOrNull(String raw) {
+        try {
+            return LocalTime.parse(raw);
+        } catch (Exception e) {
+            log.warn("Cấu hình khung giờ Flash Sale sai định dạng ('{}'): {} — coi như khung này không hoạt động",
+                    raw, e.getMessage());
+            return null;
+        }
     }
 
     @Getter
@@ -140,7 +164,7 @@ public class PromotionService {
     // "chọn khung" vì đây không phải sản phẩm admin cấu hình tay.
     public boolean isWithinFlashSaleWindow(Instant now) {
         LocalTime t = now.atZone(ZoneId.systemDefault()).toLocalTime();
-        return isBetween(t, window1Start, window1End) || isBetween(t, window2Start, window2End);
+        return isBetween(t, window1StartTime, window1EndTime) || isBetween(t, window2StartTime, window2EndTime);
     }
 
     // Dùng cho Flash Sale CÔNG KHAI (Product.isFlashSale=true, admin tự cấu hình) — chỉ tính khung giờ
@@ -150,22 +174,13 @@ public class PromotionService {
         LocalTime t = now.atZone(ZoneId.systemDefault()).toLocalTime();
         boolean w1 = !Boolean.FALSE.equals(product.getFlashSaleWindow1());
         boolean w2 = !Boolean.FALSE.equals(product.getFlashSaleWindow2());
-        return (w1 && isBetween(t, window1Start, window1End)) || (w2 && isBetween(t, window2Start, window2End));
+        return (w1 && isBetween(t, window1StartTime, window1EndTime)) || (w2 && isBetween(t, window2StartTime, window2EndTime));
     }
 
-    // 1 giá trị config sai định dạng (VD "24:00" thay vì "23:59") KHÔNG được phép làm sập toàn bộ tính
-    // giá của web — method này được gọi ở MỌI request liên quan tới giá (giỏ hàng/PDP/checkout), không
-    // chỉ riêng banner Flash Sale. Parse lỗi -> coi khung đó là "không hoạt động" (an toàn hơn crash),
-    // chỉ log cảnh báo 1 lần/lỗi để admin biết mà sửa lại config.
-    private boolean isBetween(LocalTime t, String startStr, String endStr) {
-        try {
-            LocalTime start = LocalTime.parse(startStr);
-            LocalTime end = LocalTime.parse(endStr);
-            return !t.isBefore(start) && t.isBefore(end);
-        } catch (Exception e) {
-            log.warn("Cấu hình khung giờ Flash Sale sai định dạng ('{}' - '{}'): {} — coi như khung này không hoạt động",
-                    startStr, endStr, e.getMessage());
-            return false;
-        }
+    // start/end null nghĩa là config sai định dạng (đã log cảnh báo 1 lần lúc khởi tạo ở parseTimeOrNull)
+    // — coi khung đó "không hoạt động" thay vì crash, giữ đúng tinh thần an toàn của bản gốc.
+    private boolean isBetween(LocalTime t, LocalTime start, LocalTime end) {
+        if (start == null || end == null) return false;
+        return !t.isBefore(start) && t.isBefore(end);
     }
 }

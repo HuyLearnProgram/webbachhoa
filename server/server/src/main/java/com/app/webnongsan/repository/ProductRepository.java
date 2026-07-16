@@ -47,12 +47,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     double getMaxPriceByCategoryAndProductName(@Param("category") String category,
                                                @Param("productName") String productName);
 
-    @Query("SELECT new com.app.webnongsan.domain.response.product.SearchProductDTO" +
-            "(p.id, p.productName, p.price, p.imageUrl, c.name, p.rating) " +
-            "FROM Product p JOIN p.category c " +
-            "WHERE p.id IN :ids")
-    List<SearchProductDTO> findByIdInList(@Param("ids") List<Long> ids);
-
     // Rule-based fallback cho "sản phẩm tương tự" (Phase 0 hệ thống gợi ý):
     // cùng category, đang bán, còn hàng, loại chính nó, ưu tiên bán chạy rồi đến rating.
     // quantity > 0: sản phẩm hết hàng tạm thời (active vẫn true) không nên gợi ý cho khách.
@@ -94,4 +88,14 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             "WHERE p.active = true AND p.quantity > 0 " +
             "ORDER BY p.sold DESC, p.rating DESC")
     List<SearchProductDTO> findTopSellingActive(Pageable pageable);
+
+    // Dùng bởi Overview dashboard admin (ProductService.getProductStats()) — gộp 3 số liệu tồn kho
+    // thấp/phân bố danh mục/phân bố khuyến mãi vào 1 lần gọi thay vì FE fan-out N+1 request.
+    long countByQuantityLessThanEqual(int threshold);
+
+    @Query("SELECT p.category.id, COUNT(p) FROM Product p GROUP BY p.category.id")
+    List<Object[]> countGroupedByCategory();
+
+    @Query("SELECT p.promotionType, COUNT(p) FROM Product p GROUP BY p.promotionType")
+    List<Object[]> countGroupedByPromotionType();
 }

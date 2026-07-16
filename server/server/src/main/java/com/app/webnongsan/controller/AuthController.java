@@ -38,6 +38,12 @@ public class AuthController {
     private final SecurityUtil securityUtil;
     private final UserService userService;
     private final EmailService emailService;
+
+    // Cùng 1 cookie "refresh_token" được set ở 3 nơi (login/refresh/logout) — trước đây login dùng
+    // secure(false) còn refresh/logout dùng secure(true), không nhất quán. Gộp về 1 config chung
+    // (mặc định false cho dev chạy HTTP; đổi true qua .env khi deploy HTTPS thật).
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
     private final FileService fileService;
     private final AuthService authService;
     private final CartService cartService;
@@ -71,7 +77,7 @@ public class AuthController {
 
     @PostMapping("auth/login")
     @ApiMessage("Login")
-    public ResponseEntity<ResLoginDTO> login(@RequestBody LoginDTO loginDTO) throws AuthException {
+    public ResponseEntity<ResLoginDTO> login(@Valid @RequestBody LoginDTO loginDTO) throws AuthException {
         User currentUserDB = this.userService.getUserByUsername(loginDTO.getEmail());
 
         if (currentUserDB != null && currentUserDB.getStatus() == 0) {
@@ -99,7 +105,7 @@ public class AuthController {
         this.userService.updateUserToken(refresh_token, loginDTO.getEmail());
         ResponseCookie responseCookie = ResponseCookie.from("refresh_token", refresh_token)
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(refreshTokenExpiration)
                 .sameSite("Lax")
@@ -178,7 +184,7 @@ public class AuthController {
         ResponseCookie resCookies = ResponseCookie
                 .from("refresh_token", new_refresh_token)
                 .httpOnly(true)
-                .secure(true)
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(refreshTokenExpiration)
                 .build();
@@ -202,7 +208,7 @@ public class AuthController {
         ResponseCookie deleteSpringCookie = ResponseCookie
                 .from("refresh_token", "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(0)
                 .build();

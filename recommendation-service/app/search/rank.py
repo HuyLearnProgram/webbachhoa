@@ -4,7 +4,7 @@ score(p) = w_lex·lex(p) + w_sem·sem_norm(p) + w_personal·personal_norm(p) + w
 
 - lex(p) RAW trong [1.0, 1.2] (KHÔNG min-max — item thuộc lexical_ids phải luôn nhận
   đóng góp lexical mạnh; min-max sẽ đè item "khớp đủ từ nhưng không khớp cụm" về 0).
-- sem/personal/pop min-max normalize TRONG tập candidate (tái dùng _normalize của blend.py).
+- sem/personal/pop min-max normalize TRONG tập candidate (tái dùng normalize_scores của blend.py).
 - Bất biến quan trọng nhất: KHÔNG BAO GIỜ trả product ngoài allowed_ids — filter cứng
   (category/giá/tồn kho...) được Java quyết ở DB, tôn trọng bằng cấu trúc.
 
@@ -16,7 +16,7 @@ import logging
 
 import numpy as np
 
-from app.blend import _normalize
+from app.blend import normalize_scores
 from app.config import settings
 from app.search import lexical
 from app.search.encoder import encoder
@@ -104,11 +104,11 @@ def rank_search(
         pid: lexical.lexical_score(query_norm, art.name_norm.get(pid, ""))
         for pid in lex_ids
     }
-    pop_lookup = dict(art.popularity)
+    pop_lookup = art.popularity_lookup
 
-    sem_norm = dict(_normalize([(pid, sem_scores[pid]) for pid in candidates if pid in sem_scores]))
-    personal_norm = dict(_normalize([(pid, profile[pid]) for pid in candidates if pid in profile]))
-    pop_norm = dict(_normalize([(pid, pop_lookup[pid]) for pid in candidates if pid in pop_lookup]))
+    sem_norm = dict(normalize_scores([(pid, sem_scores[pid]) for pid in candidates if pid in sem_scores]))
+    personal_norm = dict(normalize_scores([(pid, profile[pid]) for pid in candidates if pid in profile]))
+    pop_norm = dict(normalize_scores([(pid, pop_lookup[pid]) for pid in candidates if pid in pop_lookup]))
 
     w_lex = settings.w_search_lexical
     w_sem = settings.w_search_semantic

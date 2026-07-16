@@ -29,6 +29,11 @@ public interface UserVoucherRepository extends JpaRepository<UserVoucher, Long> 
 
     // Hoặc phân trang nếu cần
     Page<UserVoucher> findByUserId(Long userId, Pageable pageable);
+
+    // Dọn các UserVoucher (voucher trong ví CHƯA DÙNG — nếu voucher gốc usedCount=0 thì chắc chắn mọi
+    // UserVoucher của nó đều isUsed=false, không có cách nào isUsed=true mà usedCount không tăng) trước
+    // khi hard-delete voucher gốc, tránh vỡ FK. Xem VoucherService.deleteVoucher().
+    void deleteByVoucherId(Long voucherId);
     // Chỉ trả voucher user CÒN DÙNG ĐƯỢC: chưa dùng riêng (isUsed) + voucher gốc vẫn active/còn hạn/còn
     // lượt toàn cục — trước đây chỉ lọc isUsed nên voucher hết hạn/hết lượt vẫn lọt vào ví + popup
     // chọn voucher ở Checkout (2 nơi cùng đọc endpoint này).

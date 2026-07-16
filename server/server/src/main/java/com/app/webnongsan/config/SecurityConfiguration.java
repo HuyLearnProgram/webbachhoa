@@ -4,6 +4,8 @@ package com.app.webnongsan.config;
 import com.app.webnongsan.util.SecurityUtil;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.util.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,6 +38,8 @@ import java.util.Map;
 @Configuration
 @EnableMethodSecurity(securedEnabled = true)
 public class SecurityConfiguration {
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfiguration.class);
+
     @Value("${jwt.base64-secret}")
     private String jwtKey;
 
@@ -104,6 +108,17 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v2/users/*/orders").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/users/*/feedbacks").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/orders/*/confirm-refund").hasRole("ADMIN")
+                        // Vá lỗ hổng IDOR — các endpoint này trước đây không có rule nào, rơi xuống
+                        // anyRequest().authenticated() nên bất kỳ user đã đăng nhập nào cũng xem/sửa được
+                        // đơn hàng của người khác chỉ bằng cách đoán orderId (auto-increment). Chỉ dùng
+                        // bởi trang admin (đã xác nhận qua grep FE) nên hasRole("ADMIN") là đủ — admin vẫn
+                        // cần sửa được địa chỉ/SĐT của đơn hàng KHÁCH BẤT KỲ (hỗ trợ khách hàng qua điện
+                        // thoại), không giới hạn chỉ chủ đơn.
+                        .requestMatchers(HttpMethod.GET, "/api/v2/orderInfo/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v2/updateOrderInfo/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/OrderDetails/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v2/monthly-orders-revenue").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v2/ratings/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v2/admin/**").hasRole("ADMIN")
                         // Rule GET admin/** ở trên KHÔNG áp dụng cho POST — phải khai riêng, nếu không
                         // endpoint này rơi xuống anyRequest().authenticated() và mọi user đăng nhập
@@ -165,7 +180,7 @@ public class SecurityConfiguration {
             try {
                 return jwtDecoder.decode(token);
             } catch (Exception e) {
-                System.out.println(">>> JWT error: " + e.getMessage());
+                log.warn(">>> JWT error: {}", e.getMessage());
                 throw e;
             }
         };

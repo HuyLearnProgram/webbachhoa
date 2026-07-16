@@ -13,7 +13,11 @@ import java.time.Instant;
 @Table(name = "cart_events", indexes = {
         @Index(name = "idx_ce_user", columnList = "user_id"),
         @Index(name = "idx_ce_session", columnList = "sessionId"),
-        @Index(name = "idx_ce_product_time", columnList = "product_id, occurredAt")
+        @Index(name = "idx_ce_product_time", columnList = "product_id, occurredAt"),
+        // Cover CartEventRepository.findStaleUserProductActivity (GROUP BY user_id, product_id
+        // HAVING MAX(occurredAt)) — không có index này thì query đó full-scan khi bảng phình to,
+        // scheduler CartRecoveryScheduler chạy mỗi ngày sẽ ngày càng chậm.
+        @Index(name = "idx_ce_user_product_time", columnList = "user_id, product_id, occurredAt")
 })
 @Getter
 @Setter

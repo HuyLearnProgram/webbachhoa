@@ -2,6 +2,7 @@ import React from 'react'
 import { useSelector } from 'react-redux';
 import { NavLink, useLocation, useSearchParams } from 'react-router-dom';
 import category_default from "@/assets/category_default.png";
+import { resolveImageUrl } from '@/utils/helper';
 const Sidebar = () => {
     const { categories } = useSelector((state) => {
         //console.log(state)
@@ -24,16 +25,7 @@ const Sidebar = () => {
                     }>
                     <div className="flex items-center gap-2">
                         <img
-                            // src={e.imageUrl || category_default}
-                            src={
-                                e?.imageUrl
-                                  ? e?.imageUrl.startsWith("https")
-                                    ? e.imageUrl
-                                    : `${import.meta.env.VITE_BACKEND_TARGET}/storage/category/${
-                                      e?.imageUrl
-                                      }`
-                                  : category_default
-                              }
+                            src={resolveImageUrl(e?.imageUrl, "category", category_default)}
                             alt={e.name}
                             className="w-5 h-5 object-cover"
                         />

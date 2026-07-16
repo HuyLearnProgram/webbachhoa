@@ -1,8 +1,10 @@
 import React, { memo, useRef, useEffect} from "react";
 import avatar from "@/assets/avatarDefault.png"
 import productDF from "@/assets/product_default.png"
-import { FaClock, FaRegStar, FaStar, FaX } from "react-icons/fa6";
-import { GrStatusCritical, GrStatusCriticalSmall } from "react-icons/gr";
+import icons from '@/utils/icons';
+import { resolveImageUrl } from '@/utils/helper';
+
+const { FaClock, FaStar, FaX, GrStatusCritical, GrStatusCriticalSmall } = icons;
 
 const FeedbackCard = ({ data, onClose }) => {
     const modalRef = useRef()
@@ -22,9 +24,7 @@ const FeedbackCard = ({ data, onClose }) => {
                     <FaX className="w-6 h-6" />
                 </button>
                 <div className="flex items-center justify-start mb-6 w-full">
-                    <img src={data?.userAvatarUrl ? data?.userAvatarUrl.includes("https") ? data?.userAvatarUrl :
-                         `http://localhost:8080/storage/avatar/${data?.userAvatarUrl}`: avatar
-                    } alt={data?.userName} className="w-16 h-16 rounded-full border-2 border-primary shadow-md object-cover" />
+                    <img src={resolveImageUrl(data?.userAvatarUrl, "avatar", avatar)} alt={data?.userName} className="w-16 h-16 rounded-full border-2 border-primary shadow-md object-cover" />
                     <div className="ml-4">
                     <h2 className="text-2xl font-bold text-primary">{data?.userName}</h2>
                     <p className="text-sm text-muted-foreground">{data?.product_name}</p>
@@ -43,17 +43,8 @@ const FeedbackCard = ({ data, onClose }) => {
                     ))}
                 </div>
                 <div className="flex flex-col md:flex-row items-start gap-6 mb-6">
-                    <img 
-                    // src={data?.imageUrl ? data?.imageUrl : productDF} 
-                    src={
-                        data?.imageUrl
-                          ? data.imageUrl.startsWith("https")
-                            ? data.imageUrl
-                            : `${import.meta.env.VITE_BACKEND_TARGET}/storage/product/${
-                              data.imageUrl
-                              }`
-                          : productDF
-                      }
+                    <img
+                    src={resolveImageUrl(data?.imageUrl, "product", productDF)}
                         alt={data?.product_name}
                         className="w-48  h-48 object-cover rounded-lg shadow-md" />
 

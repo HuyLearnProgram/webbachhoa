@@ -33,6 +33,7 @@ def make_art(**overrides) -> ModelArtifacts:
         neighbors={},
         rules={},
         popularity=[(1, 50.0), (2, 40.0), (3, 30.0), (4, 20.0), (5, 10.0)],
+        popularity_lookup={1: 50.0, 2: 40.0, 3: 30.0, 4: 20.0, 5: 10.0},
         popularity_by_category={},
         pid_to_category={1: 10, 2: 10, 3: 10, 4: 20, 5: 30},
         name_norm={

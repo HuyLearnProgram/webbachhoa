@@ -55,7 +55,7 @@ def build(top_k: int) -> tuple:
     docs = (
         ((df["product_name"].fillna("") + " ") * 3)
         + ((df["category"].fillna("") + " ") * 2)
-        + df["description"].map(_strip_html)
+        + df["description"].fillna("").map(_strip_html)
         + " "
         + _price_bucket_tokens(df)
     )

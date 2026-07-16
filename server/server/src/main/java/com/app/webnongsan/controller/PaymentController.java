@@ -7,6 +7,7 @@ import com.app.webnongsan.util.exception.ResourceInvalidException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +22,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PaymentController {
     private final PaymentService paymentService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
     @GetMapping("/vn-pay")
     public ResponseObject<PaymentDTO.VNPayResponse> pay(HttpServletRequest request) throws ResourceInvalidException {
         return new ResponseObject<>(HttpStatus.OK, "Success", paymentService.createVnPayPayment(request));
@@ -37,8 +41,8 @@ public class PaymentController {
 
         boolean paid = paymentService.confirmVnPayCallback(fields);
         String redirectUrl = paid
-                ? "http://localhost:5173/payment-success"
-                : "http://localhost:5173/payment-failure";
+                ? frontendUrl + "/payment-success"
+                : frontendUrl + "/payment-failure";
         return ResponseEntity.status(HttpStatus.FOUND).header("Location", redirectUrl).build();
     }
 }

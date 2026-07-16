@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button, InputForm } from "@/components";
 import { useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
-import avatar from "@/assets/avatarDefault.png";
+import avatarDefault from "@/assets/avatarDefault.png";
 import { apiUpdateCurrentUser, getUserById } from "@/apis";
 import { getCurrentUser } from "@/store/user/asyncActions";
 import { toast } from "react-toastify";
@@ -44,9 +44,10 @@ const Personal = () => {
 
     const handleUpdateInfor = async (data) => {
         const formData = new FormData();
-        // console.log(data)
-        // console.log(data.avatarUrl);
-        if (avatar?.length > 0) formData.append('avatarUrl', data.avatarUrl);
+        // Chỉ append khi user thực sự chọn file mới (data.avatarUrl là File) — trước đây check
+        // avatar?.length > 0 (state URL hiện tại, luôn truthy) nên submit form mà không đổi ảnh
+        // vẫn append nhầm giá trị cũ vào FormData thay vì bỏ qua field này.
+        if (data.avatarUrl instanceof File) formData.append('avatarUrl', data.avatarUrl);
         delete data.avatarUrl;
         for (let [key, value] of Object.entries(data)) {
             formData.append(key, value);
@@ -161,7 +162,7 @@ const Personal = () => {
                 <div className="flex flex-col gap-2">
                     <span className="font-medium">Ảnh đại diện:</span>
                     <label htmlFor="file" className="flex w-1/5">
-                        <img src={ avatar || `https://res-console.cloudinary.com/du0adzgjs/media_explorer_thumbnails/9604c80eaaa49fb7d5590b186a3c12f1/detailed`} 
+                        <img src={ avatar || avatarDefault}
                          alt="avatar" className="w-20 h-20 ml-8 object-cover rounded-full" />
                     </label>
                     <input type="file" accept="image/*" id="file" {...register('avatarUrl')} hidden
